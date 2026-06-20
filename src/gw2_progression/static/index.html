@@ -169,6 +169,7 @@
   <button data-tab="progression">Progression</button>
   <button data-tab="pvp">PvP</button>
   <button data-tab="unlocks">Unlocks</button>
+  <button data-tab="builds">Builds</button>
   <button data-tab="wvw">WvW</button>
 </nav>
 
@@ -243,6 +244,8 @@
       </table>
       <div class="section-title">Bank Slots Used</div>
       <div id="bank-summary"></div>
+      <div class="section-title">Shared Inventory</div>
+      <div id="shared-inv-list"></div>
     </div>
 
     <!-- Progression -->
@@ -271,6 +274,8 @@
         <thead><tr><th>Map</th><th>Result</th><th>Score</th><th>Profession</th></tr></thead>
         <tbody></tbody>
       </table>
+      <div class="section-title">Ladder Standings</div>
+      <div id="pvp-standings-list"></div>
     </div>
 
     <!-- Unlocks -->
@@ -289,7 +294,17 @@
     <!-- WvW -->
     <div class="tab-panel" id="tab-wvw">
       <div class="section-title">World vs World</div>
+      <div class="tab-loading"><span class="spinner"></span> Loading…</div>
+      <div class="tab-error" id="err-wvw"></div>
       <div class="stat-cards" id="wvw-cards"></div>
+    </div>
+
+    <!-- Builds -->
+    <div class="tab-panel" id="tab-builds">
+      <div class="section-title">Equipment Templates</div>
+      <div class="tab-loading"><span class="spinner"></span> Loading…</div>
+      <div class="tab-error" id="err-builds"></div>
+      <div id="builds-content"></div>
     </div>
 
   </div>
@@ -428,10 +443,19 @@
   document.getElementById('key-input').addEventListener('keydown', e => { if (e.key === 'Enter') runAnalyze(); });
 
   let _accountData = null;
+  let _abortController = null;
 
   async function runAnalyze() {
     const key = document.getElementById('key-input').value.trim();
-    if (!key) return;
+    if (!key) {
+      const msg = document.getElementById('status-msg');
+      msg.className = 'error';
+      msg.textContent = 'Please paste a GW2 API key first.';
+      return;
+    }
+    if (_abortController) _abortController.abort();
+    _abortController = new AbortController();
+    const signal = _abortController.signal;
     const btn = document.getElementById('analyze-btn');
     const msg = document.getElementById('status-msg');
     btn.disabled = true;
@@ -449,6 +473,7 @@
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ api_key: key }),
+        signal,
       });
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
@@ -491,6 +516,7 @@
       msg.textContent = `Loaded data for ${data.account_name}`;
       renderAll(data);
     } catch (e) {
+      if (e.name === 'AbortError') return;
       msg.className = 'error';
       msg.textContent = `Error: ${e.message}`;
     } finally {
@@ -510,16 +536,20 @@
     renderPvp(d);
     renderUnlocks(d);
     renderWvw(d);
+    renderBuilds(d);
     setupWardrobe(d.unlocked_skins || []);
   }
 
   // ── Overview ──
   function renderOverview(d) {
+    const created = d.account_created ? new Date(d.account_created).toLocaleDateString() : '—';
     const cards = [
       { label: 'Account',       value: d.account_name || '—',              sub: `World ${d.account_world}` },
+      { label: 'Created',       value: created,                            sub: 'account created' },
       { label: 'Playtime',      value: `${d.account_age_hours}h`,          sub: 'total hours' },
       { label: 'Fractal Level', value: d.fractal_level ?? '—',             sub: 'highest tier' },
       { label: 'Daily AP',      value: (d.daily_ap ?? 0).toLocaleString(), sub: 'achievement points' },
+      { label: 'Monthly AP',    value: (d.monthly_ap ?? 0).toLocaleString(),sub: 'monthly achievements' },
       { label: 'WvW Rank',      value: d.wvw_rank ?? '—',                  sub: 'world vs world' },
       { label: 'Characters',    value: (d.characters || []).length,         sub: 'on account' },
       { label: 'Skins',         value: d.unlocked_skins_count ?? '—',      sub: 'unlocked' },
@@ -570,6 +600,7 @@
       pvp_stats:         'err-pvp',
       pvp_games:         'err-pvp',
       pvp_standings:     'err-pvp',
+      builds:            'err-builds',
       skins:             'err-skins',
       dyes:              'err-unlocks',
       minis:             'err-unlocks',
@@ -724,7 +755,12 @@
       }
     });
 
-    document.getElementById('wardrobe-search').addEventListener('input', resetWardrobePagination);
+    let _wardrobeSearchTimer = null;
+
+    document.getElementById('wardrobe-search').addEventListener('input', () => {
+      clearTimeout(_wardrobeSearchTimer);
+      _wardrobeSearchTimer = setTimeout(resetWardrobePagination, 200);
+    });
     document.getElementById('wardrobe-type').addEventListener('change', () => {
       populateSubtypes();
       resetWardrobePagination();
@@ -794,6 +830,10 @@
       `Showing ${show.toLocaleString()} of ${total.toLocaleString()} skins`;
 
     const grid = document.getElementById('skin-grid');
+    if (!total) {
+      grid.innerHTML = '<div style="grid-column:1/-1;padding:30px 0;text-align:center;color:var(--text-dim)">No skins match your search criteria.</div>';
+      return;
+    }
     grid.innerHTML = _wardrobeFiltered.slice(0, show).map(id => {
       const s = _skinCache[id] || {};
       return `<div class="skin-card">
@@ -849,7 +889,32 @@
         <div class="value">${used} / ${bank.length}</div>
         <div class="sub">slots occupied</div>
       </div>`;
-  }
+
+    const shared = d.shared_inventory;
+    const sharedList = document.getElementById('shared-inv-list');
+    if (!shared) {
+      sharedList.innerHTML = '<div class="dim">No shared inventory data</div>';
+      return;
+    }
+    const slots = Array.isArray(shared) ? shared : [shared];
+    const items = slots.filter(s => s !== null);
+    if (!items.length) {
+      sharedList.innerHTML = '<div class="dim">All shared inventory slots are empty</div>';
+      return;
+    }
+    sharedList.innerHTML = `<div class="stat-card" style="display:inline-block;min-width:160px;margin-bottom:12px">
+      <div class="label">Slots Used</div>
+      <div class="value">${items.length} / ${slots.length}</div>
+      <div class="sub">shared inventory slots</div>
+    </div>
+    <div style="display:flex;flex-wrap:wrap;gap:8px">${items.map(s => {
+      const icon = itemIcon(s.id);
+      return `<div style="background:var(--bg2);border:1px solid var(--border);border-radius:4px;padding:8px;text-align:center;width:80px">
+        ${icon ? `<img src="${icon}" width="40" height="40" style="border-radius:3px">` : '<div style="width:40px;height:40px;background:#333;border-radius:3px;margin:0 auto"></div>'}
+        <div style="font-size:11px;color:var(--text-dim);margin-top:4px;word-break:break-all">${itemName(s.id)}</div>
+        ${s.count > 1 ? `<div style="font-size:11px;color:var(--gold)">×${s.count}</div>` : ''}
+      </div>`;
+    }).join('')}</div>`;
 
   // ── Progression ──
   function renderProgression(d) {
@@ -901,6 +966,18 @@
           <td>${g.scores?.red ?? g.scores?.blue ?? '—'}</td>
           <td>${g.profession ?? '—'}</td>
         </tr>`).join('') || '<tr><td colspan="4" class="dim">No recent games</td></tr>';
+
+    const standings = d.pvp_standings || [];
+    document.getElementById('pvp-standings-list').innerHTML = standings.length
+      ? `<table class="data-table"><thead><tr><th>#</th><th>Team/Division</th><th>Rating</th><th>Wins</th><th>Losses</th></tr></thead><tbody>${standings.map((s, i) => `
+        <tr>
+          <td>${i + 1}</td>
+          <td>${s.division_name ?? s.ladder_name ?? '—'}</td>
+          <td class="gold-val">${s.rating?.toLocaleString() ?? '—'}</td>
+          <td>${s.wins ?? '—'}</td>
+          <td>${s.losses ?? '—'}</td>
+        </tr>`).join('')}</tbody></table>`
+      : '<div class="dim">No ladder standings data</div>';
   }
 
   // ── Unlocks ──
@@ -927,6 +1004,45 @@
       { label: 'WvW Rank', value: d.wvw_rank ?? '—',           sub: 'account rank' },
       { label: 'WvW Team', value: d.wvw?.wvw_team ?? '—',      sub: 'current team' },
     ].map(c => `<div class="stat-card"><div class="label">${c.label}</div><div class="value">${c.value}</div><div class="sub">${c.sub}</div></div>`).join('');
+  }
+
+  function renderBuilds(d) {
+    const raw = d.builds || [];
+    const storage = Array.isArray(raw) ? raw[0] : raw;
+    const eqTabs = storage?.equipment_tabs || [];
+    const buildTabs = storage?.build_tabs || [];
+    let html = '';
+
+    if (eqTabs.length) {
+      html += `<div class="section-title">Equipment Templates (${eqTabs.length})</div>`;
+      html += eqTabs.map(t => {
+        const items = (t.equipment || []).map(eq => {
+          const icon = itemIcon(eq.id);
+          return `<span style="display:inline-block;margin:4px;text-align:center">
+            ${icon ? `<img src="${icon}" width="32" height="32" style="border-radius:3px;display:block">` : '<div style="width:32px;height:32px;background:#333;border-radius:3px"></div>'}
+            <span style="font-size:10px;color:var(--text-dim)">${itemName(eq.id)?.slice(0,12) || '#' + eq.id}</span>
+          </span>`;
+        }).join('');
+        return `<div style="background:var(--bg2);border:1px solid var(--border);border-radius:4px;padding:12px;margin-bottom:8px">
+          <div style="font-weight:600;color:var(--gold);margin-bottom:8px">${t.name || `Tab ${t.tab}`}</div>
+          <div>${items || '<span class="dim">Empty</span>'}</div>
+        </div>`;
+      }).join('');
+    }
+
+    if (buildTabs.length) {
+      html += `<div class="section-title">Build Templates (${buildTabs.length})</div>`;
+      html += buildTabs.map(t => `
+        <div style="background:var(--bg2);border:1px solid var(--border);border-radius:4px;padding:12px;margin-bottom:8px">
+          <div style="font-weight:600;color:var(--gold)">${t.name || `Tab ${t.tab}`}</div>
+          <div class="dim" style="font-size:12px;margin-top:4px;word-break:break-all">Build ID: ${t.build?.slice(0,80) || '—'}</div>
+        </div>`).join('');
+    }
+
+    if (!html) {
+      html = '<div class="dim">No saved builds or equipment templates found.</div>';
+    }
+    document.getElementById('builds-content').innerHTML = html;
   }
 </script>
 </body>

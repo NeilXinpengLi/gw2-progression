@@ -134,12 +134,7 @@ async def fetch_all(api_key: str) -> AccountContents:
                 pending.append(section("mastery_points", fetch_mastery_points(api_key), "mastery_points"))
 
             if "builds" in granted:
-
-                async def _builds():
-                    data = await fetch_builds(api_key)
-                    return data if isinstance(data, list) else [data]
-
-                pending.append(section("builds", _builds(), "builds"))
+                pending.append(section("builds", fetch_builds(api_key), "builds"))
 
             if "guilds" in granted:
                 pending.append(section("guilds", fetch_guilds(api_key, guild_ids), "guilds"))
