@@ -1,4 +1,5 @@
 import re
+import uuid
 
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, field_validator
@@ -6,7 +7,12 @@ from pydantic import BaseModel, field_validator
 from gw2_progression.gw2_client import Gw2ApiError
 from gw2_progression.services.crafting_plan_service import create_plan
 from gw2_progression.services.recipe_service import calculate, calculate_cheapest
-from gw2_progression.services.static_data_service import find_recipes_by_output, refresh_items, refresh_recipes
+from gw2_progression.services.static_data_service import (
+    find_recipes_by_output,
+    get_ingest_progress,
+    refresh_items,
+    refresh_recipes,
+)
 
 router = APIRouter(prefix="/crafting", tags=["crafting"])
 
@@ -45,15 +51,35 @@ class CraftCalcRequest(BaseModel):
 
 
 @router.post("/refresh/items")
-async def post_refresh_items(max_pages: int = 0):
+async def post_refresh_items(max_pages: int = 0, background: bool = False):
+    if background:
+        task_id = uuid.uuid4().hex[:12]
+        import asyncio
+
+        asyncio.create_task(refresh_items(max_pages=max_pages, task_id=task_id))
+        return {"status": "started", "task_id": task_id}
     count = await refresh_items(max_pages=max_pages)
     return {"status": "ok", "items_refreshed": count}
 
 
 @router.post("/refresh/recipes")
-async def post_refresh_recipes(max_pages: int = 0):
+async def post_refresh_recipes(max_pages: int = 0, background: bool = False):
+    if background:
+        task_id = uuid.uuid4().hex[:12]
+        import asyncio
+
+        asyncio.create_task(refresh_recipes(max_pages=max_pages, task_id=task_id))
+        return {"status": "started", "task_id": task_id}
     count = await refresh_recipes(max_pages=max_pages)
     return {"status": "ok", "recipes_refreshed": count}
+
+
+@router.get("/refresh/progress/{task_id}")
+async def get_refresh_progress(task_id: str):
+    progress = get_ingest_progress(task_id)
+    if not progress:
+        return {"status": "not_found"}
+    return progress
 
 
 @router.get("/recipes/by-output/{item_id}")

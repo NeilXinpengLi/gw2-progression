@@ -373,6 +373,43 @@ async def search_latest_holdings(
     ]
 
 
+SNAPSHOT_RETENTION = 20
+HISTORY_RETENTION = 90  # days
+PRICE_RETENTION = 7  # days
+
+
+async def cleanup_old_data(account_name: str | None = None) -> dict:
+    """Remove old snapshots, history, and price data beyond retention limits."""
+    db = await get_db()
+    result = {"snapshots_deleted": 0, "history_deleted": 0, "prices_deleted": 0}
+    try:
+        if account_name:
+            # Keep only the most recent N snapshots for this account
+            cursor = await db.execute(
+                """DELETE FROM account_snapshots WHERE id NOT IN
+                   (SELECT id FROM account_snapshots WHERE account_name = ? ORDER BY id DESC LIMIT ?)
+                   AND account_name = ?""",
+                (account_name, SNAPSHOT_RETENTION, account_name),
+            )
+            result["snapshots_deleted"] = cursor.rowcount
+
+            # Clean orphaned holdings
+            await db.execute("DELETE FROM item_holdings WHERE snapshot_id NOT IN (SELECT id FROM account_snapshots)")
+            await db.execute("DELETE FROM valuation_warnings WHERE snapshot_id NOT IN (SELECT id FROM account_snapshots)")
+
+        # Clean old price data
+        cursor = await db.execute(
+            "DELETE FROM price_snapshots WHERE fetched_at < datetime('now', ?)",
+            (f"-{PRICE_RETENTION} days",),
+        )
+        result["prices_deleted"] = cursor.rowcount
+
+        await db.commit()
+    finally:
+        await db.close()
+    return result
+
+
 async def load_value_history(db: aiosqlite.Connection, account_name: str, limit: int = 30) -> list[ValueHistoryEntry]:
     cursor = await db.execute(
         """SELECT snapshot_time, total_value_buy, total_value_sell, wallet_value,

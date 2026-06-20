@@ -3,7 +3,7 @@ import re
 from fastapi import APIRouter, HTTPException, Path, Query
 from pydantic import BaseModel, field_validator
 
-from gw2_progression.database import get_db, search_latest_holdings
+from gw2_progression.database import cleanup_old_data, get_db, search_latest_holdings
 from gw2_progression.gw2_client import Gw2ApiError
 from gw2_progression.models import ItemHolding, ItemLocationResponse, ItemSearchResult
 from gw2_progression.services.delta_service import compare_snapshots, get_latest_snapshots
@@ -183,6 +183,12 @@ async def get_top_gainers(
             await db.close()
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/cleanup")
+async def post_cleanup(account_name: str | None = None):
+    result = await cleanup_old_data(account_name)
+    return result
 
 
 @router.get("/listings/{item_id}")

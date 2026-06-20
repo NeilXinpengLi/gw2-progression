@@ -2,11 +2,25 @@
 
 import json
 import logging
+import time
 from datetime import datetime, timezone
 
 import httpx
 
 from ..database import get_db
+
+_ingest_progress: dict[str, dict] = {}
+
+
+def get_ingest_progress(task_id: str) -> dict | None:
+    return _ingest_progress.get(task_id)
+
+
+def _update_progress(task_id: str, **kwargs):
+    if task_id not in _ingest_progress:
+        _ingest_progress[task_id] = {"status": "running", "progress": 0, "total": 0, "started_at": time.time()}
+    _ingest_progress[task_id].update(kwargs)
+
 
 logger = logging.getLogger("gw2.static")
 
@@ -23,9 +37,12 @@ async def _fetch_json(path: str) -> list | dict | None:
     return resp.json()
 
 
-async def refresh_items(max_pages: int = 0):
+async def refresh_items(max_pages: int = 0, task_id: str | None = None):
     """Fetch all items from /v2/items (paginated) and store in static_items table."""
-    logger.info("Starting item refresh...")
+    tid = task_id or f"items_{int(time.time())}"
+    _update_progress(tid, status="running", progress=0, total=0, phase="fetching")
+
+    logger.info("Starting item refresh (task=%s, max_pages=%s)...", tid, max_pages or "all")
     db = await get_db()
     try:
         count = 0
@@ -39,9 +56,6 @@ async def refresh_items(max_pages: int = 0):
                 item_id = item.get("id")
                 if not item_id:
                     continue
-                flags = item.get("flags", [])
-                game_types = item.get("game_types", [])
-                restrictions = item.get("restrictions", [])
                 await db.execute(
                     """INSERT OR REPLACE INTO static_items
                     (id, name, icon, description, type, rarity, level, vendor_value, flags, game_types, restrictions, updated_at)
@@ -55,31 +69,39 @@ async def refresh_items(max_pages: int = 0):
                         item.get("rarity", ""),
                         item.get("level", 0),
                         item.get("vendor_value", 0),
-                        json.dumps(flags),
-                        json.dumps(game_types),
-                        json.dumps(restrictions),
+                        json.dumps(item.get("flags", [])),
+                        json.dumps(item.get("game_types", [])),
+                        json.dumps(item.get("restrictions", [])),
                         now,
                     ),
                 )
-                count += 1
+                count += len(data)
             page += 1
+            _update_progress(tid, progress=page, status="running", phase=f"page {page}")
             if max_pages and page >= max_pages:
                 break
         await db.commit()
-        logger.info("Item refresh complete: %d items stored", count)
+        _update_progress(tid, status="completed", progress=page, total=count, phase="done")
+        logger.info("Item refresh complete: %d items stored (task=%s)", count, tid)
+    except Exception as e:
+        _update_progress(tid, status="failed", error=str(e))
+        logger.error("Item refresh failed (task=%s): %s", tid, e)
     finally:
         await db.close()
     return count
 
 
-async def refresh_recipes(max_pages: int = 0):
+async def refresh_recipes(max_pages: int = 0, task_id: str | None = None):
     """Fetch all recipes from /v2/recipes and store in static_recipes + recipe_ingredients."""
-    logger.info("Starting recipe refresh...")
+    tid = task_id or f"recipes_{int(time.time())}"
+    _update_progress(tid, status="running", progress=0, total=0, phase="clearing")
+
+    logger.info("Starting recipe refresh (task=%s, max_pages=%s)...", tid, max_pages or "all")
     db = await get_db()
     try:
-        # Clear existing data
         await db.execute("DELETE FROM recipe_ingredients")
         await db.execute("DELETE FROM static_recipes")
+        await db.commit()
 
         count = 0
         page = 0
@@ -115,10 +137,15 @@ async def refresh_recipes(max_pages: int = 0):
                     )
                 count += 1
             page += 1
+            _update_progress(tid, progress=page, status="running", phase=f"page {page}")
             if max_pages and page >= max_pages:
                 break
         await db.commit()
-        logger.info("Recipe refresh complete: %d recipes stored", count)
+        _update_progress(tid, status="completed", progress=page, total=count, phase="done")
+        logger.info("Recipe refresh complete: %d recipes stored (task=%s)", count, tid)
+    except Exception as e:
+        _update_progress(tid, status="failed", error=str(e))
+        logger.error("Recipe refresh failed (task=%s): %s", tid, e)
     finally:
         await db.close()
     return count
