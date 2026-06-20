@@ -9,10 +9,16 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
-from gw2_progression.gw2_client import Gw2ApiError, _close_client
+from gw2_progression.database import init_db
+from gw2_progression.gw2_client import Gw2ApiError
+from gw2_progression.gw2_client import _close_client as close_gw2_client
+from gw2_progression.services.price_service import close_client as close_price_client
+from gw2_progression.services.price_service import warmup_price_cache
 
 from .routes.analyze import router as analyze_router
+from .routes.crafting import router as crafting_router
 from .routes.resolve import router as resolve_router
+from .routes.valuation import router as valuation_router
 
 STATIC_DIR = Path(__file__).parent.parent / "static"
 
@@ -26,9 +32,12 @@ logger = logging.getLogger("gw2")
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     logger.info("Starting GW2 Progression")
+    await init_db()
+    await warmup_price_cache()
     yield
     logger.info("Shutting down GW2 Progression")
-    await _close_client()
+    await close_gw2_client()
+    await close_price_client()
 
 
 app = FastAPI(title="GW2 Progression", version="0.1.0", lifespan=lifespan)
@@ -64,6 +73,8 @@ async def logging_middleware(request: Request, call_next):
 
 app.include_router(analyze_router)
 app.include_router(resolve_router)
+app.include_router(valuation_router)
+app.include_router(crafting_router)
 app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 
 

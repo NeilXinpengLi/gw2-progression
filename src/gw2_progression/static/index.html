@@ -4,6 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>GW Progression</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
   <link rel="stylesheet" href="/static/style.css" />
 </head>
 <body>
@@ -15,6 +16,7 @@
 
 <nav id="nav-tabs" class="hidden" role="tablist" aria-label="Account sections">
   <button class="active" data-tab="overview" role="tab" aria-selected="true">Overview</button>
+  <button data-tab="value" role="tab" aria-selected="false">Value</button>
   <button data-tab="characters" role="tab" aria-selected="false">Characters</button>
   <button data-tab="wardrobe" role="tab" aria-selected="false">Wardrobe</button>
   <button data-tab="wallet" role="tab" aria-selected="false">Wallet</button>
@@ -24,6 +26,7 @@
   <button data-tab="unlocks" role="tab" aria-selected="false">Unlocks</button>
   <button data-tab="builds" role="tab" aria-selected="false">Builds</button>
   <button data-tab="wvw" role="tab" aria-selected="false">WvW</button>
+  <button data-tab="crafting" role="tab" aria-selected="false">Crafting</button>
 </nav>
 
 <main>
@@ -38,6 +41,7 @@
 
   <div id="results" class="hidden">
 
+    <!-- ── Overview ── -->
     <div class="tab-panel active" id="tab-overview" role="tabpanel">
       <div class="tab-loading"><span class="spinner"></span> Loading…</div>
       <div class="stat-cards" id="overview-cards"></div>
@@ -46,6 +50,119 @@
       <div class="tab-error" id="err-overview"></div>
     </div>
 
+    <!-- ── Value Dashboard ── -->
+    <div class="tab-panel" id="tab-value" role="tabpanel">
+      <div class="tab-loading"><span class="spinner"></span> Loading value data…</div>
+      <div class="tab-error" id="err-value"></div>
+
+      <div class="section-title">Account Value</div>
+      <div class="value-summary-cards" id="value-summary-cards"></div>
+
+      <div class="value-metrics-row">
+        <div class="value-card value-card-instant">
+          <div class="vc-label">Instant Sell Value</div>
+          <div class="vc-value" id="vc-instant">—</div>
+          <div class="vc-sub">at highest buy orders (conservative)</div>
+        </div>
+        <div class="value-card value-card-listing">
+          <div class="vc-label">Listing Value</div>
+          <div class="vc-value" id="vc-listing">—</div>
+          <div class="vc-sub">at lowest sell orders (optimistic)</div>
+        </div>
+        <div class="value-card value-card-net">
+          <div class="vc-label">Net Sell Value</div>
+          <div class="vc-value" id="vc-net">—</div>
+          <div class="vc-sub">after 15% TP fees</div>
+        </div>
+      </div>
+
+      <div class="value-charts-row">
+        <div class="chart-container">
+          <div class="section-title" style="margin-top:0">Asset Composition</div>
+          <canvas id="value-pie-chart"></canvas>
+        </div>
+        <div class="chart-container">
+          <div class="section-title" style="margin-top:0">Value by Location</div>
+          <canvas id="value-bar-chart"></canvas>
+        </div>
+      </div>
+
+      <div class="value-stats-row">
+        <div class="value-stat-box">
+          <div class="vsl-label">Priced Items</div>
+          <div class="vsl-value" id="vs-priced">—</div>
+        </div>
+        <div class="value-stat-box">
+          <div class="vsl-label">Unpriced Items</div>
+          <div class="vsl-value" id="vs-unpriced">—</div>
+        </div>
+        <div class="value-stat-box">
+          <div class="vsl-label">Account Bound</div>
+          <div class="vsl-value" id="vs-bound">—</div>
+        </div>
+        <div class="value-stat-box">
+          <div class="vsl-label">Last Snapshot</div>
+          <div class="vsl-value vsl-small" id="vs-time">—</div>
+        </div>
+      </div>
+
+      <div class="section-title">Top Valuable Items</div>
+      <div id="value-top-items-container"><div class="tab-loading"><span class="spinner"></span> Computing top items…</div></div>
+      <table class="data-table" id="value-top-table">
+        <thead><tr><th>#</th><th>Item</th><th>Location</th><th>Qty</th><th>Buy Value</th><th>Sell Value</th><th>Status</th></tr></thead>
+        <tbody></tbody>
+      </table>
+
+      <div class="section-title">
+        <span style="cursor:pointer" onclick="toggleMaterials()">▶ Materials by Category</span>
+      </div>
+      <div id="materials-section" style="display:none">
+        <div id="materials-grid" class="dim" style="padding:8px 0">Loading…</div>
+      </div>
+
+      <div class="section-title">
+        <span style="cursor:pointer" onclick="toggleHoldings()">▼ All Holdings (<span id="holdings-count">0</span> items)</span>
+      </div>
+      <div id="holdings-section" style="display:none">
+        <div class="holdings-controls">
+          <input id="holdings-search" type="text" placeholder="Filter by item ID…" aria-label="Search items" oninput="filterHoldings()" />
+          <select id="holdings-location" aria-label="Location filter" onchange="filterHoldings()">
+            <option value="">All locations</option>
+            <option value="material_storage">Material Storage</option>
+            <option value="bank">Bank</option>
+            <option value="character">Character</option>
+            <option value="shared_inventory">Shared Inventory</option>
+            <option value="tradingpost">Trading Post</option>
+            <option value="wallet">Wallet</option>
+          </select>
+          <select id="holdings-status" aria-label="Status filter" onchange="filterHoldings()">
+            <option value="">All statuses</option>
+            <option value="priced">Priced</option>
+            <option value="unpriced">Unpriced</option>
+            <option value="account_bound">Account Bound</option>
+          </select>
+        </div>
+        <div id="holdings-count-display" class="dim" style="font-size:12px;margin-bottom:8px"></div>
+        <div id="holdings-table-wrapper">
+          <table class="data-table" id="holdings-table">
+            <thead><tr><th>Item</th><th>Count</th><th>Location</th><th>Buy Value</th><th>Sell Value</th><th>Status</th></tr></thead>
+            <tbody></tbody>
+          </table>
+          <div id="holdings-pagination" class="holdings-pagination"></div>
+        </div>
+      </div>
+
+      <div class="section-title">Value History</div>
+      <div class="chart-container chart-wide" id="history-chart-container">
+        <canvas id="value-line-chart"></canvas>
+      </div>
+      <div id="value-history-empty" class="dim" style="padding:20px 0;text-align:center">No history data yet. Run valuation again to build history.</div>
+
+      <div class="section-title">Valuation Warnings</div>
+      <div id="value-warnings"></div>
+    </div>
+
+    <!-- ── Characters ── -->
     <div class="tab-panel" id="tab-characters" role="tabpanel">
       <div class="section-title">Characters</div>
       <div class="tab-loading"><span class="spinner"></span> Loading…</div>
@@ -54,6 +171,7 @@
       <div id="char-detail"></div>
     </div>
 
+    <!-- ── Wardrobe ── -->
     <div class="tab-panel" id="tab-wardrobe" role="tabpanel">
       <div class="section-title">Wardrobe</div>
       <div class="tab-loading"><span class="spinner"></span> Loading…</div>
@@ -75,6 +193,7 @@
       <div class="skin-grid" id="skin-grid"></div>
     </div>
 
+    <!-- ── Wallet ── -->
     <div class="tab-panel" id="tab-wallet" role="tabpanel">
       <div class="section-title">Wallet</div>
       <div class="tab-loading"><span class="spinner"></span> Loading…</div>
@@ -82,6 +201,7 @@
       <div id="wallet-list"></div>
     </div>
 
+    <!-- ── Inventory ── -->
     <div class="tab-panel" id="tab-inventory" role="tabpanel">
       <div class="section-title">Materials (top 40 by quantity)</div>
       <div class="tab-loading"><span class="spinner"></span> Loading…</div>
@@ -96,6 +216,7 @@
       <div id="shared-inv-list"></div>
     </div>
 
+    <!-- ── Progression ── -->
     <div class="tab-panel" id="tab-progression" role="tabpanel">
       <div class="section-title">Masteries</div>
       <div class="tab-loading"><span class="spinner"></span> Loading…</div>
@@ -110,6 +231,7 @@
       <div id="achiev-summary"></div>
     </div>
 
+    <!-- ── PvP ── -->
     <div class="tab-panel" id="tab-pvp" role="tabpanel">
       <div class="section-title">PvP Stats</div>
       <div class="tab-loading"><span class="spinner"></span> Loading…</div>
@@ -124,6 +246,7 @@
       <div id="pvp-standings-list"></div>
     </div>
 
+    <!-- ── Unlocks ── -->
     <div class="tab-panel" id="tab-unlocks" role="tabpanel">
       <div class="section-title">Unlocks</div>
       <div class="tab-loading"><span class="spinner"></span> Loading…</div>
@@ -136,6 +259,7 @@
       </table>
     </div>
 
+    <!-- ── WvW ── -->
     <div class="tab-panel" id="tab-wvw" role="tabpanel">
       <div class="section-title">World vs World</div>
       <div class="tab-loading"><span class="spinner"></span> Loading…</div>
@@ -143,11 +267,70 @@
       <div class="stat-cards" id="wvw-cards"></div>
     </div>
 
+    <!-- ── Builds ── -->
     <div class="tab-panel" id="tab-builds" role="tabpanel">
       <div class="section-title">Equipment Templates</div>
       <div class="tab-loading"><span class="spinner"></span> Loading…</div>
       <div class="tab-error" id="err-builds"></div>
       <div id="builds-content"></div>
+    </div>
+
+    <!-- ── Crafting ── -->
+    <div class="tab-panel" id="tab-crafting" role="tabpanel">
+      <div class="section-title">Crafting Calculator</div>
+      <div id="crafting-controls">
+        <div class="craft-row">
+          <div style="position:relative;flex:1;min-width:200px">
+            <input id="craft-search" type="text" placeholder="Search item by name…" aria-label="Search item" autocomplete="off" />
+            <div id="craft-search-results" class="craft-search-dropdown hidden"></div>
+          </div>
+          <span class="dim" style="font-size:12px">or</span>
+          <input id="craft-target" type="number" placeholder="Item ID" aria-label="Target item ID" min="1" style="width:120px" />
+          <input id="craft-qty" type="number" value="1" min="1" aria-label="Quantity" style="width:70px" />
+          <label class="craft-check-label"><input id="craft-use-owned" type="checkbox" checked /> Owned</label>
+          <button id="craft-btn" aria-label="Calculate">Calculate</button>
+        </div>
+        <div id="craft-status" class="dim" style="margin-top:8px;font-size:13px">Search an item by name or enter an item ID.</div>
+      </div>
+
+      <div id="craft-results" class="hidden">
+        <div id="craft-target-name" class="gold-val" style="font-size:18px;font-weight:600;margin-bottom:12px"></div>
+
+        <div class="value-metrics-row">
+          <div class="value-card value-card-instant">
+            <div class="vc-label">Total Buy Cost</div>
+            <div class="vc-value" id="craft-buy-cost">—</div>
+            <div class="vc-sub">buying all missing materials</div>
+          </div>
+          <div class="value-card value-card-listing">
+            <div class="vc-label">Total Craft Cost</div>
+            <div class="vc-value" id="craft-craft-cost">—</div>
+            <div class="vc-sub">crafting recursively</div>
+          </div>
+          <div class="value-card">
+            <div class="vc-label">Owned Used</div>
+            <div class="vc-value" id="craft-owned-used" style="color:#6bc46b">—</div>
+            <div class="vc-sub">materials from account</div>
+          </div>
+        </div>
+
+        <div class="craft-columns">
+          <div class="craft-col">
+            <div class="section-title" style="margin-top:0">Shopping List</div>
+            <div id="craft-shopping"><div class="dim">No missing materials.</div></div>
+          </div>
+          <div class="craft-col">
+            <div class="section-title" style="margin-top:0">Crafting Steps</div>
+            <div id="craft-steps"><div class="dim">No steps required.</div></div>
+          </div>
+        </div>
+
+        <div class="section-title">Missing Materials Detail</div>
+        <div id="craft-missing-detail"><div class="dim">All materials are owned or the item has no recipe.</div></div>
+
+        <div class="section-title">Alternative Recipes</div>
+        <div id="craft-alternatives"><div class="dim">No alternative recipes found.</div></div>
+      </div>
     </div>
 
   </div>

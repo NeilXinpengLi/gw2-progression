@@ -110,4 +110,3 @@ def test_static_js(client):
 def test_analyze_missing_body_returns_422(client):
     resp = client.post("/analyze", json={})
     assert resp.status_code == 422
-

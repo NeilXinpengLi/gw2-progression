@@ -1,0 +1,335 @@
+import logging
+from datetime import datetime, timezone
+from pathlib import Path
+
+import aiosqlite
+
+from .models import ItemHolding, ValueHistoryEntry, ValueSummary
+
+logger = logging.getLogger("gw2.db")
+
+DB_DIR = Path(__file__).resolve().parent.parent.parent / "data"
+DB_PATH = DB_DIR / "gw2_progression.db"
+
+
+def _ensure_db_dir():
+    DB_DIR.mkdir(parents=True, exist_ok=True)
+
+
+CREATE_TABLES = """
+CREATE TABLE IF NOT EXISTS price_snapshots (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    item_id INTEGER NOT NULL,
+    buy_unit_price INTEGER NOT NULL DEFAULT 0,
+    buy_quantity INTEGER NOT NULL DEFAULT 0,
+    sell_unit_price INTEGER NOT NULL DEFAULT 0,
+    sell_quantity INTEGER NOT NULL DEFAULT 0,
+    fetched_at TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS account_snapshots (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    account_name TEXT NOT NULL,
+    api_key_hash TEXT,
+    total_value_buy INTEGER NOT NULL DEFAULT 0,
+    total_value_sell INTEGER NOT NULL DEFAULT 0,
+    net_sell_value INTEGER NOT NULL DEFAULT 0,
+    wallet_value INTEGER NOT NULL DEFAULT 0,
+    material_value_buy INTEGER NOT NULL DEFAULT 0,
+    material_value_sell INTEGER NOT NULL DEFAULT 0,
+    bank_value_buy INTEGER NOT NULL DEFAULT 0,
+    bank_value_sell INTEGER NOT NULL DEFAULT 0,
+    character_inventory_value_buy INTEGER NOT NULL DEFAULT 0,
+    character_inventory_value_sell INTEGER NOT NULL DEFAULT 0,
+    shared_inventory_value_buy INTEGER NOT NULL DEFAULT 0,
+    shared_inventory_value_sell INTEGER NOT NULL DEFAULT 0,
+    tradingpost_value INTEGER NOT NULL DEFAULT 0,
+    priced_item_count INTEGER NOT NULL DEFAULT 0,
+    unpriced_item_count INTEGER NOT NULL DEFAULT 0,
+    account_bound_count INTEGER NOT NULL DEFAULT 0,
+    created_at TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS item_holdings (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    snapshot_id INTEGER NOT NULL,
+    item_id INTEGER NOT NULL,
+    count INTEGER NOT NULL DEFAULT 0,
+    location_type TEXT NOT NULL,
+    location_ref TEXT,
+    binding_status TEXT,
+    tradable INTEGER NOT NULL DEFAULT 1,
+    vendor_value INTEGER NOT NULL DEFAULT 0,
+    price_buy INTEGER NOT NULL DEFAULT 0,
+    price_sell INTEGER NOT NULL DEFAULT 0,
+    value_buy INTEGER NOT NULL DEFAULT 0,
+    value_sell INTEGER NOT NULL DEFAULT 0,
+    valuation_status TEXT NOT NULL DEFAULT 'pending',
+    FOREIGN KEY (snapshot_id) REFERENCES account_snapshots(id)
+);
+
+CREATE TABLE IF NOT EXISTS account_value_history (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    account_name TEXT NOT NULL,
+    snapshot_time TEXT NOT NULL,
+    total_value_buy INTEGER NOT NULL DEFAULT 0,
+    total_value_sell INTEGER NOT NULL DEFAULT 0,
+    wallet_value INTEGER NOT NULL DEFAULT 0,
+    material_value INTEGER NOT NULL DEFAULT 0,
+    bank_value INTEGER NOT NULL DEFAULT 0,
+    inventory_value INTEGER NOT NULL DEFAULT 0,
+    tradingpost_value INTEGER NOT NULL DEFAULT 0
+);
+
+CREATE TABLE IF NOT EXISTS valuation_warnings (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    snapshot_id INTEGER NOT NULL,
+    warning_type TEXT NOT NULL,
+    message TEXT NOT NULL,
+    item_id INTEGER,
+    FOREIGN KEY (snapshot_id) REFERENCES account_snapshots(id)
+);
+"""
+
+
+async def get_db() -> aiosqlite.Connection:
+    _ensure_db_dir()
+    db = await aiosqlite.connect(str(DB_PATH))
+    db.row_factory = aiosqlite.Row
+    await db.execute("PRAGMA journal_mode=WAL")
+    await db.execute("PRAGMA foreign_keys=ON")
+    return db
+
+
+async def init_db():
+    _ensure_db_dir()
+    db = await get_db()
+    try:
+        for stmt in CREATE_TABLES.split(";"):
+            s = stmt.strip()
+            if s:
+                await db.execute(s)
+        await db.commit()
+        logger.info("Database initialized at %s", DB_PATH)
+    finally:
+        await db.close()
+
+
+async def save_price_snapshot(
+    db: aiosqlite.Connection,
+    item_id: int,
+    buy_price: int,
+    buy_qty: int,
+    sell_price: int,
+    sell_qty: int,
+):
+    now = datetime.now(timezone.utc).isoformat()
+    sql = "INSERT INTO price_snapshots (item_id, buy_unit_price, buy_quantity, sell_unit_price, sell_quantity, fetched_at) VALUES (?, ?, ?, ?, ?, ?)"
+    await db.execute(sql, (item_id, buy_price, buy_qty, sell_price, sell_qty, now))
+
+
+async def save_account_snapshot(
+    db: aiosqlite.Connection,
+    account_name: str,
+    api_key_hash: str | None,
+    summary: ValueSummary,
+    holdings: list[ItemHolding],
+    warnings: list,
+) -> int:
+    now = datetime.now(timezone.utc).isoformat()
+    cursor = await db.execute(
+        """INSERT INTO account_snapshots
+        (account_name, api_key_hash, total_value_buy, total_value_sell, net_sell_value,
+         wallet_value, material_value_buy, material_value_sell,
+         bank_value_buy, bank_value_sell,
+         character_inventory_value_buy, character_inventory_value_sell,
+         shared_inventory_value_buy, shared_inventory_value_sell,
+         tradingpost_value, priced_item_count, unpriced_item_count,
+         account_bound_count, created_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+        (
+            account_name,
+            api_key_hash,
+            summary.total_value_buy,
+            summary.total_value_sell,
+            summary.net_sell_value,
+            summary.wallet_value,
+            summary.material_value_buy,
+            summary.material_value_sell,
+            summary.bank_value_buy,
+            summary.bank_value_sell,
+            summary.character_inventory_value_buy,
+            summary.character_inventory_value_sell,
+            summary.shared_inventory_value_buy,
+            summary.shared_inventory_value_sell,
+            summary.tradingpost_value,
+            summary.priced_item_count,
+            summary.unpriced_item_count,
+            summary.account_bound_count,
+            now,
+        ),
+    )
+    snapshot_id = cursor.lastrowid
+
+    for h in holdings:
+        await db.execute(
+            """INSERT INTO item_holdings
+            (snapshot_id, item_id, count, location_type, location_ref, binding_status,
+             tradable, vendor_value, price_buy, price_sell, value_buy, value_sell, valuation_status)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+            (
+                snapshot_id,
+                h.item_id,
+                h.count,
+                h.location_type,
+                h.location_ref,
+                h.binding_status,
+                1 if h.tradable else 0,
+                h.vendor_value,
+                h.price_buy,
+                h.price_sell,
+                h.value_buy,
+                h.value_sell,
+                h.valuation_status,
+            ),
+        )
+
+    await db.execute(
+        """INSERT INTO account_value_history
+        (account_name, snapshot_time, total_value_buy, total_value_sell,
+         wallet_value, material_value, bank_value, inventory_value, tradingpost_value)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+        (
+            account_name,
+            now,
+            summary.total_value_buy,
+            summary.total_value_sell,
+            summary.wallet_value,
+            summary.material_value_buy,
+            summary.bank_value_buy,
+            summary.character_inventory_value_buy + summary.shared_inventory_value_buy,
+            summary.tradingpost_value,
+        ),
+    )
+
+    for w in warnings:
+        await db.execute(
+            "INSERT INTO valuation_warnings (snapshot_id, warning_type, message, item_id) VALUES (?, ?, ?, ?)",
+            (snapshot_id, w.warning_type, w.message, w.item_id),
+        )
+
+    await db.commit()
+    return snapshot_id
+
+
+async def load_latest_holdings(db: aiosqlite.Connection, account_name: str) -> list[ItemHolding]:
+    cursor = await db.execute(
+        """SELECT ih.item_id, ih.count, ih.location_type, ih.location_ref,
+           ih.binding_status, ih.tradable, ih.vendor_value,
+           ih.price_buy, ih.price_sell, ih.value_buy, ih.value_sell, ih.valuation_status
+           FROM item_holdings ih
+           JOIN account_snapshots s ON ih.snapshot_id = s.id
+           WHERE s.account_name = ?
+           AND s.id = (SELECT MAX(id) FROM account_snapshots WHERE account_name = ?)""",
+        (account_name, account_name),
+    )
+    rows = await cursor.fetchall()
+    return [
+        ItemHolding(
+            item_id=row["item_id"],
+            count=row["count"],
+            location_type=row["location_type"],
+            location_ref=row["location_ref"],
+            binding_status=row["binding_status"],
+            tradable=bool(row["tradable"]),
+            vendor_value=row["vendor_value"],
+            price_buy=row["price_buy"],
+            price_sell=row["price_sell"],
+            value_buy=row["value_buy"],
+            value_sell=row["value_sell"],
+            valuation_status=row["valuation_status"],
+        )
+        for row in rows
+    ]
+
+
+async def search_latest_holdings(
+    db: aiosqlite.Connection,
+    account_name: str,
+    query: str | None = None,
+    location_type: str | None = None,
+    valuation_status: str | None = None,
+    limit: int = 100,
+) -> list[ItemHolding]:
+    conditions = ["s.account_name = ?", "s.id = (SELECT MAX(id) FROM account_snapshots WHERE account_name = ?)"]
+    params = [account_name, account_name]
+
+    if query:
+        try:
+            item_id = int(query)
+            conditions.append("ih.item_id = ?")
+            params.append(item_id)
+        except ValueError:
+            pass
+    if location_type:
+        conditions.append("ih.location_type = ?")
+        params.append(location_type)
+    if valuation_status:
+        conditions.append("ih.valuation_status = ?")
+        params.append(valuation_status)
+
+    sql = f"""SELECT ih.item_id, ih.count, ih.location_type, ih.location_ref,
+           ih.binding_status, ih.tradable, ih.vendor_value,
+           ih.price_buy, ih.price_sell, ih.value_buy, ih.value_sell, ih.valuation_status
+           FROM item_holdings ih
+           JOIN account_snapshots s ON ih.snapshot_id = s.id
+           WHERE {" AND ".join(conditions)}
+           ORDER BY ih.value_buy DESC
+           LIMIT ?"""
+    params.append(limit)
+
+    cursor = await db.execute(sql, params)
+    rows = await cursor.fetchall()
+    return [
+        ItemHolding(
+            item_id=row["item_id"],
+            count=row["count"],
+            location_type=row["location_type"],
+            location_ref=row["location_ref"],
+            binding_status=row["binding_status"],
+            tradable=bool(row["tradable"]),
+            vendor_value=row["vendor_value"],
+            price_buy=row["price_buy"],
+            price_sell=row["price_sell"],
+            value_buy=row["value_buy"],
+            value_sell=row["value_sell"],
+            valuation_status=row["valuation_status"],
+        )
+        for row in rows
+    ]
+
+
+async def load_value_history(db: aiosqlite.Connection, account_name: str, limit: int = 30) -> list[ValueHistoryEntry]:
+    cursor = await db.execute(
+        """SELECT snapshot_time, total_value_buy, total_value_sell, wallet_value,
+           material_value, bank_value, inventory_value, tradingpost_value
+           FROM account_value_history
+           WHERE account_name = ?
+           ORDER BY snapshot_time DESC
+           LIMIT ?""",
+        (account_name, limit),
+    )
+    rows = await cursor.fetchall()
+    return [
+        ValueHistoryEntry(
+            snapshot_time=row["snapshot_time"],
+            total_value_buy=row["total_value_buy"],
+            total_value_sell=row["total_value_sell"],
+            wallet_value=row["wallet_value"],
+            material_value=row["material_value"],
+            bank_value=row["bank_value"],
+            inventory_value=row["inventory_value"],
+            tradingpost_value=row["tradingpost_value"],
+        )
+        for row in rows
+    ]

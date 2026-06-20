@@ -20,6 +20,9 @@ _resolve_endpoints = {
     "skins": "/v2/skins?ids={ids}",
     "colors": "/v2/colors?ids={ids}",
     "guild": "/v2/guild/{id}",
+    "search_items": "/v2/search?text={query}&type=item",
+    "recipes_search": "/v2/recipes/search?output={id}",
+    "recipes": "/v2/recipes?ids={ids}",
 }
 
 
@@ -27,6 +30,7 @@ class ResolveRequest(BaseModel):
     type: str
     ids: list[str] | None = None
     id: str | None = None
+    query: str | None = None
 
 
 async def _gw2_fetch(path: str) -> dict | list:
@@ -63,6 +67,40 @@ async def resolve(req: ResolveRequest) -> dict | list:
         data = await _gw2_fetch(ep.format(id=req.id))
         _cache.set(key, data)
         return data
+
+    if req.type == "search_items":
+        if not req.query or len(req.query.strip()) < 2:
+            return []
+        cache_key = f"search:{req.query.strip().lower()}"
+        cached = _cache.get(cache_key)
+        if cached is not None:
+            return cached
+        from urllib.parse import quote
+
+        data = await _gw2_fetch(ep.format(query=quote(req.query.strip())))
+        if isinstance(data, list) and len(data) > 50:
+            data = data[:50]
+        _cache.set(cache_key, data)
+        return data
+
+    if req.type == "recipes_search":
+        if not req.id:
+            return []
+        cache_key = f"recipes_search:{req.id}"
+        cached = _cache.get(cache_key)
+        if cached is not None:
+            return cached
+        data = await _gw2_fetch(ep.format(id=req.id))
+        _cache.set(cache_key, data)
+        return data
+
+    if req.type == "recipes":
+        ids = req.ids or []
+        if not ids:
+            return []
+        unique = sorted(set(ids))
+        data = await _gw2_fetch(ep.format(ids=",".join(unique)))
+        return data if isinstance(data, list) else [data]
 
     ids = req.ids or []
     if not ids:

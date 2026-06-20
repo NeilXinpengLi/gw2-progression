@@ -4,3 +4,8 @@ services:
     ports:
       - "8000:8000"
     restart: unless-stopped
+    volumes:
+      - gw2-data:/app/data
+
+volumes:
+  gw2-data:
