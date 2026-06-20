@@ -1,0 +1,290 @@
+{
+  "project_name": "gw2-progression",
+  "classes": [
+    {
+      "name": "AccountContents",
+      "code_anchor": "src\\gw2_progression\\analyzer.py:45",
+      "description": "Entity:AccountContents fields=[token_name:str | None, account_name:str | None, account_world:int | None, account_created:str | None, account_age_hours:float | None, fractal_level:int | None...]",
+      "kind": "entity"
+    },
+    {
+      "name": "AnalyzeRequest",
+      "code_anchor": "src\\gw2_progression\\api\\routes\\analyze.py:10",
+      "description": "Entity:AnalyzeRequest fields=[api_key:str]",
+      "kind": "entity"
+    }
+  ],
+  "properties": [
+    {
+      "domain": "AccountContents",
+      "property_name": "hasToken_name",
+      "range": "str | None",
+      "code_anchor": "src\\gw2_progression\\analyzer.py:45"
+    },
+    {
+      "domain": "AccountContents",
+      "property_name": "hasAccount_name",
+      "range": "str | None",
+      "code_anchor": "src\\gw2_progression\\analyzer.py:45"
+    },
+    {
+      "domain": "AccountContents",
+      "property_name": "hasAccount_world",
+      "range": "int | None",
+      "code_anchor": "src\\gw2_progression\\analyzer.py:45"
+    },
+    {
+      "domain": "AccountContents",
+      "property_name": "hasAccount_created",
+      "range": "str | None",
+      "code_anchor": "src\\gw2_progression\\analyzer.py:45"
+    },
+    {
+      "domain": "AccountContents",
+      "property_name": "hasAccount_age_hours",
+      "range": "float | None",
+      "code_anchor": "src\\gw2_progression\\analyzer.py:45"
+    },
+    {
+      "domain": "AccountContents",
+      "property_name": "hasFractal_level",
+      "range": "int | None",
+      "code_anchor": "src\\gw2_progression\\analyzer.py:45"
+    },
+    {
+      "domain": "AccountContents",
+      "property_name": "hasDaily_ap",
+      "range": "int | None",
+      "code_anchor": "src\\gw2_progression\\analyzer.py:45"
+    },
+    {
+      "domain": "AccountContents",
+      "property_name": "hasMonthly_ap",
+      "range": "int | None",
+      "code_anchor": "src\\gw2_progression\\analyzer.py:45"
+    },
+    {
+      "domain": "AccountContents",
+      "property_name": "hasWvw_rank",
+      "range": "int | None",
+      "code_anchor": "src\\gw2_progression\\analyzer.py:45"
+    },
+    {
+      "domain": "AccountContents",
+      "property_name": "hasCharacters",
+      "range": "list | None",
+      "code_anchor": "src\\gw2_progression\\analyzer.py:45"
+    },
+    {
+      "domain": "AccountContents",
+      "property_name": "hasWallet",
+      "range": "list | None",
+      "code_anchor": "src\\gw2_progression\\analyzer.py:45"
+    },
+    {
+      "domain": "AccountContents",
+      "property_name": "hasBank",
+      "range": "list | None",
+      "code_anchor": "src\\gw2_progression\\analyzer.py:45"
+    },
+    {
+      "domain": "AccountContents",
+      "property_name": "hasMaterials",
+      "range": "list | None",
+      "code_anchor": "src\\gw2_progression\\analyzer.py:45"
+    },
+    {
+      "domain": "AccountContents",
+      "property_name": "hasShared_inventory",
+      "range": "list | None",
+      "code_anchor": "src\\gw2_progression\\analyzer.py:45"
+    },
+    {
+      "domain": "AccountContents",
+      "property_name": "hasAchievements",
+      "range": "list | None",
+      "code_anchor": "src\\gw2_progression\\analyzer.py:45"
+    },
+    {
+      "domain": "AccountContents",
+      "property_name": "hasMasteries",
+      "range": "list | None",
+      "code_anchor": "src\\gw2_progression\\analyzer.py:45"
+    },
+    {
+      "domain": "AccountContents",
+      "property_name": "hasMastery_points",
+      "range": "dict | None",
+      "code_anchor": "src\\gw2_progression\\analyzer.py:45"
+    },
+    {
+      "domain": "AccountContents",
+      "property_name": "hasBuilds",
+      "range": "list | None",
+      "code_anchor": "src\\gw2_progression\\analyzer.py:45"
+    },
+    {
+      "domain": "AccountContents",
+      "property_name": "hasGuilds",
+      "range": "list | None",
+      "code_anchor": "src\\gw2_progression\\analyzer.py:45"
+    },
+    {
+      "domain": "AccountContents",
+      "property_name": "hasPvp_stats",
+      "range": "dict | None",
+      "code_anchor": "src\\gw2_progression\\analyzer.py:45"
+    },
+    {
+      "domain": "AccountContents",
+      "property_name": "hasPvp_games",
+      "range": "list | None",
+      "code_anchor": "src\\gw2_progression\\analyzer.py:45"
+    },
+    {
+      "domain": "AccountContents",
+      "property_name": "hasPvp_standings",
+      "range": "list | None",
+      "code_anchor": "src\\gw2_progression\\analyzer.py:45"
+    },
+    {
+      "domain": "AccountContents",
+      "property_name": "hasTradingpost_buys",
+      "range": "list | None",
+      "code_anchor": "src\\gw2_progression\\analyzer.py:45"
+    },
+    {
+      "domain": "AccountContents",
+      "property_name": "hasTradingpost_sells",
+      "range": "list | None",
+      "code_anchor": "src\\gw2_progression\\analyzer.py:45"
+    },
+    {
+      "domain": "AccountContents",
+      "property_name": "hasUnlocked_skins_count",
+      "range": "int | None",
+      "code_anchor": "src\\gw2_progression\\analyzer.py:45"
+    },
+    {
+      "domain": "AccountContents",
+      "property_name": "hasUnlocked_skins",
+      "range": "list[int] | None",
+      "code_anchor": "src\\gw2_progression\\analyzer.py:45"
+    },
+    {
+      "domain": "AccountContents",
+      "property_name": "hasUnlocked_dyes_count",
+      "range": "int | None",
+      "code_anchor": "src\\gw2_progression\\analyzer.py:45"
+    },
+    {
+      "domain": "AccountContents",
+      "property_name": "hasUnlocked_minis_count",
+      "range": "int | None",
+      "code_anchor": "src\\gw2_progression\\analyzer.py:45"
+    },
+    {
+      "domain": "AccountContents",
+      "property_name": "hasUnlocked_finishers",
+      "range": "list | None",
+      "code_anchor": "src\\gw2_progression\\analyzer.py:45"
+    },
+    {
+      "domain": "AccountContents",
+      "property_name": "hasWvw",
+      "range": "dict | None",
+      "code_anchor": "src\\gw2_progression\\analyzer.py:45"
+    },
+    {
+      "domain": "AccountContents",
+      "property_name": "hasErrors",
+      "range": "dict[str, str]",
+      "code_anchor": "src\\gw2_progression\\analyzer.py:45"
+    },
+    {
+      "domain": "AnalyzeRequest",
+      "property_name": "hasApi_key",
+      "range": "str",
+      "code_anchor": "src\\gw2_progression\\api\\routes\\analyze.py:10"
+    }
+  ],
+  "shacl_rules": [
+    {
+      "rule_id": "AuthValidation",
+      "target_class": "AccountContents",
+      "severity": "Critical",
+      "logic_expression": "tokeninfo must be valid (status 200) before any fetch",
+      "message": "Invalid or expired API key → Gw2ApiError(401)",
+      "code_anchor": "src/gw2_progression/analyzer.py:82-84"
+    },
+    {
+      "rule_id": "PermissionGuard",
+      "target_class": "AccountContents",
+      "severity": "Critical",
+      "logic_expression": "each data section is fetched only if corresponding permission is in granted set",
+      "message": "API permission scope gating: sections not fetched when permission missing → field=None",
+      "code_anchor": "src/gw2_progression/analyzer.py:86-183"
+    },
+    {
+      "rule_id": "SafeCallWrapper",
+      "target_class": "fetch_all",
+      "severity": "Warning",
+      "logic_expression": "_safe() catches Gw2ApiError + generic Exception → errors dict never propagates to caller",
+      "message": "Resilience pattern: per-endpoint error isolation via _safe() wrapper",
+      "code_anchor": "src/gw2_progression/analyzer.py:32-42"
+    },
+    {
+      "rule_id": "ApiKeyFormatValidation",
+      "target_class": "AnalyzeRequest",
+      "severity": "Warning",
+      "logic_expression": "key length checked (>=8) but no base64 decode validation",
+      "message": "Partial validation: length check implemented, base64 format validation missing per plan",
+      "code_anchor": "src/gw2_progression/api/routes/analyze.py:16-19"
+    },
+    {
+      "rule_id": "AsyncClientReuse",
+      "target_class": "gw2_client",
+      "severity": "Info",
+      "logic_expression": "_get() creates new httpx.AsyncClient per call",
+      "message": "Performance: each HTTP call creates new connection pool, should reuse client session",
+      "code_anchor": "src/gw2_progression/gw2_client.py:23"
+    },
+    {
+      "rule_id": "TestClientMissing",
+      "target_class": "TestSuite",
+      "severity": "Warning",
+      "logic_expression": "missing FastAPI TestClient integration test for route layer",
+      "message": "No E2E test: POST /analyze → 401/200 not covered by automated tests",
+      "code_anchor": "tests/test_analyzer.py"
+    },
+    {
+      "rule_id": "CacheNotIntegrated",
+      "target_class": "cache.py",
+      "severity": "Info",
+      "logic_expression": "TTLCache implemented but not referenced by any fetch_* function",
+      "message": "cache.py exists as standalone utility; no integration with fetch chain",
+      "code_anchor": "src/gw2_progression/cache.py"
+    },
+    {
+      "rule_id": "UnlocksSerialInsideGather",
+      "target_class": "fetch_all",
+      "severity": "Info",
+      "logic_expression": "unlock sub-endpoints (skins/dyes/minis/finishers) are serial inside _unlocks()",
+      "message": "4 unlock endpoints run sequentially inside a gather task instead of being parallel",
+      "code_anchor": "src/gw2_progression/analyzer.py:153-177"
+    }
+  ],
+  "files": [
+    "src/gw2_progression/gw2_client.py",
+    "src/gw2_progression/analyzer.py",
+    "src/gw2_progression/api/main.py",
+    "src/gw2_progression/api/routes/analyze.py",
+    "src/gw2_progression/cache.py",
+    "src/gw2_progression/static/index.html"
+  ],
+  "test_stats": {
+    "total": 13,
+    "passed": 13
+  },
+  "notes": "Semantic graph rebuilt after Phase 0-3 refactoring."
+}

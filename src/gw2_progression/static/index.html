@@ -89,6 +89,10 @@
     @keyframes spin { to { transform: rotate(360deg); } }
 
     .error-box { background: #2a1515; border: 1px solid #5a2020; border-radius: 4px; color: #c07070; padding: 12px 16px; margin-top: 8px; }
+    .tab-error { margin-bottom: 8px; }
+    .tab-error:empty { display: none; }
+    .tab-loading { color: var(--text-dim); font-size: 13px; padding: 16px 0; }
+    .tab-loading:empty { display: none; }
 
     /* ── Character viewer ── */
     .char-selector { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 20px; }
@@ -182,18 +186,18 @@
 
     <!-- Overview -->
     <div class="tab-panel active" id="tab-overview">
+      <div class="tab-loading"><span class="spinner"></span> Loading…</div>
       <div class="stat-cards" id="overview-cards"></div>
       <div class="section-title">Permissions</div>
       <div class="perm-grid" id="perm-grid"></div>
-      <div id="errors-section" class="hidden">
-        <div class="section-title">Errors</div>
-        <div id="errors-box"></div>
-      </div>
+      <div class="tab-error" id="err-overview"></div>
     </div>
 
     <!-- Characters -->
     <div class="tab-panel" id="tab-characters">
       <div class="section-title">Characters</div>
+      <div class="tab-loading"><span class="spinner"></span> Loading…</div>
+      <div class="tab-error" id="err-characters"></div>
       <div class="char-selector" id="char-selector"></div>
       <div id="char-detail"></div>
     </div>
@@ -201,6 +205,8 @@
     <!-- Wardrobe -->
     <div class="tab-panel" id="tab-wardrobe">
       <div class="section-title">Wardrobe</div>
+      <div class="tab-loading"><span class="spinner"></span> Loading…</div>
+      <div class="tab-error" id="err-skins"></div>
       <div class="wardrobe-controls">
         <input id="wardrobe-search" type="text" placeholder="Search skins…" />
         <select id="wardrobe-type">
@@ -221,12 +227,16 @@
     <!-- Wallet -->
     <div class="tab-panel" id="tab-wallet">
       <div class="section-title">Wallet</div>
+      <div class="tab-loading"><span class="spinner"></span> Loading…</div>
+      <div class="tab-error" id="err-wallet"></div>
       <div id="wallet-list"></div>
     </div>
 
     <!-- Inventory -->
     <div class="tab-panel" id="tab-inventory">
       <div class="section-title">Materials (top 40 by quantity)</div>
+      <div class="tab-loading"><span class="spinner"></span> Loading…</div>
+      <div class="tab-error" id="err-inventory"></div>
       <table class="data-table" id="materials-table">
         <thead><tr><th>Item</th><th>Quantity</th><th>Category</th></tr></thead>
         <tbody></tbody>
@@ -238,6 +248,8 @@
     <!-- Progression -->
     <div class="tab-panel" id="tab-progression">
       <div class="section-title">Masteries</div>
+      <div class="tab-loading"><span class="spinner"></span> Loading…</div>
+      <div class="tab-error" id="err-progression"></div>
       <table class="data-table" id="masteries-table">
         <thead><tr><th>Mastery</th><th>Region</th><th>Level</th></tr></thead>
         <tbody></tbody>
@@ -251,6 +263,8 @@
     <!-- PvP -->
     <div class="tab-panel" id="tab-pvp">
       <div class="section-title">PvP Stats</div>
+      <div class="tab-loading"><span class="spinner"></span> Loading…</div>
+      <div class="tab-error" id="err-pvp"></div>
       <div class="pvp-grid" id="pvp-grid"></div>
       <div class="section-title">Recent Games</div>
       <table class="data-table" id="pvp-games-table">
@@ -262,6 +276,8 @@
     <!-- Unlocks -->
     <div class="tab-panel" id="tab-unlocks">
       <div class="section-title">Unlocks</div>
+      <div class="tab-loading"><span class="spinner"></span> Loading…</div>
+      <div class="tab-error" id="err-unlocks"></div>
       <div class="unlock-grid" id="unlock-grid"></div>
       <div class="section-title">Finishers</div>
       <table class="data-table" id="finishers-table">
@@ -423,6 +439,12 @@
     msg.innerHTML = '<span class="spinner"></span> Fetching account data…';
 
     try {
+      document.querySelectorAll('.tab-loading').forEach(el => el.remove());
+      document.querySelectorAll('.tab-error').forEach(el => el.innerHTML = '');
+      document.getElementById('results').classList.add('hidden');
+      document.getElementById('nav-tabs').classList.add('hidden');
+      msg.className = '';
+      msg.innerHTML = '<span class="spinner"></span> Fetching account data…';
       const res = await fetch('/analyze', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -477,6 +499,7 @@
   }
 
   function renderAll(d) {
+    document.querySelectorAll('.tab-loading').forEach(el => el.remove());
     document.getElementById('results').classList.remove('hidden');
     document.getElementById('nav-tabs').classList.remove('hidden');
     renderOverview(d);
@@ -531,23 +554,44 @@
       guilds: 'Guild details are only accessible to guild leaders via the GW2 API. Members can see their guild IDs on the account but not guild data.',
     };
 
-    const errs = d.errors || {};
-    const realErrors = Object.entries(errs).filter(([k]) => !KNOWN_LIMITATIONS[k]);
-    const limitations = Object.entries(errs).filter(([k]) => KNOWN_LIMITATIONS[k]);
+    const ERR_TAB_MAP = {
+      account:           'err-overview',
+      builds:            'err-overview',
+      tradingpost_buys:  'err-overview',
+      tradingpost_sells: 'err-overview',
+      characters:        'err-characters',
+      wallet:            'err-wallet',
+      bank:              'err-inventory',
+      materials:         'err-inventory',
+      shared_inventory:  'err-inventory',
+      achievements:      'err-progression',
+      masteries:         'err-progression',
+      mastery_points:    'err-progression',
+      pvp_stats:         'err-pvp',
+      pvp_games:         'err-pvp',
+      pvp_standings:     'err-pvp',
+      skins:             'err-skins',
+      dyes:              'err-unlocks',
+      minis:             'err-unlocks',
+      finishers:         'err-unlocks',
+      wvw:               'err-overview',
+    };
 
-    if (limitations.length) {
-      document.getElementById('errors-section').classList.remove('hidden');
-      document.getElementById('errors-section').querySelector('.section-title').textContent = realErrors.length ? 'API Notes & Errors' : 'API Notes';
-      document.getElementById('errors-box').innerHTML = limitations.map(([k]) => `
+    const errs = d.errors || {};
+    Object.entries(errs).forEach(([k, v]) => {
+      if (KNOWN_LIMITATIONS[k]) return;
+      const tabId = ERR_TAB_MAP[k] || 'err-overview';
+      const el = document.getElementById(tabId);
+      if (el) el.innerHTML += `<div class="error-box"><strong>${k}</strong>: ${v}</div>`;
+    });
+    Object.entries(errs).forEach(([k]) => {
+      if (!KNOWN_LIMITATIONS[k]) return;
+      const el = document.getElementById('err-overview');
+      if (el) el.innerHTML += `
         <div style="background:#1a1a2a;border:1px solid #334;border-radius:4px;padding:12px 16px;margin-top:8px;color:var(--text-dim);font-size:13px">
           <strong style="color:var(--gold)">ℹ ${k}</strong> — ${KNOWN_LIMITATIONS[k]}
-        </div>`).join('') +
-        realErrors.map(([k, v]) => `<div class="error-box"><strong>${k}</strong>: ${v}</div>`).join('');
-    } else if (realErrors.length) {
-      document.getElementById('errors-section').classList.remove('hidden');
-      document.getElementById('errors-box').innerHTML = realErrors.map(([k, v]) =>
-        `<div class="error-box"><strong>${k}</strong>: ${v}</div>`).join('');
-    }
+        </div>`;
+    });
   }
 
   // ── Characters ──
@@ -665,24 +709,32 @@
   // ── Wardrobe ──
   let _allSkinIds = [];
   let _wardrobeLoaded = false;
+  let _wardrobeFiltered = [];
+  let _wardrobeVisible = 200;
+  const WARDROBE_PAGE = 200;
 
   function setupWardrobe(skinIds) {
     _allSkinIds = skinIds;
     _wardrobeLoaded = false;
+    _wardrobeVisible = WARDROBE_PAGE;
 
-    // Lazy-load when user switches to wardrobe tab
     document.querySelectorAll('#nav-tabs button').forEach(btn => {
       if (btn.dataset.tab === 'wardrobe') {
         btn.addEventListener('click', loadWardrobeOnce, { once: false });
       }
     });
 
-    document.getElementById('wardrobe-search').addEventListener('input', filterWardrobe);
+    document.getElementById('wardrobe-search').addEventListener('input', resetWardrobePagination);
     document.getElementById('wardrobe-type').addEventListener('change', () => {
       populateSubtypes();
-      filterWardrobe();
+      resetWardrobePagination();
     });
-    document.getElementById('wardrobe-subtype').addEventListener('change', filterWardrobe);
+    document.getElementById('wardrobe-subtype').addEventListener('change', resetWardrobePagination);
+  }
+
+  function resetWardrobePagination() {
+    _wardrobeVisible = WARDROBE_PAGE;
+    filterWardrobe();
   }
 
   async function loadWardrobeOnce() {
@@ -691,7 +743,6 @@
     const loadingEl = document.getElementById('wardrobe-loading');
     loadingEl.classList.remove('hidden');
 
-    // Fetch in batches of 200
     await resolveSkins(_allSkinIds);
     loadingEl.classList.add('hidden');
     populateSubtypes();
@@ -718,7 +769,7 @@
     const typeF     = document.getElementById('wardrobe-type').value;
     const subtypeF  = document.getElementById('wardrobe-subtype').value;
 
-    const filtered = _allSkinIds.filter(id => {
+    _wardrobeFiltered = _allSkinIds.filter(id => {
       const s = _skinCache[id];
       if (!s) return false;
       if (typeF    && s.type    !== typeF)    return false;
@@ -727,10 +778,23 @@
       return true;
     });
 
-    document.getElementById('wardrobe-count').textContent =
-      `Showing ${filtered.length.toLocaleString()} of ${_allSkinIds.length.toLocaleString()} skins`;
+    renderWardrobePage();
+  }
 
-    document.getElementById('skin-grid').innerHTML = filtered.slice(0, 500).map(id => {
+  function showMoreWardrobe() {
+    _wardrobeVisible += WARDROBE_PAGE;
+    renderWardrobePage();
+  }
+
+  function renderWardrobePage() {
+    const total = _wardrobeFiltered.length;
+    const show = Math.min(_wardrobeVisible, total);
+
+    document.getElementById('wardrobe-count').textContent =
+      `Showing ${show.toLocaleString()} of ${total.toLocaleString()} skins`;
+
+    const grid = document.getElementById('skin-grid');
+    grid.innerHTML = _wardrobeFiltered.slice(0, show).map(id => {
       const s = _skinCache[id] || {};
       return `<div class="skin-card">
         ${s.icon ? `<img src="${s.icon}" alt="${s.name || ''}">` : '<div style="width:56px;height:56px;background:#333;border-radius:3px"></div>'}
@@ -739,11 +803,13 @@
       </div>`;
     }).join('');
 
-    if (filtered.length > 500) {
-      document.getElementById('skin-grid').insertAdjacentHTML('beforeend',
-        `<div style="grid-column:1/-1;color:var(--text-dim);font-size:12px;padding:10px 0">
-          Showing first 500. Use filters or search to narrow results.
-        </div>`);
+    if (show < total) {
+      const loadMore = document.createElement('div');
+      loadMore.style.cssText = 'grid-column:1/-1;text-align:center;padding:16px 0';
+      loadMore.innerHTML = `<button style="background:var(--gold);border:none;border-radius:3px;color:#111;cursor:pointer;font-size:13px;font-weight:600;padding:8px 20px" onclick="showMoreWardrobe()">
+        Show ${Math.min(WARDROBE_PAGE, total - show).toLocaleString()} more (${(total - show).toLocaleString()} remaining)
+      </button>`;
+      grid.appendChild(loadMore);
     }
   }
 

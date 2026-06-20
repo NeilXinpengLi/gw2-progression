@@ -1,0 +1,6 @@
+services:
+  gw2-progression:
+    build: .
+    ports:
+      - "8000:8000"
+    restart: unless-stopped

@@ -1,0 +1,10 @@
+__pycache__
+.git
+.gitignore
+.pytest_cache
+*.pyc
+*.pyo
+.env
+tests/
+semantic_graph.json
+PHASED_DEV_PLAN.md

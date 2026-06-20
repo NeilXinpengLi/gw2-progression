@@ -1,3 +1,5 @@
+from asyncio import gather
+
 from pydantic import BaseModel
 
 from .gw2_client import (
@@ -27,10 +29,13 @@ from .gw2_client import (
 )
 
 
-def _safe(fn, api_key: str):
-    """Call fn(api_key) and return (result, None) or (None, error_string)."""
+async def _safe(fn, *args, **kwargs):
     try:
-        return fn(api_key), None
+        if callable(fn):
+            result = await fn(*args, **kwargs)
+        else:
+            result = await fn
+        return result, None
     except Gw2ApiError as e:
         return None, e.message
     except Exception as e:
@@ -38,7 +43,6 @@ def _safe(fn, api_key: str):
 
 
 class AccountContents(BaseModel):
-    # identity
     token_name: str | None = None
     account_name: str | None = None
     account_world: int | None = None
@@ -49,7 +53,6 @@ class AccountContents(BaseModel):
     monthly_ap: int | None = None
     wvw_rank: int | None = None
 
-    # per-permission sections (None = not fetched / no permission)
     characters: list | None = None
     wallet: list | None = None
     bank: list | None = None
@@ -67,6 +70,8 @@ class AccountContents(BaseModel):
     tradingpost_sells: list | None = None
     unlocked_skins_count: int | None = None
     unlocked_skins: list[int] | None = None
+    unlocked_dyes: list[int] | None = None
+    unlocked_minis: list[int] | None = None
     unlocked_dyes_count: int | None = None
     unlocked_minis_count: int | None = None
     unlocked_finishers: list | None = None
@@ -75,9 +80,8 @@ class AccountContents(BaseModel):
     errors: dict[str, str] = {}
 
 
-def fetch_all(api_key: str) -> AccountContents:
-    # Validate key first
-    tokeninfo, err = _safe(fetch_tokeninfo, api_key)
+async def fetch_all(api_key: str) -> AccountContents:
+    tokeninfo, err = await _safe(fetch_tokeninfo, api_key)
     if err:
         raise Gw2ApiError(401, err)
 
@@ -85,9 +89,16 @@ def fetch_all(api_key: str) -> AccountContents:
     contents = AccountContents(token_name=tokeninfo.get("name"))
     errors: dict[str, str] = {}
 
-    # account (base info)
+    async def section(name, coro, field=None):
+        data, err = await _safe(coro)
+        if err:
+            errors[name] = err
+        elif field:
+            setattr(contents, field, data)
+        return data
+
     if "account" in granted:
-        account, err = _safe(fetch_account, api_key)
+        account, err = await _safe(fetch_account, api_key)
         if err:
             errors["account"] = err
         else:
@@ -101,120 +112,66 @@ def fetch_all(api_key: str) -> AccountContents:
             age_seconds = account.get("age", 0)
             contents.account_age_hours = round(age_seconds / 3600, 1)
 
-    # characters
-    if "characters" in granted:
-        data, err = _safe(fetch_characters, api_key)
-        if err:
-            errors["characters"] = err
-        else:
-            contents.characters = data
+            guild_ids = account.get("guilds", [])
+            wvw_team = account.get("wvw_team")
 
-    # wallet
-    if "wallet" in granted:
-        data, err = _safe(fetch_wallet, api_key)
-        if err:
-            errors["wallet"] = err
-        else:
-            contents.wallet = data
+            pending = []
 
-    # inventories
-    if "inventories" in granted:
-        for key, fn, field in [
-            ("bank", fetch_bank, "bank"),
-            ("materials", fetch_materials, "materials"),
-            ("shared_inventory", fetch_inventory, "shared_inventory"),
-        ]:
-            data, err = _safe(fn, api_key)
-            if err:
-                errors[key] = err
-            else:
-                setattr(contents, field, data)
+            if "characters" in granted:
+                pending.append(section("characters", fetch_characters(api_key), "characters"))
 
-    # progression
-    if "progression" in granted:
-        for key, fn, field in [
-            ("achievements", fetch_achievements, "achievements"),
-            ("masteries", fetch_masteries, "masteries"),
-            ("mastery_points", fetch_mastery_points, "mastery_points"),
-        ]:
-            data, err = _safe(fn, api_key)
-            if err:
-                errors[key] = err
-            else:
-                setattr(contents, field, data)
+            if "wallet" in granted:
+                pending.append(section("wallet", fetch_wallet(api_key), "wallet"))
 
-    # builds
-    if "builds" in granted:
-        data, err = _safe(fetch_builds, api_key)
-        if err:
-            errors["builds"] = err
-        else:
-            contents.builds = data if isinstance(data, list) else [data]
+            if "inventories" in granted:
+                pending.append(section("bank", fetch_bank(api_key), "bank"))
+                pending.append(section("materials", fetch_materials(api_key), "materials"))
+                pending.append(section("shared_inventory", fetch_inventory(api_key), "shared_inventory"))
 
-    # guilds
-    if "guilds" in granted:
-        data, err = _safe(fetch_guilds, api_key)
-        if err:
-            errors["guilds"] = err
-        else:
-            contents.guilds = data
+            if "progression" in granted:
+                pending.append(section("achievements", fetch_achievements(api_key), "achievements"))
+                pending.append(section("masteries", fetch_masteries(api_key), "masteries"))
+                pending.append(section("mastery_points", fetch_mastery_points(api_key), "mastery_points"))
 
-    # pvp
-    if "pvp" in granted:
-        for key, fn, field in [
-            ("pvp_stats", fetch_pvp_stats, "pvp_stats"),
-            ("pvp_games", fetch_pvp_games, "pvp_games"),
-            ("pvp_standings", fetch_pvp_standings, "pvp_standings"),
-        ]:
-            data, err = _safe(fn, api_key)
-            if err:
-                errors[key] = err
-            else:
-                setattr(contents, field, data)
+            if "builds" in granted:
 
-    # tradingpost
-    if "tradingpost" in granted:
-        for key, fn, field in [
-            ("tradingpost_buys", fetch_tradingpost_current_buys, "tradingpost_buys"),
-            ("tradingpost_sells", fetch_tradingpost_current_sells, "tradingpost_sells"),
-        ]:
-            data, err = _safe(fn, api_key)
-            if err:
-                errors[key] = err
-            else:
-                setattr(contents, field, data)
+                async def _builds():
+                    data = await fetch_builds(api_key)
+                    return data if isinstance(data, list) else [data]
 
-    # unlocks
-    if "unlocks" in granted:
-        for key, fn, count_field in [
-            ("dyes", fetch_unlocked_dyes, "unlocked_dyes_count"),
-            ("minis", fetch_unlocked_minis, "unlocked_minis_count"),
-        ]:
-            data, err = _safe(fn, api_key)
-            if err:
-                errors[key] = err
-            else:
-                setattr(contents, count_field, len(data))
+                pending.append(section("builds", _builds(), "builds"))
 
-        skins_data, err = _safe(fetch_unlocked_skins, api_key)
-        if err:
-            errors["skins"] = err
-        else:
-            contents.unlocked_skins_count = len(skins_data)
-            contents.unlocked_skins = skins_data
-        data, err = _safe(fetch_unlocked_finishers, api_key)
-        if err:
-            errors["finishers"] = err
-        else:
-            contents.unlocked_finishers = data
+            if "guilds" in granted:
+                pending.append(section("guilds", fetch_guilds(api_key, guild_ids), "guilds"))
 
-    # wvw
-    if "wvw" in granted:
-        data, err = _safe(fetch_wvw_stats, api_key)
-        if err:
-            errors["wvw"] = err
-        else:
-            contents.wvw = data
+            if "pvp" in granted:
+                pending.append(section("pvp_stats", fetch_pvp_stats(api_key), "pvp_stats"))
+                pending.append(section("pvp_games", fetch_pvp_games(api_key), "pvp_games"))
+                pending.append(section("pvp_standings", fetch_pvp_standings(api_key), "pvp_standings"))
+
+            if "tradingpost" in granted:
+                pending.append(section("tradingpost_buys", fetch_tradingpost_current_buys(api_key), "tradingpost_buys"))
+                fn_sells = section("tradingpost_sells", fetch_tradingpost_current_sells(api_key), "tradingpost_sells")
+                pending.append(fn_sells)
+
+            if "unlocks" in granted:
+                pending.append(section("skins", fetch_unlocked_skins(api_key), "unlocked_skins"))
+                pending.append(section("dyes", fetch_unlocked_dyes(api_key), "unlocked_dyes"))
+                pending.append(section("minis", fetch_unlocked_minis(api_key), "unlocked_minis"))
+                pending.append(section("finishers", fetch_unlocked_finishers(api_key), "unlocked_finishers"))
+
+            if "wvw" in granted:
+                pending.append(section("wvw", fetch_wvw_stats(wvw_team, contents.wvw_rank), "wvw"))
+
+            if pending:
+                await gather(*pending)
+
+                if contents.unlocked_skins is not None:
+                    contents.unlocked_skins_count = len(contents.unlocked_skins)
+                if contents.unlocked_dyes is not None:
+                    contents.unlocked_dyes_count = len(contents.unlocked_dyes)
+                if contents.unlocked_minis is not None:
+                    contents.unlocked_minis_count = len(contents.unlocked_minis)
 
     contents.errors = errors
     return contents
