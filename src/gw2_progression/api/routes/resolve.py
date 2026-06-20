@@ -12,14 +12,14 @@ _cache = get_cache(ttl=3600, maxsize=1024)
 
 
 _resolve_endpoints = {
-    "items":       "/v2/items?ids={ids}",
-    "currencies":  "/v2/currencies?ids={ids}",
-    "materials":   "/v2/materials",
-    "masteries":   "/v2/masteries?ids={ids}",
-    "maps":        "/v2/maps?ids={ids}",
-    "skins":       "/v2/skins?ids={ids}",
-    "colors":      "/v2/colors?ids={ids}",
-    "guild":       "/v2/guild/{id}",
+    "items": "/v2/items?ids={ids}",
+    "currencies": "/v2/currencies?ids={ids}",
+    "materials": "/v2/materials",
+    "masteries": "/v2/masteries?ids={ids}",
+    "maps": "/v2/maps?ids={ids}",
+    "skins": "/v2/skins?ids={ids}",
+    "colors": "/v2/colors?ids={ids}",
+    "guild": "/v2/guild/{id}",
 }
 
 
@@ -31,6 +31,7 @@ class ResolveRequest(BaseModel):
 
 async def _gw2_fetch(path: str) -> dict | list:
     import httpx
+
     async with httpx.AsyncClient(timeout=15) as client:
         resp = await client.get(f"{GW2_BASE}{path}")
     if not resp.is_success:
@@ -72,10 +73,10 @@ async def resolve(req: ResolveRequest) -> dict | list:
     if missing:
         chunk_size = 200
         for start in range(0, len(missing), chunk_size):
-            chunk = missing[start:start + chunk_size]
+            chunk = missing[start : start + chunk_size]
             try:
                 data = await _gw2_fetch(ep.format(ids=",".join(chunk)))
-                for item in (data if isinstance(data, list) else [data]):
+                for item in data if isinstance(data, list) else [data]:
                     item_id = item.get("id")
                     if item_id is not None:
                         _cache.set(f"{req.type}:{item_id}", item)

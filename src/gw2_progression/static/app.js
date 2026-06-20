@@ -1,0 +1,758 @@
+const MAX_CACHE_SIZE = 5000;
+
+const _itemCache    = {};
+const _currencyCache= {};
+const _matCatCache  = {};
+const _masteryCache = {};
+const _mapCache     = {};
+const _skinCache    = {};
+const _colorCache   = {};
+const _guildCache   = {};
+
+async function backendResolve(type, ids) {
+  const res = await fetch('/resolve', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ type, ids: ids.map(String) }),
+  });
+  if (!res.ok) return [];
+  return res.json();
+}
+
+async function backendResolveSingle(type, id) {
+  const res = await fetch('/resolve', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ type, id: String(id) }),
+  });
+  if (!res.ok) return null;
+  return res.json();
+}
+
+function cappedCacheAdd(cache, key, val) {
+  if (Object.keys(cache).length >= MAX_CACHE_SIZE) {
+    const oldest = Object.keys(cache)[0];
+    delete cache[oldest];
+  }
+  cache[key] = val;
+}
+
+async function resolveItems(ids) {
+  const missing = [...new Set(ids)].filter(id => id && !(id in _itemCache));
+  if (!missing.length) return;
+  const data = await backendResolve('items', missing);
+  for (const item of (Array.isArray(data) ? data : [])) {
+    cappedCacheAdd(_itemCache, item.id, { name: item.name, icon: item.icon });
+  }
+}
+
+async function resolveCurrencies(ids) {
+  const missing = [...new Set(ids)].filter(id => !(id in _currencyCache));
+  if (!missing.length) return;
+  const data = await backendResolve('currencies', missing);
+  for (const c of (Array.isArray(data) ? data : [])) {
+    cappedCacheAdd(_currencyCache, c.id, { name: c.name, description: c.description });
+  }
+}
+
+async function resolveMatCategories() {
+  if (Object.keys(_matCatCache).length) return;
+  const data = await backendResolve('materials', []);
+  for (const cat of (Array.isArray(data) ? data : [])) {
+    cappedCacheAdd(_matCatCache, cat.id, cat.name);
+  }
+}
+
+async function resolveMasteries(ids) {
+  const missing = [...new Set(ids)].filter(id => !(id in _masteryCache));
+  if (!missing.length) return;
+  const data = await backendResolve('masteries', missing);
+  for (const m of (Array.isArray(data) ? data : [])) {
+    cappedCacheAdd(_masteryCache, m.id, { name: m.name, region: m.region });
+  }
+}
+
+async function resolveMaps(ids) {
+  const missing = [...new Set(ids)].filter(id => id && !(id in _mapCache));
+  if (!missing.length) return;
+  const data = await backendResolve('maps', missing);
+  for (const m of (Array.isArray(data) ? data : [])) {
+    cappedCacheAdd(_mapCache, m.id, m.name);
+  }
+}
+
+async function resolveSkins(ids) {
+  const missing = [...new Set(ids)].filter(id => id && !(id in _skinCache));
+  if (!missing.length) return;
+  const data = await backendResolve('skins', missing);
+  for (const s of (Array.isArray(data) ? data : [])) {
+    const subtype = s.details?.type || s.details?.weight_class || '';
+    cappedCacheAdd(_skinCache, s.id, { name: s.name, icon: s.icon, type: s.type, subtype });
+  }
+}
+
+async function resolveGuilds(ids) {
+  const missing = [...new Set(ids)].filter(id => id && !(id in _guildCache));
+  await Promise.all(missing.map(async id => {
+    const data = await backendResolveSingle('guild', id);
+    cappedCacheAdd(_guildCache, id, data ? { name: data.name, tag: data.tag } : { name: 'Unknown Guild', tag: '?' });
+  }));
+}
+
+async function resolveColors(ids) {
+  const missing = [...new Set(ids)].filter(id => id != null && !(id in _colorCache));
+  if (!missing.length) return;
+  const data = await backendResolve('colors', missing);
+  for (const c of (Array.isArray(data) ? data : [])) {
+    const rgb = c.cloth?.rgb || c.leather?.rgb || c.metal?.rgb || [128, 128, 128];
+    cappedCacheAdd(_colorCache, c.id, { name: c.name, hex: rgbToHex(rgb) });
+  }
+}
+
+function rgbToHex([r, g, b]) {
+  return '#' + [r, g, b].map(x => x.toString(16).padStart(2, '0')).join('');
+}
+
+function itemName(id)    { return _itemCache[id]?.name    || `Item #${id}`; }
+function itemIcon(id)    { return _itemCache[id]?.icon    || null; }
+function currencyName(id){ return _currencyCache[id]?.name || `Currency #${id}`; }
+function matCatName(id)  { return _matCatCache[id]        || `Category #${id}`; }
+function masteryName(id) { return _masteryCache[id]?.name || `Mastery #${id}`; }
+function masteryRegion(id){ return _masteryCache[id]?.region || '—'; }
+function mapName(id)     { return _mapCache[id]           || `Map #${id}`; }
+function skinName(id)    { return _skinCache[id]?.name    || `Skin #${id}`; }
+function skinIcon(id)    { return _skinCache[id]?.icon    || null; }
+function colorHex(id)    { return id != null ? (_colorCache[id]?.hex || '#888') : null; }
+
+function fmtCoin(copper) {
+  if (!copper) return '0g 0s 0c';
+  return `${Math.floor(copper/10000)}g ${Math.floor((copper%10000)/100)}s ${copper%100}c`;
+}
+
+// ── Tab switching ──
+document.getElementById('nav-tabs').addEventListener('click', e => {
+  const btn = e.target.closest('button[data-tab]');
+  if (!btn) return;
+  document.querySelectorAll('#nav-tabs button').forEach(b => {
+    b.classList.remove('active');
+    b.setAttribute('aria-selected', 'false');
+  });
+  document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+  btn.classList.add('active');
+  btn.setAttribute('aria-selected', 'true');
+  document.getElementById('tab-' + btn.dataset.tab).classList.add('active');
+});
+
+// ── Analyze ──
+document.getElementById('analyze-btn').addEventListener('click', runAnalyze);
+document.getElementById('key-input').addEventListener('keydown', e => { if (e.key === 'Enter') runAnalyze(); });
+
+let _accountData = null;
+let _abortController = null;
+
+async function runAnalyze() {
+  const key = document.getElementById('key-input').value.trim();
+  if (!key) {
+    const msg = document.getElementById('status-msg');
+    msg.className = 'error';
+    msg.textContent = 'Please paste a GW2 API key first.';
+    return;
+  }
+  if (_abortController) _abortController.abort();
+  _abortController = new AbortController();
+  const signal = _abortController.signal;
+  const btn = document.getElementById('analyze-btn');
+  const msg = document.getElementById('status-msg');
+  btn.disabled = true;
+  msg.className = '';
+  msg.innerHTML = '<span class="spinner"></span> Fetching account data…';
+
+  try {
+    document.querySelectorAll('.tab-loading').forEach(el => el.remove());
+    document.querySelectorAll('.tab-error').forEach(el => el.innerHTML = '');
+    document.getElementById('results').classList.add('hidden');
+    document.getElementById('nav-tabs').classList.add('hidden');
+    msg.className = '';
+    msg.innerHTML = '<span class="spinner"></span> Fetching account data…';
+    const res = await fetch('/analyze', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ api_key: key }),
+      signal,
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      if (res.status === 422) {
+        const detail = err.detail?.[0]?.msg || err.detail || 'Invalid request.';
+        throw new Error(detail);
+      }
+      throw new Error(err.detail || `HTTP ${res.status}`);
+    }
+    const data = await res.json();
+    _accountData = data;
+
+    msg.innerHTML = '<span class="spinner"></span> Resolving names…';
+
+    const matIds    = (data.materials || []).filter(m => m.count > 0).map(m => m.id);
+    const bankIds   = (data.bank || []).filter(Boolean).map(s => s.id);
+    const walletIds = (data.wallet || []).map(w => w.id);
+    const masteryIds= (data.masteries || []).map(m => m.id);
+    const mapIds    = (data.pvp_games || []).map(g => g.map_id).filter(Boolean);
+
+    const equipSkinIds = [], equipItemIds = [], dyeIds = [], guildIds = [];
+    for (const ch of (data.characters || [])) {
+      if (ch.guild) guildIds.push(ch.guild);
+      for (const eq of (ch.equipment || [])) {
+        equipItemIds.push(eq.id);
+        if (eq.skin) equipSkinIds.push(eq.skin);
+        for (const d of (eq.dyes || [])) { if (d != null) dyeIds.push(d); }
+      }
+    }
+
+    await Promise.all([
+      resolveItems([...matIds, ...bankIds, ...equipItemIds]),
+      resolveCurrencies(walletIds),
+      resolveMatCategories(),
+      resolveMasteries(masteryIds),
+      resolveMaps(mapIds),
+      resolveSkins(equipSkinIds),
+      resolveColors(dyeIds),
+      resolveGuilds(guildIds),
+    ]);
+
+    msg.textContent = `Loaded data for ${data.account_name}`;
+    renderAll(data);
+  } catch (e) {
+    if (e.name === 'AbortError') return;
+    msg.className = 'error';
+    if (e.message === 'Failed to fetch') {
+      msg.textContent = 'Error: Unable to reach the server. Is it running on port 8000?';
+    } else {
+      msg.textContent = `Error: ${e.message}`;
+    }
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+function renderAll(d) {
+  document.querySelectorAll('.tab-loading').forEach(el => el.remove());
+  document.getElementById('results').classList.remove('hidden');
+  document.getElementById('nav-tabs').classList.remove('hidden');
+  renderOverview(d);
+  renderCharacters(d.characters || []);
+  renderWallet(d.wallet || []);
+  renderInventory(d);
+  renderProgression(d);
+  renderPvp(d);
+  renderUnlocks(d);
+  renderWvw(d);
+  renderBuilds(d);
+  setupWardrobe(d.unlocked_skins || []);
+}
+
+// ── Overview ──
+function renderOverview(d) {
+  const created = d.account_created ? new Date(d.account_created).toLocaleDateString() : '—';
+  const cards = [
+    { label: 'Account',       value: d.account_name || '—',              sub: `World ${d.account_world}` },
+    { label: 'Created',       value: created,                            sub: 'account created' },
+    { label: 'Playtime',      value: `${d.account_age_hours}h`,          sub: 'total hours' },
+    { label: 'Fractal Level', value: d.fractal_level ?? '—',             sub: 'highest tier' },
+    { label: 'Daily AP',      value: (d.daily_ap ?? 0).toLocaleString(), sub: 'achievement points' },
+    { label: 'Monthly AP',    value: (d.monthly_ap ?? 0).toLocaleString(),sub: 'monthly achievements' },
+    { label: 'WvW Rank',      value: d.wvw_rank ?? '—',                  sub: 'world vs world' },
+    { label: 'Characters',    value: (d.characters || []).length,         sub: 'on account' },
+    { label: 'Skins',         value: d.unlocked_skins_count ?? '—',      sub: 'unlocked' },
+    { label: 'Dyes',          value: d.unlocked_dyes_count ?? '—',       sub: 'unlocked' },
+  ];
+  document.getElementById('overview-cards').innerHTML = cards.map(c => `
+    <div class="stat-card">
+      <div class="label">${c.label}</div>
+      <div class="value">${c.value}</div>
+      <div class="sub">${c.sub}</div>
+    </div>`).join('');
+
+  const ALL_PERMS = ['account','builds','characters','guilds','inventories','progression','pvp','tradingpost','unlocks','wallet','wvw'];
+  const granted = new Set();
+  if (d.account_name) granted.add('account');
+  if (d.characters) granted.add('characters');
+  if (d.wallet) granted.add('wallet');
+  if (d.bank) granted.add('inventories');
+  if (d.achievements) granted.add('progression');
+  if (d.builds) granted.add('builds');
+  if (d.pvp_stats) granted.add('pvp');
+  if (d.tradingpost_buys !== null) granted.add('tradingpost');
+  if (d.unlocked_skins_count !== null) granted.add('unlocks');
+  if (d.wvw) granted.add('wvw');
+
+  document.getElementById('perm-grid').innerHTML = ALL_PERMS.map(p => `
+    <span class="perm-badge ${granted.has(p) ? 'granted' : 'missing'}">
+      ${granted.has(p) ? '✓' : '✗'} ${p}
+    </span>`).join('');
+
+  const KNOWN_LIMITATIONS = {
+    guilds: 'Guild details are only accessible to guild leaders via the GW2 API. Members can see their guild IDs on the account but not guild data.',
+  };
+
+  const ERR_TAB_MAP = {
+    account:           'err-overview',
+    builds:            'err-overview',
+    tradingpost_buys:  'err-overview',
+    tradingpost_sells: 'err-overview',
+    characters:        'err-characters',
+    wallet:            'err-wallet',
+    bank:              'err-inventory',
+    materials:         'err-inventory',
+    shared_inventory:  'err-inventory',
+    achievements:      'err-progression',
+    masteries:         'err-progression',
+    mastery_points:    'err-progression',
+    pvp_stats:         'err-pvp',
+    pvp_games:         'err-pvp',
+    pvp_standings:     'err-pvp',
+    builds:            'err-builds',
+    skins:             'err-skins',
+    dyes:              'err-unlocks',
+    minis:             'err-unlocks',
+    finishers:         'err-unlocks',
+    wvw:               'err-overview',
+  };
+
+  const errs = d.errors || {};
+  Object.entries(errs).forEach(([k, v]) => {
+    if (KNOWN_LIMITATIONS[k]) return;
+    const tabId = ERR_TAB_MAP[k] || 'err-overview';
+    const el = document.getElementById(tabId);
+    if (el) el.innerHTML += `<div class="error-box"><strong>${k}</strong>: ${v}</div>`;
+  });
+  Object.entries(errs).forEach(([k]) => {
+    if (!KNOWN_LIMITATIONS[k]) return;
+    const el = document.getElementById('err-overview');
+    if (el) el.innerHTML += `
+      <div style="background:#1a1a2a;border:1px solid #334;border-radius:4px;padding:12px 16px;margin-top:8px;color:var(--text-dim);font-size:13px">
+        <strong style="color:var(--gold)">ℹ ${k}</strong> — ${KNOWN_LIMITATIONS[k]}
+      </div>`;
+  });
+}
+
+// ── Characters ──
+const DOLL_ARMOR = [
+  { slot: 'Helm',       col: 0, row: 0, label: 'Helm' },
+  { slot: 'Shoulders',  col: 1, row: 0, label: 'Shoulders' },
+  { slot: 'Coat',       col: 0, row: 1, label: 'Coat' },
+  { slot: 'Gloves',     col: 1, row: 1, label: 'Gloves' },
+  { slot: 'Leggings',   col: 0, row: 2, label: 'Leggings' },
+  { slot: 'Boots',      col: 1, row: 2, label: 'Boots' },
+  { slot: 'Backpack',   col: 0, row: 3, label: 'Back' },
+  { slot: 'Amulet',     col: 1, row: 3, label: 'Amulet' },
+  { slot: 'Accessory1', col: 0, row: 4, label: 'Acc 1' },
+  { slot: 'Accessory2', col: 1, row: 4, label: 'Acc 2' },
+  { slot: 'Ring1',      col: 0, row: 5, label: 'Ring 1' },
+  { slot: 'Ring2',      col: 1, row: 5, label: 'Ring 2' },
+];
+const DOLL_WEAPONS = [
+  { slot: 'WeaponA1', label: 'Main 1' },
+  { slot: 'WeaponA2', label: 'Off 1' },
+  { slot: 'WeaponB1', label: 'Main 2' },
+  { slot: 'WeaponB2', label: 'Off 2' },
+];
+
+let _chars = [];
+
+function renderCharacters(chars) {
+  _chars = chars;
+  const sel = document.getElementById('char-selector');
+  sel.innerHTML = chars.map((c, i) => `
+    <button class="char-btn${i === 0 ? ' active' : ''}" data-idx="${i}">
+      ${c.name}
+    </button>`).join('');
+  sel.addEventListener('click', e => {
+    const btn = e.target.closest('.char-btn');
+    if (!btn) return;
+    document.querySelectorAll('.char-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    showCharacter(parseInt(btn.dataset.idx));
+  });
+  if (chars.length) showCharacter(0);
+}
+
+function showCharacter(idx) {
+  const ch = _chars[idx];
+  if (!ch) return;
+  const eqMap = {};
+  for (const eq of (ch.equipment || [])) eqMap[eq.slot] = eq;
+
+  const dollSlots = DOLL_ARMOR.map(s => renderDollSlot(s.slot, s.label, eqMap[s.slot])).join('');
+  const weaponSlots = DOLL_WEAPONS.map(s => renderDollSlot(s.slot, s.label, eqMap[s.slot])).join('');
+
+  const equipRows = [...DOLL_ARMOR, ...DOLL_WEAPONS].map(s => {
+    const eq = eqMap[s.slot];
+    if (!eq) return '';
+    const skinId = eq.skin || eq.id;
+    const icon = skinIcon(skinId) || itemIcon(eq.id);
+    const name = skinName(skinId) !== `Skin #${skinId}` ? skinName(skinId) : itemName(eq.id);
+    const dyes = (eq.dyes || []).filter(d => d != null).map(d =>
+      `<span class="dye-dot" style="background:${colorHex(d)}" title="${_colorCache[d]?.name || ''}"></span>`).join('');
+    return `<div class="equip-row">
+      ${icon ? `<img src="${icon}" alt="">` : '<div style="width:32px;height:32px;background:#333;border-radius:2px"></div>'}
+      <span class="eq-slot">${s.label}</span>
+      <span class="eq-name">${name}</span>
+      <span class="eq-dyes">${dyes}</span>
+    </div>`;
+  }).filter(Boolean).join('');
+
+  document.getElementById('char-detail').innerHTML = `
+    <div class="char-viewer">
+      <div>
+        <div class="paper-doll">${dollSlots}</div>
+        <div class="doll-weapons">${weaponSlots}</div>
+      </div>
+      <div class="char-info">
+        <div class="char-info-header">
+          <div class="char-name">${ch.name}</div>
+          <div class="char-meta">${ch.race} · ${ch.profession} · Level ${ch.level} · ${ch.gender}</div>
+          ${ch.guild ? (() => { const g = _guildCache[ch.guild] || {}; return `<div style="margin-top:5px"><span style="background:#1e2a1e;border:1px solid #3a5a3a;border-radius:3px;padding:3px 8px;font-size:12px;color:#6bc46b">[${g.tag || '?'}] ${g.name || ch.guild}</span></div>`; })() : ''}
+        </div>
+        <div class="char-stats-grid">
+          <div class="char-stat-box"><div class="cs-label">Playtime</div><div class="cs-val">${Math.round((ch.age||0)/3600)}h</div></div>
+          <div class="char-stat-box"><div class="cs-label">Deaths</div><div class="cs-val">${ch.deaths ?? 0}</div></div>
+          <div class="char-stat-box"><div class="cs-label">Created</div><div class="cs-val">${(ch.created||'').slice(0,10)}</div></div>
+          <div class="char-stat-box"><div class="cs-label">Equipment</div><div class="cs-val">${(ch.equipment||[]).length}</div></div>
+          <div class="char-stat-box"><div class="cs-label">Crafting</div><div class="cs-val">${(ch.crafting||[]).map(x=>x.discipline).join(', ')||'—'}</div></div>
+        </div>
+        <div class="section-title" style="margin-top:0">Equipment</div>
+        <div class="equip-list">${equipRows}</div>
+      </div>
+    </div>`;
+}
+
+function renderDollSlot(slot, label, eq) {
+  if (!eq) {
+    return `<div class="doll-slot">
+      <span class="slot-empty">·</span>
+      <span class="slot-label">${label}</span>
+    </div>`;
+  }
+  const skinId = eq.skin || eq.id;
+  const icon = skinIcon(skinId) || itemIcon(eq.id);
+  const name = skinName(skinId) !== `Skin #${skinId}` ? skinName(skinId) : itemName(eq.id);
+  const dyes = (eq.dyes || []).filter(d => d != null).map(d =>
+    `<span class="dye-dot" style="background:${colorHex(d)}"></span>`).join('');
+  return `<div class="doll-slot">
+    <div class="tooltip">${name}</div>
+    ${icon ? `<img src="${icon}" alt="${name}">` : `<span class="slot-empty">?</span>`}
+    <span class="slot-label">${label}</span>
+    ${dyes ? `<div class="dye-row">${dyes}</div>` : ''}
+  </div>`;
+}
+
+// ── Wardrobe ──
+let _allSkinIds = [];
+let _wardrobeLoaded = false;
+let _wardrobeFiltered = [];
+let _wardrobeVisible = 200;
+const WARDROBE_PAGE = 200;
+
+function setupWardrobe(skinIds) {
+  _allSkinIds = skinIds;
+  _wardrobeLoaded = false;
+  _wardrobeVisible = WARDROBE_PAGE;
+
+  document.querySelectorAll('#nav-tabs button').forEach(btn => {
+    if (btn.dataset.tab === 'wardrobe') {
+      btn.addEventListener('click', loadWardrobeOnce, { once: false });
+    }
+  });
+
+  let _wardrobeSearchTimer = null;
+
+  document.getElementById('wardrobe-search').addEventListener('input', () => {
+    clearTimeout(_wardrobeSearchTimer);
+    _wardrobeSearchTimer = setTimeout(resetWardrobePagination, 200);
+  });
+  document.getElementById('wardrobe-type').addEventListener('change', () => {
+    populateSubtypes();
+    resetWardrobePagination();
+  });
+  document.getElementById('wardrobe-subtype').addEventListener('change', resetWardrobePagination);
+}
+
+function resetWardrobePagination() {
+  _wardrobeVisible = WARDROBE_PAGE;
+  filterWardrobe();
+}
+
+async function loadWardrobeOnce() {
+  if (_wardrobeLoaded) return;
+  _wardrobeLoaded = true;
+  const loadingEl = document.getElementById('wardrobe-loading');
+  loadingEl.classList.remove('hidden');
+
+  await resolveSkins(_allSkinIds);
+  loadingEl.classList.add('hidden');
+  populateSubtypes();
+  filterWardrobe();
+}
+
+function populateSubtypes() {
+  const typeFilter = document.getElementById('wardrobe-type').value;
+  const subtypes = new Set();
+  for (const id of _allSkinIds) {
+    const s = _skinCache[id];
+    if (!s) continue;
+    if (typeFilter && s.type !== typeFilter) continue;
+    if (s.subtype) subtypes.add(s.subtype);
+  }
+  const sel = document.getElementById('wardrobe-subtype');
+  const current = sel.value;
+  sel.innerHTML = '<option value="">All subtypes</option>' +
+    [...subtypes].sort().map(st => `<option value="${st}"${st === current ? ' selected' : ''}>${st}</option>`).join('');
+}
+
+function filterWardrobe() {
+  const search    = document.getElementById('wardrobe-search').value.toLowerCase();
+  const typeF     = document.getElementById('wardrobe-type').value;
+  const subtypeF  = document.getElementById('wardrobe-subtype').value;
+
+  _wardrobeFiltered = _allSkinIds.filter(id => {
+    const s = _skinCache[id];
+    if (!s) return false;
+    if (typeF    && s.type    !== typeF)    return false;
+    if (subtypeF && s.subtype !== subtypeF) return false;
+    if (search   && !s.name.toLowerCase().includes(search)) return false;
+    return true;
+  });
+
+  renderWardrobePage();
+}
+
+function showMoreWardrobe() {
+  _wardrobeVisible += WARDROBE_PAGE;
+  renderWardrobePage();
+}
+
+function renderWardrobePage() {
+  const total = _wardrobeFiltered.length;
+  const show = Math.min(_wardrobeVisible, total);
+
+  document.getElementById('wardrobe-count').textContent =
+    `Showing ${show.toLocaleString()} of ${total.toLocaleString()} skins`;
+
+  const grid = document.getElementById('skin-grid');
+  if (!total) {
+    grid.innerHTML = '<div style="grid-column:1/-1;padding:30px 0;text-align:center;color:var(--text-dim)">No skins match your search criteria.</div>';
+    return;
+  }
+  grid.innerHTML = _wardrobeFiltered.slice(0, show).map(id => {
+    const s = _skinCache[id] || {};
+    return `<div class="skin-card">
+      ${s.icon ? `<img src="${s.icon}" alt="${s.name || ''}">` : '<div style="width:56px;height:56px;background:#333;border-radius:3px"></div>'}
+      <div class="sk-name">${s.name || `#${id}`}</div>
+      <div class="sk-type">${s.subtype || s.type || ''}</div>
+    </div>`;
+  }).join('');
+
+  if (show < total) {
+    const loadMore = document.createElement('div');
+    loadMore.style.cssText = 'grid-column:1/-1;text-align:center;padding:16px 0';
+    loadMore.innerHTML = `<button style="background:var(--gold);border:none;border-radius:3px;color:#111;cursor:pointer;font-size:13px;font-weight:600;padding:8px 20px" onclick="showMoreWardrobe()">
+      Show ${Math.min(WARDROBE_PAGE, total - show).toLocaleString()} more (${(total - show).toLocaleString()} remaining)
+    </button>`;
+    grid.appendChild(loadMore);
+  }
+}
+
+// ── Wallet ──
+function renderWallet(wallet) {
+  const sorted = [...wallet].sort((a, b) => b.value - a.value);
+  document.getElementById('wallet-list').innerHTML = sorted.map(w => {
+    const name = currencyName(w.id);
+    const desc = _currencyCache[w.id]?.description || '';
+    const qty  = w.id === 1 ? fmtCoin(w.value) : w.value.toLocaleString();
+    return `<div class="currency-row">
+      <div class="currency-name">${name}</div>
+      <div class="currency-desc">${desc}</div>
+      <div class="currency-qty">${qty}</div>
+    </div>`;
+  }).join('');
+}
+
+// ── Inventory ──
+function renderInventory(d) {
+  const mats = (d.materials || []).filter(m => m.count > 0).sort((a, b) => b.count - a.count).slice(0, 40);
+  document.querySelector('#materials-table tbody').innerHTML = mats.map(m => {
+    const icon = itemIcon(m.id);
+    const img = icon ? `<img src="${icon}" width="20" height="20" style="vertical-align:middle;margin-right:6px;border-radius:2px">` : '';
+    return `<tr>
+      <td>${img}<span class="gold-val">${itemName(m.id)}</span></td>
+      <td>${m.count.toLocaleString()}</td>
+      <td class="dim">${matCatName(m.category)}</td>
+    </tr>`;
+  }).join('');
+
+  const bank = d.bank || [];
+  const used = bank.filter(s => s !== null).length;
+  document.getElementById('bank-summary').innerHTML = `
+    <div class="stat-card" style="display:inline-block;min-width:160px">
+      <div class="label">Bank Slots</div>
+      <div class="value">${used} / ${bank.length}</div>
+      <div class="sub">slots occupied</div>
+    </div>`;
+
+  const shared = d.shared_inventory;
+  const sharedList = document.getElementById('shared-inv-list');
+  if (!shared) {
+    sharedList.innerHTML = '<div class="dim">No shared inventory data</div>';
+    return;
+  }
+  const slots = Array.isArray(shared) ? shared : [shared];
+  const items = slots.filter(s => s !== null);
+  if (!items.length) {
+    sharedList.innerHTML = '<div class="dim">All shared inventory slots are empty</div>';
+    return;
+  }
+  sharedList.innerHTML = `<div class="stat-card" style="display:inline-block;min-width:160px;margin-bottom:12px">
+    <div class="label">Slots Used</div>
+    <div class="value">${items.length} / ${slots.length}</div>
+    <div class="sub">shared inventory slots</div>
+  </div>
+  <div style="display:flex;flex-wrap:wrap;gap:8px">${items.map(s => {
+    const icon = itemIcon(s.id);
+    return `<div style="background:var(--bg2);border:1px solid var(--border);border-radius:4px;padding:8px;text-align:center;width:80px">
+      ${icon ? `<img src="${icon}" width="40" height="40" style="border-radius:3px">` : '<div style="width:40px;height:40px;background:#333;border-radius:3px;margin:0 auto"></div>'}
+      <div style="font-size:11px;color:var(--text-dim);margin-top:4px;word-break:break-all">${itemName(s.id)}</div>
+      ${s.count > 1 ? `<div style="font-size:11px;color:var(--gold)">×${s.count}</div>` : ''}
+    </div>`;
+  }).join('')}</div>`;
+}
+
+// ── Progression ──
+function renderProgression(d) {
+  document.querySelector('#masteries-table tbody').innerHTML =
+    (d.masteries || []).map(m => `
+      <tr>
+        <td class="gold-val">${masteryName(m.id)}</td>
+        <td class="dim">${masteryRegion(m.id)}</td>
+        <td>${m.level}</td>
+      </tr>`).join('') || '<tr><td colspan="3" class="dim">No mastery data</td></tr>';
+
+  const totals = (d.mastery_points?.totals || []);
+  document.getElementById('mastery-point-cards').innerHTML = totals.map(t => `
+    <div class="stat-card">
+      <div class="label">${t.region}</div>
+      <div class="value">${t.spent} / ${t.earned}</div>
+      <div class="sub">spent / earned</div>
+    </div>`).join('');
+
+  document.getElementById('achiev-summary').innerHTML = `
+    <div class="stat-card" style="display:inline-block;min-width:200px">
+      <div class="label">Achievements</div>
+      <div class="value">${(d.achievements || []).length.toLocaleString()}</div>
+      <div class="sub">tracked on account</div>
+    </div>`;
+}
+
+// ── PvP ──
+function renderPvp(d) {
+  const stats = d.pvp_stats || {};
+  const agg   = stats.aggregate || {};
+  const wins  = agg.wins?.pvp ?? 0;
+  const losses= agg.losses?.pvp ?? 0;
+  const total = wins + losses;
+  document.getElementById('pvp-grid').innerHTML = [
+    { label: 'PvP Rank',   value: stats.pvp_rank ?? '—' },
+    { label: 'Wins',       value: wins },
+    { label: 'Losses',     value: losses },
+    { label: 'Win Rate',   value: total ? `${Math.round(wins/total*100)}%` : '—' },
+    { label: 'Desertions', value: agg.desertions?.pvp ?? 0 },
+    { label: 'Byes',       value: agg.byes?.pvp ?? 0 },
+  ].map(s => `<div class="pvp-stat"><div class="ps-label">${s.label}</div><div class="ps-val">${s.value}</div></div>`).join('');
+
+  document.querySelector('#pvp-games-table tbody').innerHTML =
+    (d.pvp_games || []).map(g => `
+      <tr>
+        <td>${mapName(g.map_id)}</td>
+        <td class="${g.result === 'Victory' ? 'gold-val' : 'dim'}">${g.result ?? '—'}</td>
+        <td>${g.scores?.red ?? g.scores?.blue ?? '—'}</td>
+        <td>${g.profession ?? '—'}</td>
+      </tr>`).join('') || '<tr><td colspan="4" class="dim">No recent games</td></tr>';
+
+  const standings = d.pvp_standings || [];
+  document.getElementById('pvp-standings-list').innerHTML = standings.length
+    ? `<table class="data-table"><thead><tr><th>#</th><th>Team/Division</th><th>Rating</th><th>Wins</th><th>Losses</th></tr></thead><tbody>${standings.map((s, i) => `
+      <tr>
+        <td>${i + 1}</td>
+        <td>${s.division_name ?? s.ladder_name ?? '—'}</td>
+        <td class="gold-val">${s.rating?.toLocaleString() ?? '—'}</td>
+        <td>${s.wins ?? '—'}</td>
+        <td>${s.losses ?? '—'}</td>
+      </tr>`).join('')}</tbody></table>`
+    : '<div class="dim">No ladder standings data</div>';
+}
+
+// ── Unlocks ──
+function renderUnlocks(d) {
+  document.getElementById('unlock-grid').innerHTML = [
+    { label: 'Skins',     val: d.unlocked_skins_count },
+    { label: 'Dyes',      val: d.unlocked_dyes_count },
+    { label: 'Minis',     val: d.unlocked_minis_count },
+    { label: 'Finishers', val: (d.unlocked_finishers || []).length },
+  ].map(u => `<div class="unlock-card"><div class="u-label">${u.label}</div><div class="u-val">${u.val ?? '—'}</div></div>`).join('');
+
+  document.querySelector('#finishers-table tbody').innerHTML =
+    (d.unlocked_finishers || []).map(f => `
+      <tr>
+        <td class="gold-val">Finisher #${f.id}</td>
+        <td>${f.permanent ? 'Yes' : 'No'}</td>
+        <td>${f.quantity ?? '∞'}</td>
+      </tr>`).join('') || '<tr><td colspan="3" class="dim">None</td></tr>';
+}
+
+// ── WvW ──
+function renderWvw(d) {
+  document.getElementById('wvw-cards').innerHTML = [
+    { label: 'WvW Rank', value: d.wvw_rank ?? '—',           sub: 'account rank' },
+    { label: 'WvW Team', value: d.wvw?.wvw_team ?? '—',      sub: 'current team' },
+  ].map(c => `<div class="stat-card"><div class="label">${c.label}</div><div class="value">${c.value}</div><div class="sub">${c.sub}</div></div>`).join('');
+}
+
+// ── Builds ──
+function renderBuilds(d) {
+  const raw = d.builds || [];
+  const storage = Array.isArray(raw) ? raw[0] : raw;
+  const eqTabs = storage?.equipment_tabs || [];
+  const buildTabs = storage?.build_tabs || [];
+  let html = '';
+
+  if (eqTabs.length) {
+    html += `<div class="section-title">Equipment Templates (${eqTabs.length})</div>`;
+    html += eqTabs.map(t => {
+      const items = (t.equipment || []).map(eq => {
+        const icon = itemIcon(eq.id);
+        return `<span style="display:inline-block;margin:4px;text-align:center">
+          ${icon ? `<img src="${icon}" width="32" height="32" style="border-radius:3px;display:block">` : '<div style="width:32px;height:32px;background:#333;border-radius:3px"></div>'}
+          <span style="font-size:10px;color:var(--text-dim)">${itemName(eq.id)?.slice(0,12) || '#' + eq.id}</span>
+        </span>`;
+      }).join('');
+      return `<div style="background:var(--bg2);border:1px solid var(--border);border-radius:4px;padding:12px;margin-bottom:8px">
+        <div style="font-weight:600;color:var(--gold);margin-bottom:8px">${t.name || `Tab ${t.tab}`}</div>
+        <div>${items || '<span class="dim">Empty</span>'}</div>
+      </div>`;
+    }).join('');
+  }
+
+  if (buildTabs.length) {
+    html += `<div class="section-title">Build Templates (${buildTabs.length})</div>`;
+    html += buildTabs.map(t => `
+      <div style="background:var(--bg2);border:1px solid var(--border);border-radius:4px;padding:12px;margin-bottom:8px">
+        <div style="font-weight:600;color:var(--gold)">${t.name || `Tab ${t.tab}`}</div>
+        <div class="dim" style="font-size:12px;margin-top:4px;word-break:break-all">Build ID: ${t.build?.slice(0,80) || '—'}</div>
+      </div>`).join('');
+  }
+
+  if (!html) {
+    html = '<div class="dim">No saved builds or equipment templates found.</div>';
+  }
+  document.getElementById('builds-content').innerHTML = html;
+}
