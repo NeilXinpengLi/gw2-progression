@@ -68,6 +68,31 @@ CREATE TABLE IF NOT EXISTS item_holdings (
     FOREIGN KEY (snapshot_id) REFERENCES account_snapshots(id)
 );
 
+CREATE TABLE IF NOT EXISTS progression_goal_templates (
+    template_id TEXT PRIMARY KEY,
+    goal_type TEXT NOT NULL,
+    name TEXT NOT NULL,
+    target_item_id INTEGER NOT NULL DEFAULT 0,
+    expansion TEXT DEFAULT '',
+    category TEXT DEFAULT '',
+    difficulty_level TEXT DEFAULT 'medium',
+    estimated_time_class TEXT DEFAULT 'long',
+    enabled INTEGER NOT NULL DEFAULT 1
+);
+
+CREATE TABLE IF NOT EXISTS goal_requirements (
+    requirement_id TEXT PRIMARY KEY,
+    template_id TEXT NOT NULL,
+    requirement_type TEXT NOT NULL,
+    ref_id INTEGER NOT NULL DEFAULT 0,
+    ref_name TEXT DEFAULT '',
+    required_count INTEGER NOT NULL DEFAULT 1,
+    time_gated INTEGER NOT NULL DEFAULT 0,
+    optional_group_id TEXT DEFAULT '',
+    notes TEXT DEFAULT '',
+    FOREIGN KEY (template_id) REFERENCES progression_goal_templates(template_id)
+);
+
 CREATE TABLE IF NOT EXISTS tracked_goals (
     goal_id TEXT PRIMARY KEY,
     account_name TEXT NOT NULL,

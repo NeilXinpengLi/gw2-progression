@@ -15,10 +15,12 @@ from gw2_progression.gw2_client import Gw2ApiError
 from gw2_progression.gw2_client import _close_client as close_gw2_client
 from gw2_progression.services.price_service import close_client as close_price_client
 from gw2_progression.services.price_service import warmup_price_cache
+from gw2_progression.services.progression_service import seed_templates
 
 from .routes.analyze import router as analyze_router
 from .routes.crafting import router as crafting_router
 from .routes.goals import router as goals_router
+from .routes.progression import router as progression_router
 from .routes.resolve import router as resolve_router
 from .routes.valuation import router as valuation_router
 
@@ -40,6 +42,7 @@ async def lifespan(app: FastAPI):
     logger.info("Starting GW2 Progression")
     await init_db()
     await warmup_price_cache()
+    await seed_templates()
     yield
     logger.info("Shutting down GW2 Progression")
     await close_gw2_client()
@@ -107,6 +110,7 @@ app.include_router(resolve_router)
 app.include_router(valuation_router)
 app.include_router(crafting_router)
 app.include_router(goals_router)
+app.include_router(progression_router)
 app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 
 

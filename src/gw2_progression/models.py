@@ -207,6 +207,59 @@ class AccountValueDelta(BaseModel):
     top_decliners: list[ItemValueDelta] = []
 
 
+class ProgressionGoalTemplate(BaseModel):
+    template_id: str = ""
+    goal_type: str = "legendary_weapon"  # legendary_weapon | legendary_armor | legendary_trinket | ascended_weapon | ascended_armor
+    name: str = ""
+    target_item_id: int = 0
+    expansion: str = ""
+    category: str = ""
+    difficulty_level: str = "medium"
+    estimated_time_class: str = "long"
+    enabled: bool = True
+
+
+class GoalRequirement(BaseModel):
+    requirement_id: str = ""
+    template_id: str = ""
+    requirement_type: str = "item"  # item | currency | achievement | mastery | collection | account_unlock
+    ref_id: int = 0
+    ref_name: str = ""
+    required_count: int = 0
+    time_gated: bool = False
+    optional_group_id: str = ""
+    notes: str = ""
+
+
+class GoalRequirementStatus(BaseModel):
+    requirement_id: str = ""
+    template_id: str = ""
+    requirement_type: str = "item"
+    ref_id: int = 0
+    ref_name: str = ""
+    required_count: int = 0
+    owned_count: int = 0
+    missing_count: int = 0
+    completion_percent: float = 0.0
+    estimated_cost_buy: int = 0
+    status: str = "missing"  # complete | partial | missing | blocked
+
+
+class GoalPlan(BaseModel):
+    goal_id: str = ""
+    account_name: str = ""
+    template_id: str = ""
+    target_count: int = 1
+    total_completion_percent: float = 0.0
+    total_missing_cost: int = 0
+    total_owned_material_value: int = 0
+    time_gated_count: int = 0
+    blocked_requirement_count: int = 0
+    requirements: list[GoalRequirementStatus] = []
+    created_at: str = ""
+    updated_at: str = ""
+
+
 class TrackedGoal(BaseModel):
     goal_id: str = ""
     account_name: str = ""
