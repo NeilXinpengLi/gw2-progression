@@ -68,6 +68,22 @@ CREATE TABLE IF NOT EXISTS item_holdings (
     FOREIGN KEY (snapshot_id) REFERENCES account_snapshots(id)
 );
 
+CREATE TABLE IF NOT EXISTS tracked_goals (
+    goal_id TEXT PRIMARY KEY,
+    account_name TEXT NOT NULL,
+    target_item_id INTEGER NOT NULL,
+    target_count INTEGER NOT NULL DEFAULT 1,
+    status TEXT NOT NULL DEFAULT 'active',
+    priority TEXT NOT NULL DEFAULT 'normal',
+    completion_percent REAL NOT NULL DEFAULT 0.0,
+    owned_material_value INTEGER NOT NULL DEFAULT 0,
+    missing_material_value INTEGER NOT NULL DEFAULT 0,
+    missing_item_count INTEGER NOT NULL DEFAULT 0,
+    estimated_remaining_cost INTEGER NOT NULL DEFAULT 0,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+);
+
 CREATE TABLE IF NOT EXISTS account_value_history (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     account_name TEXT NOT NULL,
@@ -79,6 +95,41 @@ CREATE TABLE IF NOT EXISTS account_value_history (
     bank_value INTEGER NOT NULL DEFAULT 0,
     inventory_value INTEGER NOT NULL DEFAULT 0,
     tradingpost_value INTEGER NOT NULL DEFAULT 0
+);
+
+CREATE TABLE IF NOT EXISTS static_items (
+    id INTEGER PRIMARY KEY,
+    name TEXT NOT NULL,
+    icon TEXT,
+    description TEXT,
+    type TEXT,
+    rarity TEXT,
+    level INTEGER DEFAULT 0,
+    vendor_value INTEGER DEFAULT 0,
+    flags TEXT,
+    game_types TEXT,
+    restrictions TEXT,
+    updated_at TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS static_recipes (
+    id INTEGER PRIMARY KEY,
+    output_item_id INTEGER NOT NULL,
+    output_item_count INTEGER DEFAULT 1,
+    disciplines TEXT,
+    min_rating INTEGER DEFAULT 0,
+    flags TEXT,
+    type TEXT,
+    chat_link TEXT,
+    updated_at TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS recipe_ingredients (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    recipe_id INTEGER NOT NULL,
+    item_id INTEGER NOT NULL,
+    count INTEGER NOT NULL DEFAULT 1,
+    FOREIGN KEY (recipe_id) REFERENCES static_recipes(id)
 );
 
 CREATE TABLE IF NOT EXISTS valuation_warnings (
@@ -98,6 +149,7 @@ async def get_db() -> aiosqlite.Connection:
     db.row_factory = aiosqlite.Row
     await db.execute("PRAGMA journal_mode=WAL")
     await db.execute("PRAGMA foreign_keys=ON")
+    await db.execute("PRAGMA synchronous=NORMAL")
     return db
 
 
@@ -109,6 +161,18 @@ async def init_db():
             s = stmt.strip()
             if s:
                 await db.execute(s)
+        for idx_sql in [
+            "CREATE INDEX IF NOT EXISTS idx_recipes_output ON static_recipes(output_item_id)",
+            "CREATE INDEX IF NOT EXISTS idx_ingredients_recipe ON recipe_ingredients(recipe_id)",
+            "CREATE INDEX IF NOT EXISTS idx_ingredients_item ON recipe_ingredients(item_id)",
+            "CREATE INDEX IF NOT EXISTS idx_snapshots_account ON account_snapshots(account_name)",
+            "CREATE INDEX IF NOT EXISTS idx_holdings_snapshot ON item_holdings(snapshot_id)",
+            "CREATE INDEX IF NOT EXISTS idx_history_account ON account_value_history(account_name)",
+        ]:
+            try:
+                await db.execute(idx_sql)
+            except Exception:
+                pass
         await db.commit()
         logger.info("Database initialized at %s", DB_PATH)
     finally:

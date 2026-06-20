@@ -355,6 +355,17 @@ function renderValue(vd) {
       <div class="sub">liquid gold ${vsPrev(s.wallet_value, prev?.wallet_value)}</div>
     </div>
     <div class="stat-card">
+      <div class="label">Reliable Value</div>
+      <div class="value" style="color:#6bc46b">${fmtCoinShort(s.reliable_value)}</div>
+      <div class="sub">high liquidity & fair spread</div>
+    </div>
+    <div class="stat-card">
+      <div class="label">Risky Value</div>
+      <div class="value" style="color:#d0a050">${fmtCoinShort(s.risky_value)}</div>
+      <div class="sub">low liquidity or wide spread</div>
+    </div>
+    </div>
+    <div class="stat-card">
       <div class="label">Materials (Buy)</div>
       <div class="value">${fmtCoinShort(s.material_value_buy)}</div>
       <div class="sub">material storage value ${vsPrev(s.material_value_buy, prev?.material_value)}</div>
@@ -407,9 +418,11 @@ function renderValue(vd) {
       let statusEl = `<span class="perm-badge granted">Priced</span>`;
       if (item.valuation_status === 'unpriced') statusEl = `<span class="perm-badge missing">Unpriced</span>`;
       if (item.valuation_status === 'account_bound') statusEl = `<span class="perm-badge missing">Bound</span>`;
+      const qualityMap = { reliable: '', low_liquidity: '⚠️', illiquid: '⚠️', wide_spread: '📊', missing_buy: '❓' };
+      const qualityIcon = item.quality_status ? qualityMap[item.quality_status] || '' : '';
       return `<tr>
         <td>${i + 1}</td>
-        <td>${img}<span class="gold-val">${name}</span></td>
+        <td>${img}<span class="gold-val">${name}</span> ${qualityIcon}</td>
         <td class="dim">${loc}${item.location_ref ? ' (' + item.location_ref.slice(0, 20) + ')' : ''}</td>
         <td>${item.count.toLocaleString()}</td>
         <td class="gold-val">${fmtCoinShort(item.value_buy)}</td>
@@ -1200,6 +1213,308 @@ function renderBuilds(d) {
 }
 
 // ── Holdings toggle & filter ──
+// ── Items Tab ──
+document.getElementById('items-search-btn').addEventListener('click', runItemsSearch);
+document.getElementById('items-search-input').addEventListener('keydown', e => { if (e.key === 'Enter') runItemsSearch(); });
+document.getElementById('items-detail-back').addEventListener('click', () => {
+  document.getElementById('items-detail').classList.add('hidden');
+  document.getElementById('items-results-table').classList.remove('hidden');
+});
+
+document.querySelectorAll('.quick-filter-btn').forEach(btn => {
+  btn.addEventListener('click', () => runItemsFilter(btn.dataset.filter));
+});
+
+let _itemsSearchTimer = null;
+document.getElementById('items-search-input').addEventListener('input', () => {
+  clearTimeout(_itemsSearchTimer);
+  _itemsSearchTimer = setTimeout(() => {
+    if (document.getElementById('items-search-input').value.trim().length >= 2) runItemsSearch();
+  }, 400);
+});
+
+async function runItemsSearch() {
+  const q = document.getElementById('items-search-input').value.trim();
+  const loc = document.getElementById('items-location-filter').value;
+  const status = document.getElementById('items-status-filter').value;
+  const accountName = _accountData?.account_name;
+  if (!accountName) { setItemsStatus('error', 'Run analysis first (Overview tab).'); return; }
+  if (!q) { setItemsStatus('error', 'Enter an item name or ID.'); return; }
+
+  setItemsStatus('', '<span class="spinner"></span> Searching…');
+  await _doItemsFetch(`/value/items/search?account_name=${encodeURIComponent(accountName)}&q=${encodeURIComponent(q)}${loc ? '&location='+loc : ''}${status ? '&status='+status : ''}`);
+}
+
+async function runItemsFilter(filter) {
+  const accountName = _accountData?.account_name;
+  if (!accountName) { setItemsStatus('error', 'Run analysis first.'); return; }
+  setItemsStatus('', `<span class="spinner"></span> Loading ${filter} items…`);
+  await _doItemsFetch(`/value/items/${filter}?account_name=${encodeURIComponent(accountName)}`);
+}
+
+async function _doItemsFetch(url) {
+  try {
+    const res = await fetch(url);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+    const items = Array.isArray(data) ? data : [];
+
+    // Resolve item names
+    const ids = [...new Set(items.map(i => i.item_id).filter(Boolean))];
+    if (ids.length) await resolveItems(ids);
+
+    document.getElementById('items-results').classList.remove('hidden');
+    document.getElementById('items-detail').classList.add('hidden');
+    document.getElementById('items-results-table').classList.remove('hidden');
+
+    const tbody = document.querySelector('#items-results-table tbody');
+    if (!items.length) {
+      tbody.innerHTML = '<tr><td colspan="6" class="dim">No items found.</td></tr>';
+      document.getElementById('items-results-title').textContent = 'Results (0)';
+    } else {
+      document.getElementById('items-results-title').textContent = `Results (${items.length})`;
+      tbody.innerHTML = items.map((h, i) => {
+        const name = itemName(h.item_id);
+        const icon = itemIcon(h.item_id);
+        const img = icon ? `<img src="${icon}" width="16" height="16" style="vertical-align:middle;margin-right:4px;border-radius:2px">` : '';
+        const locLabels = { material_storage: 'Material Storage', bank: 'Bank', character: 'Character', shared_inventory: 'Shared', tradingpost: 'TP', wallet: 'Wallet' };
+        let loc = locLabels[h.location_type] || h.location_type;
+        if (h.location_type === 'character' && h.location_ref) loc = 'Char: ' + h.location_ref.split('/')[0];
+        let statusEl = `<span class="perm-badge granted">Priced</span>`;
+        if (h.valuation_status === 'unpriced') statusEl = `<span class="perm-badge missing">Unpriced</span>`;
+        if (h.valuation_status === 'account_bound') statusEl = `<span class="perm-badge missing">Bound</span>`;
+        return `<tr style="cursor:pointer" data-item-id="${h.item_id}">
+          <td>${img}<span class="gold-val">${name}</span></td>
+          <td>${h.count.toLocaleString()}</td>
+          <td class="dim">${loc}</td>
+          <td class="gold-val">${h.value_buy ? fmtCoinShort(h.value_buy) : '—'}</td>
+          <td class="gold-val">${h.value_sell ? fmtCoinShort(h.value_sell) : '—'}</td>
+          <td>${statusEl}</td>
+        </tr>`;
+      }).join('');
+    }
+
+    // Click to show item detail
+    tbody.querySelectorAll('tr[data-item-id]').forEach(row => {
+      row.addEventListener('click', () => loadItemDetail(parseInt(row.dataset.itemId)));
+    });
+
+    setItemsStatus('ok', `Found ${items.length} result(s).`);
+  } catch (e) {
+    setItemsStatus('error', `Error: ${e.message}`);
+  }
+}
+
+async function loadItemDetail(itemId) {
+  const accountName = _accountData?.account_name;
+  if (!accountName) return;
+
+  document.getElementById('items-detail').classList.remove('hidden');
+  document.getElementById('items-results-table').classList.add('hidden');
+  document.getElementById('items-detail-title').textContent = `Item #${itemId} Detail`;
+
+  try {
+    const [detailRes, listingRes] = await Promise.all([
+      fetch(`/value/items/${itemId}/detail?account_name=${encodeURIComponent(accountName)}&item_id=${itemId}`),
+      fetch(`/value/listings/${itemId}`),
+    ]);
+    const detail = await detailRes.json();
+    const listing = listingRes.ok ? await listingRes.json() : null;
+    await resolveItems([detail.item_id]);
+
+    document.getElementById('items-detail-grid').innerHTML = `
+      <div class="value-stat-box"><div class="vsl-label">Total Count</div><div class="vsl-value">${detail.total_count.toLocaleString()}</div></div>
+      <div class="value-stat-box"><div class="vsl-label">Total Buy Value</div><div class="vsl-value gold-val">${fmtCoinShort(detail.total_value_buy)}</div></div>
+      <div class="value-stat-box"><div class="vsl-label">Total Sell Value</div><div class="vsl-value gold-val">${fmtCoinShort(detail.total_value_sell)}</div></div>
+      <div class="value-stat-box"><div class="vsl-label">Status</div><div class="vsl-value vsl-small">${detail.valuation_status}</div></div>
+    `;
+
+    // TP listing analysis
+    const tpContainer = document.getElementById('items-detail-tp');
+    if (listing && !listing.error) {
+      const arb = listing.arbitrage_viable
+        ? `<span class="perm-badge granted">✓ Arbitrage viable (${fmtCoinShort(listing.net_profit)} profit)</span>`
+        : `<span class="perm-badge missing">No arbitrage</span>`;
+      tpContainer.innerHTML = `<div class="section-title" style="margin-top:12px">Market Depth</div>
+        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px;margin-bottom:12px">
+          <div class="value-stat-box"><div class="vsl-label">Best Buy</div><div class="vsl-value gold-val">${fmtCoinShort(listing.best_buy)}</div><div class="vsl-small dim">qty: ${listing.best_buy_qty?.toLocaleString() || 0}</div></div>
+          <div class="value-stat-box"><div class="vsl-label">Best Sell</div><div class="vsl-value gold-val">${fmtCoinShort(listing.best_sell)}</div><div class="vsl-small dim">qty: ${listing.best_sell_qty?.toLocaleString() || 0}</div></div>
+          <div class="value-stat-box"><div class="vsl-label">Spread</div><div class="vsl-value">${fmtCoinShort(listing.spread)}</div><div class="vsl-small dim">ratio: ${(listing.spread_ratio * 100).toFixed(1)}%</div></div>
+          <div class="value-stat-box"><div class="vsl-label">Buy Depth (top 5)</div><div class="vsl-value">${(listing.buy_depth_5 || 0).toLocaleString()}</div></div>
+          <div class="value-stat-box"><div class="vsl-label">Sell Depth (top 5)</div><div class="vsl-value">${(listing.sell_depth_5 || 0).toLocaleString()}</div></div>
+          <div class="value-stat-box"><div class="vsl-label">Profit Margin</div><div class="vsl-value ${listing.net_profit > 0 ? 'vs-up' : 'vs-down'}">${listing.profit_margin?.toFixed(1) || 0}%</div></div>
+        </div>
+        <div style="margin-bottom:12px">${arb}</div>`;
+    } else {
+      tpContainer.innerHTML = '';
+    }
+
+    const locs = document.getElementById('items-detail-locations');
+    const entries = Object.entries(detail.locations || {});
+    if (!entries.length) {
+      locs.innerHTML = '<div class="dim">No location data.</div>';
+    } else {
+      const locLabels = { material_storage: 'Material Storage', bank: 'Bank', character: 'Character', shared_inventory: 'Shared Inventory', tradingpost: 'Trading Post', wallet: 'Wallet' };
+      locs.innerHTML = entries.map(([locType, locItems]) => `
+        <div style="background:var(--bg2);border:1px solid var(--border);border-radius:4px;padding:12px;margin-bottom:8px">
+          <div style="font-weight:600;color:var(--gold);margin-bottom:6px">${locLabels[locType] || locType} (${locItems.length} slot(s))</div>
+          ${locItems.map(li => {
+            let ref = li.location_ref || '';
+            if (locType === 'character' && ref) ref = ' (' + ref.split('/')[0] + ')';
+            return `<div style="display:flex;justify-content:space-between;font-size:13px;padding:3px 0;border-bottom:1px solid var(--border)">
+              <span class="dim">${ref}</span>
+              <span>×${li.count.toLocaleString()}</span>
+              <span class="gold-val">${fmtCoinShort(li.value_buy)}</span>
+              <span>${li.tradable ? '<span class="perm-badge granted">Tradable</span>' : '<span class="perm-badge missing">Bound</span>'}</span>
+            </div>`;
+          }).join('')}
+        </div>
+      `).join('');
+    }
+  } catch (e) {
+    document.getElementById('items-detail-grid').innerHTML = `<div class="dim">Failed: ${e.message}</div>`;
+  }
+}
+
+function setItemsStatus(cls, msg) {
+  const el = document.getElementById('items-status');
+  el.className = cls === 'error' ? 'error' : '';
+  el.innerHTML = msg;
+}
+
+// ── Goals ──
+document.getElementById('goals-create-btn').addEventListener('click', createGoal);
+document.getElementById('goals-target').addEventListener('keydown', e => { if (e.key === 'Enter') createGoal(); });
+
+async function loadGoals() {
+  const accountName = _accountData?.account_name;
+  if (!accountName) { document.getElementById('goals-cards').innerHTML = '<div class="dim">Run analysis first.</div>'; return; }
+
+  try {
+    const res = await fetch(`/goals?account_name=${encodeURIComponent(accountName)}`);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const goals = await res.json();
+    document.getElementById('goals-list').classList.remove('hidden');
+
+    if (!goals.length) {
+      document.getElementById('goals-cards').innerHTML = '<div class="dim">No goals yet. Create one above.</div>';
+      return;
+    }
+
+    // Resolve item names
+    const ids = [...new Set(goals.map(g => g.target_item_id))];
+    await resolveItems(ids);
+
+    document.getElementById('goals-cards').innerHTML = goals.map(g => {
+      const name = itemName(g.target_item_id) || `Item #${g.target_item_id}`;
+      const icon = itemIcon(g.target_item_id);
+      const img = icon ? `<img src="${icon}" width="28" height="28" style="vertical-align:middle;margin-right:8px;border-radius:3px">` : '';
+      const pct = g.completion_percent || 0;
+      const pctColor = pct >= 100 ? '#6bc46b' : pct >= 50 ? '#d0a050' : '#c07070';
+      return `<div style="background:var(--bg2);border:1px solid var(--border);border-radius:4px;padding:14px;margin-bottom:10px">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+          ${img}
+          <div style="flex:1">
+            <span style="color:var(--gold-light);font-weight:600">${name}</span>
+            <span class="dim"> ×${g.target_count}</span>
+          </div>
+          <span class="perm-badge ${g.status === 'active' ? 'granted' : 'missing'}">${g.status}</span>
+          <span style="color:var(--text-dim);font-size:11px">${g.priority}</span>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:8px;margin-bottom:8px">
+          <div><span class="dim" style="font-size:11px">Completion</span><br><span style="font-size:18px;font-weight:600;color:${pctColor}">${pct}%</span></div>
+          <div><span class="dim" style="font-size:11px">Owned Value</span><br><span class="gold-val" style="font-size:16px">${fmtCoinShort(g.owned_material_value)}</span></div>
+          <div><span class="dim" style="font-size:11px">Remaining Cost</span><br><span class="gold-val" style="font-size:16px">${fmtCoinShort(g.estimated_remaining_cost)}</span></div>
+          <div><span class="dim" style="font-size:11px">Missing Items</span><br><span style="font-size:16px">${g.missing_item_count}</span></div>
+        </div>
+        <div style="background:var(--bg3);border-radius:3px;height:6px;overflow:hidden;margin-bottom:8px">
+          <div style="width:${Math.min(pct, 100)}%;height:100%;background:${pctColor};border-radius:3px;transition:width .5s"></div>
+        </div>
+        <div style="display:flex;gap:6px">
+          <button class="goal-refresh-btn" data-id="${g.goal_id}" style="background:var(--bg3);border:1px solid var(--border);border-radius:3px;color:var(--text);cursor:pointer;font-size:12px;padding:4px 12px">⟳ Refresh</button>
+          <button class="goal-delete-btn" data-id="${g.goal_id}" style="background:#2a1515;border:1px solid #5a2020;border-radius:3px;color:#c07070;cursor:pointer;font-size:12px;padding:4px 12px">✕ Delete</button>
+        </div>
+      </div>`;
+    }).join('');
+
+    // Attach event listeners
+    document.querySelectorAll('.goal-refresh-btn').forEach(btn => {
+      btn.addEventListener('click', () => refreshGoalUI(btn.dataset.id));
+    });
+    document.querySelectorAll('.goal-delete-btn').forEach(btn => {
+      btn.addEventListener('click', () => deleteGoalUI(btn.dataset.id));
+    });
+  } catch (e) {
+    document.getElementById('goals-cards').innerHTML = `<div class="dim">Error: ${e.message}</div>`;
+  }
+}
+
+async function createGoal() {
+  const target = parseInt(document.getElementById('goals-target').value);
+  const qty = parseInt(document.getElementById('goals-qty').value) || 1;
+  const priority = document.getElementById('goals-priority').value;
+  const key = document.getElementById('key-input').value.trim();
+
+  if (!key) { setGoalsStatus('error', 'Enter API key first.'); return; }
+  if (!target) { setGoalsStatus('error', 'Enter a target item ID.'); return; }
+
+  setGoalsStatus('', '<span class="spinner"></span> Creating goal…');
+  try {
+    const res = await fetch('/goals', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ api_key: key, target_item_id: target, target_count: qty, priority }),
+    });
+    if (!res.ok) throw new Error((await res.json()).detail || `HTTP ${res.status}`);
+    setGoalsStatus('ok', 'Goal created!');
+    document.getElementById('goals-target').value = '';
+    loadGoals();
+  } catch (e) {
+    setGoalsStatus('error', `Error: ${e.message}`);
+  }
+}
+
+async function refreshGoalUI(goalId) {
+  const key = document.getElementById('key-input').value.trim();
+  if (!key) return;
+  setGoalsStatus('', '<span class="spinner"></span> Refreshing…');
+  try {
+    const res = await fetch(`/goals/${goalId}/refresh`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ api_key: key }),
+    });
+    if (!res.ok) throw new Error((await res.json()).detail || `HTTP ${res.status}`);
+    setGoalsStatus('ok', 'Goal refreshed!');
+    loadGoals();
+  } catch (e) {
+    setGoalsStatus('error', `Error: ${e.message}`);
+  }
+}
+
+async function deleteGoalUI(goalId) {
+  try {
+    const res = await fetch(`/goals/${goalId}`, { method: 'DELETE' });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    loadGoals();
+  } catch (e) {
+    setGoalsStatus('error', `Error: ${e.message}`);
+  }
+}
+
+function setGoalsStatus(cls, msg) {
+  const el = document.getElementById('goals-status');
+  el.className = cls === 'error' ? 'error' : '';
+  el.innerHTML = msg;
+}
+
+// Load goals when tab is clicked
+document.querySelectorAll('#nav-tabs button').forEach(btn => {
+  if (btn.dataset.tab === 'goals') {
+    btn.addEventListener('click', () => setTimeout(loadGoals, 100), { once: true });
+  }
+});
+
 // ── Crafting Calculator ──
 document.getElementById('craft-btn').addEventListener('click', runCrafting);
 document.getElementById('craft-target').addEventListener('keydown', e => { if (e.key === 'Enter') runCrafting(); });
@@ -1453,6 +1768,95 @@ function renderMaterialsGrid(matByCat) {
         ${topItems}
       </div>`;
     }).join('') + '</div>';
+}
+
+// ── Value Delta ──
+async function loadValueDelta() {
+  const section = document.getElementById('value-delta-section');
+  const title = section.previousElementSibling;
+  if (section.style.display === 'block') return; // already loaded
+
+  const accountName = _accountData?.account_name;
+  if (!accountName) {
+    document.getElementById('value-delta-summary').innerHTML = '<div class="dim">No account data.</div>';
+    return;
+  }
+
+  try {
+    const res = await fetch(`/value/delta?account_name=${encodeURIComponent(accountName)}`);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const delta = await res.json();
+    if (delta.error) {
+      document.getElementById('value-delta-summary').innerHTML = `<div class="dim">${delta.error}</div>`;
+      return;
+    }
+
+    // Resolve item names for top gainers/decliners
+    const ids = new Set();
+    for (const d of [...(delta.top_gainers || []), ...(delta.top_decliners || [])]) {
+      if (d.item_id) ids.add(d.item_id);
+    }
+    if (ids.size) await resolveItems([...ids]);
+
+    const sign = delta.total_delta_buy >= 0 ? '+' : '';
+    const cls = delta.total_delta_buy >= 0 ? 'vs-up' : 'vs-down';
+    document.getElementById('value-delta-summary').innerHTML = `
+      <div class="value-stat-box">
+        <div class="vsl-label">Total Change</div>
+        <div class="vsl-value ${cls}">${sign}${fmtCoinShort(delta.total_delta_buy)}</div>
+      </div>
+      <div class="value-stat-box">
+        <div class="vsl-label">Price Effect</div>
+        <div class="vsl-value vsl-small">${fmtCoinShort(delta.price_effect_delta)}</div>
+      </div>
+      <div class="value-stat-box">
+        <div class="vsl-label">Quantity Effect</div>
+        <div class="vsl-value vsl-small">${fmtCoinShort(delta.quantity_effect_delta)}</div>
+      </div>
+      <div class="value-stat-box">
+        <div class="vsl-label">Period</div>
+        <div class="vsl-value vsl-small">${delta.from_time?.slice(5,16)?.replace('T',' ') || '?'} → ${delta.to_time?.slice(5,16)?.replace('T',' ') || '?'}</div>
+      </div>
+    `;
+
+    const gainers = document.getElementById('value-top-gainers');
+    const decliners = document.getElementById('value-top-decliners');
+
+    const renderDeltaList = (items, container, isGainer) => {
+      if (!items || !items.length) {
+        container.innerHTML = '<div class="dim">None</div>';
+        return;
+      }
+      container.innerHTML = items.map(d => {
+        const icon = itemIcon(d.item_id);
+        const img = icon ? `<img src="${icon}" width="16" height="16" style="vertical-align:middle;margin-right:4px;border-radius:2px">` : '';
+        const valCls = d.value_delta > 0 ? 'vs-up' : 'vs-down';
+        const causeLabels = { quantity_change: 'Qty', price_change: 'Price', new_item: 'New', removed_item: 'Removed' };
+        return `<div style="display:flex;align-items:center;gap:6px;padding:4px 0;border-bottom:1px solid var(--border);font-size:12px">
+          ${img}<span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${itemName(d.item_id)}</span>
+          <span style="color:var(--text-dim);font-size:10px">${causeLabels[d.primary_cause] || d.primary_cause}</span>
+          <span class="${valCls}">${d.value_delta > 0 ? '+' : ''}${fmtCoinShort(d.value_delta)}</span>
+        </div>`;
+      }).join('');
+    };
+
+    renderDeltaList(delta.top_gainers, gainers, true);
+    renderDeltaList(delta.top_decliners, decliners, false);
+  } catch (e) {
+    document.getElementById('value-delta-summary').innerHTML = `<div class="dim">Failed to load delta: ${e.message}</div>`;
+  }
+}
+
+function toggleDelta() {
+  const section = document.getElementById('value-delta-section');
+  const title = section.previousElementSibling;
+  const isHidden = section.style.display === 'none';
+  section.style.display = isHidden ? 'block' : 'none';
+  if (title) {
+    const span = title.querySelector('span');
+    if (span) span.innerHTML = (isHidden ? '▼' : '▶') + span.innerHTML.slice(1);
+  }
+  if (isHidden) loadValueDelta();
 }
 
 function toggleMaterials() {

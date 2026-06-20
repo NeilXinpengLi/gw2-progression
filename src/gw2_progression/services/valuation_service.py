@@ -9,15 +9,20 @@ from ..models import (
     ValueBreakdown,
     ValueSummary,
 )
+from .price_service import compute_price_quality
 
 TP_LISTING_FEE_RATE = 0.05
 TP_EXCHANGE_FEE_RATE = 0.10
 TP_TOTAL_FEE_RATE = 0.15
 
+RELIABLE_STATUSES = {"reliable"}
+RISKY_STATUSES = {"low_liquidity", "wide_spread", "missing_buy", "missing_sell", "illiquid"}
+
 
 def apply_prices(
     holdings: list[ItemHolding],
     prices: dict[int, tuple[int, int]],
+    price_details: dict[int, dict] | None = None,
 ) -> tuple[list[ItemHolding], list[ValuationWarningModel]]:
     """Apply market prices to holdings. Returns (enriched_holdings, warnings)."""
     warnings: list[ValuationWarningModel] = []
@@ -32,10 +37,13 @@ def apply_prices(
             h.value_sell = h.count
             h.price_buy = 1
             h.price_sell = 1
+            h.quality_status = "reliable"
+            h.liquidity_score = "high"
             continue
 
         if h.location_type == "tradingpost":
             h.valuation_status = "priced"
+            h.quality_status = "reliable"
             continue
 
         if h.binding_status is not None:
@@ -82,6 +90,30 @@ def apply_prices(
         h.value_sell = h.count * sell_price
         h.valuation_status = "priced"
 
+        # Apply price quality
+        details = (price_details or {}).get(h.item_id, {})
+        quality = compute_price_quality(
+            buy_price=buy_price,
+            sell_price=sell_price,
+            buy_qty=details.get("buy_quantity", 0),
+            sell_qty=details.get("sell_quantity", 0),
+        )
+        h.quality_status = quality["quality_status"]
+        h.liquidity_score = quality["liquidity_score"]
+        h.spread = quality["spread"]
+        h.spread_ratio = quality["spread_ratio"]
+        h.buy_quantity = details.get("buy_quantity", 0)
+        h.sell_quantity = details.get("sell_quantity", 0)
+
+        if h.quality_status == "illiquid":
+            warnings.append(
+                ValuationWarningModel(
+                    warning_type="illiquid",
+                    message=f"Item #{h.item_id} has no buy/sell volume, value is speculative",
+                    item_id=h.item_id,
+                )
+            )
+
     return holdings, warnings
 
 
@@ -111,6 +143,10 @@ def compute_summary(holdings: list[ItemHolding]) -> ValueSummary:
     total_buy = sum(h.value_buy for h in priced)
     total_sell = sum(h.value_sell for h in priced)
 
+    reliable = [h for h in priced if h.quality_status in RELIABLE_STATUSES]
+    risky = [h for h in priced if h.quality_status in RISKY_STATUSES]
+    low_liq = [h for h in priced if h.liquidity_score in ("low", "illiquid")]
+
     return ValueSummary(
         total_value_buy=total_buy,
         total_value_sell=total_sell,
@@ -130,6 +166,10 @@ def compute_summary(holdings: list[ItemHolding]) -> ValueSummary:
         priced_item_count=len(priced),
         unpriced_item_count=len(unpriced),
         account_bound_count=len(account_bound),
+        reliable_value=sum(h.value_buy for h in reliable),
+        risky_value=sum(h.value_buy for h in risky),
+        low_liquidity_count=len(low_liq),
+        stale_price_count=0,
     )
 
 

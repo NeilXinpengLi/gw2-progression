@@ -4,7 +4,9 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, field_validator
 
 from gw2_progression.gw2_client import Gw2ApiError
-from gw2_progression.services.recipe_service import calculate
+from gw2_progression.services.crafting_plan_service import create_plan
+from gw2_progression.services.recipe_service import calculate, calculate_cheapest
+from gw2_progression.services.static_data_service import find_recipes_by_output, refresh_items, refresh_recipes
 
 router = APIRouter(prefix="/crafting", tags=["crafting"])
 
@@ -40,6 +42,52 @@ class CraftCalcRequest(BaseModel):
         if v < 1:
             raise ValueError("Invalid item ID")
         return v
+
+
+@router.post("/refresh/items")
+async def post_refresh_items(max_pages: int = 0):
+    count = await refresh_items(max_pages=max_pages)
+    return {"status": "ok", "items_refreshed": count}
+
+
+@router.post("/refresh/recipes")
+async def post_refresh_recipes(max_pages: int = 0):
+    count = await refresh_recipes(max_pages=max_pages)
+    return {"status": "ok", "recipes_refreshed": count}
+
+
+@router.get("/recipes/by-output/{item_id}")
+async def get_recipes_by_output(item_id: int):
+    recipes = await find_recipes_by_output(item_id)
+    return recipes
+
+
+@router.post("/calculate/cheapest")
+async def post_crafting_calculate_cheapest(request: CraftCalcRequest):
+    try:
+        result = await calculate_cheapest(
+            api_key=request.api_key,
+            target_item_id=request.target_item_id,
+            quantity=request.quantity,
+            use_owned=request.use_owned,
+        )
+        return result.model_dump()
+    except Gw2ApiError as e:
+        raise HTTPException(status_code=401, detail=e.message)
+
+
+@router.post("/plan")
+async def post_crafting_plan(request: CraftCalcRequest):
+    try:
+        result = await create_plan(
+            api_key=request.api_key,
+            target_item_id=request.target_item_id,
+            quantity=request.quantity,
+            use_owned=request.use_owned,
+        )
+        return result.model_dump()
+    except Gw2ApiError as e:
+        raise HTTPException(status_code=401, detail=e.message)
 
 
 @router.post("/calculate")

@@ -52,6 +52,51 @@ def _set_cached_price(data: PriceData):
             _price_cache_timestamps.pop(next(iter(_price_cache_timestamps)), None)
 
 
+STALE_PRICE_SECONDS = 3600
+LIQUIDITY_THRESHOLDS = {"high": 5000, "medium": 500}
+
+
+def compute_price_quality(
+    buy_price: int,
+    sell_price: int,
+    buy_qty: int,
+    sell_qty: int,
+    fetched_at: str | None = None,
+) -> dict:
+    spread = sell_price - buy_price
+    spread_ratio = round(spread / sell_price, 4) if sell_price > 0 else 0.0
+    total_qty = buy_qty + sell_qty
+
+    if total_qty >= LIQUIDITY_THRESHOLDS["high"]:
+        liquidity_score = "high"
+    elif total_qty >= LIQUIDITY_THRESHOLDS["medium"]:
+        liquidity_score = "medium"
+    elif total_qty > 0:
+        liquidity_score = "low"
+    else:
+        liquidity_score = "illiquid"
+
+    if buy_price == 0 and sell_price > 0:
+        quality_status = "missing_buy"
+    elif sell_price == 0 and buy_price > 0:
+        quality_status = "missing_sell"
+    elif liquidity_score == "illiquid":
+        quality_status = "illiquid"
+    elif liquidity_score == "low":
+        quality_status = "low_liquidity"
+    elif spread_ratio > 0.2:
+        quality_status = "wide_spread"
+    else:
+        quality_status = "reliable"
+
+    return {
+        "quality_status": quality_status,
+        "liquidity_score": liquidity_score,
+        "spread": spread,
+        "spread_ratio": spread_ratio,
+    }
+
+
 async def warmup_price_cache(max_items: int = 500):
     """Load recently fetched prices from the database into the in-memory cache."""
     try:

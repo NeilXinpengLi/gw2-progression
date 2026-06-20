@@ -47,11 +47,13 @@ async def run_full_analysis(api_key: str) -> ValueAnalyzeResponse:
     unpriced_ids = list(set(h.item_id for h in holdings if h.valuation_status == "pending" and h.location_type not in ("wallet", "tradingpost") and h.binding_status is None))
 
     prices = {}
+    price_details = {}
     if unpriced_ids:
         price_data = await fetch_prices(unpriced_ids)
         prices = {item_id: (pd.buy_unit_price, pd.sell_unit_price) for item_id, pd in price_data.items()}
+        price_details = {item_id: {"buy_quantity": pd.buy_quantity, "sell_quantity": pd.sell_quantity} for item_id, pd in price_data.items()}
 
-    all_holdings, warnings = apply_prices(holdings, prices)
+    all_holdings, warnings = apply_prices(holdings, prices, price_details)
 
     # Refine: check item flags for unpriced items (may be account-bound without binding field)
     unpriced_ids = list(set(h.item_id for h in all_holdings if h.valuation_status in ("unpriced", "no_price") and h.binding_status is None))

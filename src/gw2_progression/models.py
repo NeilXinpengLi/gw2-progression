@@ -23,6 +23,12 @@ class ItemHolding(BaseModel):
     value_buy: int = 0
     value_sell: int = 0
     valuation_status: str = "pending"
+    quality_status: str = "unknown"
+    buy_quantity: int = 0
+    sell_quantity: int = 0
+    spread: int = 0
+    spread_ratio: float = 0.0
+    liquidity_score: str = "unknown"
 
 
 class ValueSummary(BaseModel):
@@ -44,6 +50,10 @@ class ValueSummary(BaseModel):
     priced_item_count: int = 0
     unpriced_item_count: int = 0
     account_bound_count: int = 0
+    reliable_value: int = 0
+    risky_value: int = 0
+    low_liquidity_count: int = 0
+    stale_price_count: int = 0
     snapshot_id: int | None = None
     snapshot_time: str = ""
 
@@ -162,6 +172,81 @@ class CraftingRequest(BaseModel):
     target_item_id: int
     quantity: int = 1
     use_owned: bool = True
+
+
+class ItemValueDelta(BaseModel):
+    item_id: int
+    old_count: int = 0
+    new_count: int = 0
+    count_delta: int = 0
+    old_price_buy: int = 0
+    new_price_buy: int = 0
+    price_delta: int = 0
+    old_value_buy: int = 0
+    new_value_buy: int = 0
+    value_delta: int = 0
+    primary_cause: str = "quantity_change"  # quantity_change | price_change | new_item | removed_item | location_change
+
+
+class AccountValueDelta(BaseModel):
+    account_name: str
+    from_snapshot_id: int
+    to_snapshot_id: int
+    from_time: str = ""
+    to_time: str = ""
+    total_delta_buy: int = 0
+    total_delta_sell: int = 0
+    wallet_delta: int = 0
+    material_delta: int = 0
+    bank_delta: int = 0
+    inventory_delta: int = 0
+    tradingpost_delta: int = 0
+    price_effect_delta: int = 0
+    quantity_effect_delta: int = 0
+    top_gainers: list[ItemValueDelta] = []
+    top_decliners: list[ItemValueDelta] = []
+
+
+class TrackedGoal(BaseModel):
+    goal_id: str = ""
+    account_name: str = ""
+    target_item_id: int = 0
+    target_count: int = 1
+    status: str = "active"  # active | completed | paused
+    priority: str = "normal"  # high | normal | low
+    completion_percent: float = 0.0
+    owned_material_value: int = 0
+    missing_material_value: int = 0
+    missing_item_count: int = 0
+    estimated_remaining_cost: int = 0
+    created_at: str = ""
+    updated_at: str = ""
+
+
+class CraftingPlanLine(BaseModel):
+    item_id: int
+    required_count: int
+    owned_count: int = 0
+    used_owned_count: int = 0
+    missing_count: int = 0
+    unit_buy_price: int = 0
+    unit_sell_price: int = 0
+    missing_buy_cost: int = 0
+    source: str = "missing"  # material_storage | bank | inventory | missing | vendor
+
+
+class CraftingPlanResult(BaseModel):
+    plan_id: str = ""
+    target_item_id: int
+    target_count: int
+    total_market_buy_cost: int = 0
+    total_market_sell_cost: int = 0
+    owned_material_value_used: int = 0
+    missing_material_cost: int = 0
+    direct_buy_price: int = 0
+    craft_vs_buy_delta: int = 0
+    lines: list[CraftingPlanLine] = []
+    created_at: str = ""
 
 
 class CraftingResponse(BaseModel):

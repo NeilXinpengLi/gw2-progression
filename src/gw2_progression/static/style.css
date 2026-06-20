@@ -102,6 +102,9 @@ main { max-width: 1200px; margin: 0 auto; padding: 32px 24px; }
 .craft-col { background: var(--bg2); border: 1px solid var(--border); border-radius: 4px; padding: 16px; }
 .craft-col .section-title { margin-top: 0; }
 
+.quick-filter-btn { background: var(--bg3); border: 1px solid var(--border); border-radius: 3px; color: var(--text-dim); cursor: pointer; font-size: 12px; padding: 6px 14px; transition: all .15s; }
+.quick-filter-btn:hover { border-color: var(--gold); color: var(--gold-light); }
+
 .craft-search-dropdown {
   position: absolute; top: 100%; left: 0; right: 0; z-index: 100;
   background: #1a1a1a; border: 1px solid #444; border-radius: 0 0 4px 4px;

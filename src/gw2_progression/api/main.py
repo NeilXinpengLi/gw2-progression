@@ -17,6 +17,7 @@ from gw2_progression.services.price_service import warmup_price_cache
 
 from .routes.analyze import router as analyze_router
 from .routes.crafting import router as crafting_router
+from .routes.goals import router as goals_router
 from .routes.resolve import router as resolve_router
 from .routes.valuation import router as valuation_router
 
@@ -75,6 +76,7 @@ app.include_router(analyze_router)
 app.include_router(resolve_router)
 app.include_router(valuation_router)
 app.include_router(crafting_router)
+app.include_router(goals_router)
 app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 
 

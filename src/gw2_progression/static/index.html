@@ -26,7 +26,9 @@
   <button data-tab="unlocks" role="tab" aria-selected="false">Unlocks</button>
   <button data-tab="builds" role="tab" aria-selected="false">Builds</button>
   <button data-tab="wvw" role="tab" aria-selected="false">WvW</button>
+  <button data-tab="items" role="tab" aria-selected="false">Items</button>
   <button data-tab="crafting" role="tab" aria-selected="false">Crafting</button>
+  <button data-tab="goals" role="tab" aria-selected="false">Goals</button>
 </nav>
 
 <main>
@@ -158,6 +160,23 @@
       </div>
       <div id="value-history-empty" class="dim" style="padding:20px 0;text-align:center">No history data yet. Run valuation again to build history.</div>
 
+      <div class="section-title">
+        <span style="cursor:pointer" onclick="toggleDelta()">▶ Value Change Since Last Snapshot</span>
+      </div>
+      <div id="value-delta-section" style="display:none">
+        <div id="value-delta-summary" class="value-stats-row" style="margin-bottom:12px"></div>
+        <div class="craft-columns">
+          <div class="craft-col">
+            <div class="section-title" style="margin-top:0">Top Gainers</div>
+            <div id="value-top-gainers"><div class="dim" style="padding:8px 0">Loading…</div></div>
+          </div>
+          <div class="craft-col">
+            <div class="section-title" style="margin-top:0">Top Decliners</div>
+            <div id="value-top-decliners"><div class="dim" style="padding:8px 0">Loading…</div></div>
+          </div>
+        </div>
+      </div>
+
       <div class="section-title">Valuation Warnings</div>
       <div id="value-warnings"></div>
     </div>
@@ -273,6 +292,79 @@
       <div class="tab-loading"><span class="spinner"></span> Loading…</div>
       <div class="tab-error" id="err-builds"></div>
       <div id="builds-content"></div>
+    </div>
+
+    <!-- ── Items ── -->
+    <div class="tab-panel" id="tab-items" role="tabpanel">
+      <div class="section-title">Item Search</div>
+      <div id="items-controls">
+        <div class="craft-row">
+          <input id="items-search-input" type="text" placeholder="Search by item name or ID…" aria-label="Search items" autocomplete="off" style="flex:2" />
+          <select id="items-location-filter" aria-label="Location filter">
+            <option value="">All locations</option>
+            <option value="material_storage">Material Storage</option>
+            <option value="bank">Bank</option>
+            <option value="character">Character</option>
+            <option value="shared_inventory">Shared Inventory</option>
+            <option value="tradingpost">Trading Post</option>
+            <option value="wallet">Wallet</option>
+          </select>
+          <select id="items-status-filter" aria-label="Status filter">
+            <option value="">All statuses</option>
+            <option value="priced">Priced</option>
+            <option value="unpriced">Unpriced</option>
+            <option value="account_bound">Account Bound</option>
+          </select>
+          <button id="items-search-btn">Search</button>
+        </div>
+        <div id="items-status" class="dim" style="margin-top:8px;font-size:13px">Search across all account holdings by item name or ID.</div>
+      </div>
+
+      <div class="section-title">Quick Filters</div>
+      <div class="perm-grid" style="margin-bottom:16px">
+        <button class="quick-filter-btn" data-filter="high_value">⭐ High Value</button>
+        <button class="quick-filter-btn" data-filter="unpriced">❓ Unpriced</button>
+        <button class="quick-filter-btn" data-filter="account_bound">🔒 Account Bound</button>
+      </div>
+
+      <div id="items-results" class="hidden">
+        <div class="section-title" id="items-results-title">Results</div>
+        <table class="data-table" id="items-results-table">
+          <thead><tr><th>Item</th><th>Count</th><th>Location</th><th>Buy Value</th><th>Sell Value</th><th>Status</th></tr></thead>
+          <tbody></tbody>
+        </table>
+
+        <div id="items-detail" class="hidden">
+          <div class="section-title" id="items-detail-title">Item Detail</div>
+          <div id="items-detail-grid" class="value-stats-row"></div>
+          <div id="items-detail-tp"></div>
+          <div id="items-detail-locations"></div>
+          <button id="items-detail-back" style="background:var(--bg3);border:1px solid var(--border);border-radius:3px;color:var(--text);cursor:pointer;font-size:13px;padding:6px 16px;margin-top:8px">← Back to results</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Goals ── -->
+    <div class="tab-panel" id="tab-goals" role="tabpanel">
+      <div class="section-title">Goal Tracker</div>
+      <div id="goals-controls">
+        <div class="craft-row">
+          <input id="goals-target" type="number" placeholder="Target item ID" aria-label="Target item ID" style="width:120px" />
+          <input id="goals-qty" type="number" value="1" min="1" aria-label="Quantity" style="width:70px" />
+          <select id="goals-priority" aria-label="Priority">
+            <option value="high">High</option>
+            <option value="normal" selected>Normal</option>
+            <option value="low">Low</option>
+          </select>
+          <button id="goals-create-btn">+ Add Goal</button>
+        </div>
+        <div id="goals-status" class="dim" style="margin-top:8px;font-size:13px">Create a goal to track crafting progress over time.</div>
+      </div>
+
+      <div id="goals-list" class="hidden">
+        <div class="section-title">Active Goals</div>
+        <div id="goals-cards"></div>
+      </div>
     </div>
 
     <!-- ── Crafting ── -->

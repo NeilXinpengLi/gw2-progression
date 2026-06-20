@@ -331,8 +331,8 @@ class TestValuationRoute:
             stack.enter_context(patch(f"{BASE}.{fn}", mock))
 
         mock_prices = {
-            19976: type("PriceData", (), {"buy_unit_price": 20000, "sell_unit_price": 21600})(),
-            19720: type("PriceData", (), {"buy_unit_price": 3000, "sell_unit_price": 3500})(),
+            19976: type("PriceData", (), {"buy_unit_price": 20000, "sell_unit_price": 21600, "buy_quantity": 5000, "sell_quantity": 3000})(),
+            19720: type("PriceData", (), {"buy_unit_price": 3000, "sell_unit_price": 3500, "buy_quantity": 2000, "sell_quantity": 1500})(),
         }
         with (
             patch("gw2_progression.services.snapshot_service.fetch_prices", AsyncMock(return_value=mock_prices)),
