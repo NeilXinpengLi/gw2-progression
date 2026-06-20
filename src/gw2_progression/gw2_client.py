@@ -1,4 +1,5 @@
 import asyncio
+from typing import Any
 
 import httpx
 
@@ -30,9 +31,8 @@ class Gw2ApiError(Exception):
         self.message = message
 
 
-async def _get(path: str, api_key: str) -> dict | list:
+async def _get(path: str, api_key: str) -> Any:
     headers = {"Authorization": f"Bearer {api_key}"}
-    last_error: Exception | None = None
     client = await _get_client()
     for attempt in range(MAX_RETRIES):
         try:
@@ -40,19 +40,16 @@ async def _get(path: str, api_key: str) -> dict | list:
             if response.status_code == 401:
                 raise Gw2ApiError(401, "Invalid or expired API key.")
             if not response.is_success:
-                if attempt < MAX_RETRIES - 1 and response.status_code >= 500:
-                    last_error = Gw2ApiError(response.status_code, response.text)
+                if response.status_code >= 500 and attempt < MAX_RETRIES - 1:
                     await asyncio.sleep(RETRY_DELAYS[attempt])
                     continue
                 raise Gw2ApiError(response.status_code, response.text)
             return response.json()
         except (httpx.TimeoutException, httpx.ConnectError) as e:
             if attempt < MAX_RETRIES - 1:
-                last_error = e
                 await asyncio.sleep(RETRY_DELAYS[attempt])
                 continue
             raise Gw2ApiError(0, str(e))
-    raise Gw2ApiError(0, str(last_error))
 
 
 async def fetch_tokeninfo(api_key: str) -> dict:

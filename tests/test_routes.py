@@ -80,3 +80,34 @@ def test_analyze_invalid_key_returns_401(client):
         resp = client.post("/analyze", json={"api_key": "ABCDEF01-2345-6789-ABCD-EF0123456789AB"})
     assert resp.status_code == 401
     assert "Invalid" in resp.json()["detail"]
+
+
+def test_health_returns_request_id(client):
+    resp = client.get("/health")
+    assert resp.status_code == 200
+    assert "X-Request-ID" in resp.headers
+
+
+def test_index_serves_html(client):
+    resp = client.get("/")
+    assert resp.status_code == 200
+    assert resp.headers["content-type"].startswith("text/html")
+
+
+def test_static_css(client):
+    resp = client.get("/static/style.css")
+    assert resp.status_code == 200
+    assert resp.headers["content-type"].startswith("text/css")
+
+
+def test_static_js(client):
+    resp = client.get("/static/app.js")
+    assert resp.status_code == 200
+    ct = resp.headers["content-type"]
+    assert "javascript" in ct
+
+
+def test_analyze_missing_body_returns_422(client):
+    resp = client.post("/analyze", json={})
+    assert resp.status_code == 422
+
