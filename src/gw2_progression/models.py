@@ -276,6 +276,106 @@ class TrackedGoal(BaseModel):
     updated_at: str = ""
 
 
+class RecipeDecision(BaseModel):
+    item_id: int
+    decision: str = "unknown"  # buy | craft | use_owned | vendor | blocked
+    reason: str = ""
+    cost_buy: int = 0
+    cost_craft: int = 0
+    owned_count: int = 0
+    missing_count: int = 0
+
+
+class RecipeOptimizationResult(BaseModel):
+    result_id: str = ""
+    target_item_id: int
+    target_count: int = 1
+    strategy: str = "cheapest"
+    total_cost: int = 0
+    owned_value_used: int = 0
+    missing_cost: int = 0
+    direct_buy_cost: int = 0
+    craft_vs_buy_delta: int = 0
+    decisions: list[RecipeDecision] = []
+    shopping_list: list[dict] = []
+    crafting_steps: list[dict] = []
+    required_disciplines: list[str] = []
+    created_at: str = ""
+
+
+class TradingPostSignal(BaseModel):
+    item_id: int
+    signal_type: str = ""  # sell_candidate | buy_candidate | low_liquidity | high_spread | price_anomaly
+    severity: str = "info"  # info | warning | critical
+    reason: str = ""
+    current_buy_price: int = 0
+    current_sell_price: int = 0
+    spread_ratio: float = 0.0
+    quantity_owned: int = 0
+    value_owned: int = 0
+    linked_goal_id: str = ""
+
+
+class ProtectedAsset(BaseModel):
+    account_name: str = ""
+    item_id: int = 0
+    protected_count: int = 0
+    reason: str = "tracked_goal"
+    linked_goal_id: str = ""
+
+
+class BuildGearRequirement(BaseModel):
+    slot: str = ""
+    item_type: str = ""
+    stat_combo: str = ""
+    required_item_id: int = 0
+    alternatives: list[int] = []
+    priority: int = 0
+
+
+class BuildTraitRequirement(BaseModel):
+    specialization_id: int = 0
+    trait_ids: list[int] = []
+
+
+class BuildSkillRequirement(BaseModel):
+    skill_ids: list[int] = []
+
+
+class BuildTemplate(BaseModel):
+    build_id: str = ""
+    source: str = ""
+    name: str = ""
+    profession: str = ""
+    elite_specialization: str = ""
+    game_mode: str = ""
+    role: str = ""
+    difficulty: str = "medium"
+    patch_version: str = ""
+    source_url: str = ""
+    gear: list[BuildGearRequirement] = []
+    traits: list[BuildTraitRequirement] = []
+    skills: list[int] = []
+
+
+class AccountBuildReadiness(BaseModel):
+    account_name: str = ""
+    build_id: str = ""
+    build_name: str = ""
+    readiness_score: float = 0.0
+    gear_completion_percent: float = 0.0
+    trait_completion_percent: float = 0.0
+    missing_cost: int = 0
+    missing_items_count: int = 0
+    profession_match: bool = False
+
+
+class ProgressionAdvice(BaseModel):
+    summary: str = ""
+    recommended_actions: list[dict] = []
+    weekly_plan: list[dict] = []
+
+
 class CraftingPlanLine(BaseModel):
     item_id: int
     required_count: int

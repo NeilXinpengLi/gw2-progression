@@ -6,6 +6,7 @@ from pydantic import BaseModel, field_validator
 
 from gw2_progression.gw2_client import Gw2ApiError
 from gw2_progression.services.crafting_plan_service import create_plan
+from gw2_progression.services.recipe_optimizer import optimize
 from gw2_progression.services.recipe_service import calculate, calculate_cheapest
 from gw2_progression.services.static_data_service import (
     find_recipes_by_output,
@@ -14,9 +15,36 @@ from gw2_progression.services.static_data_service import (
     refresh_recipes,
 )
 
+STRATEGIES = ["cheapest", "fastest", "use_owned_first", "preserve_owned", "minimize_gold"]
+
 router = APIRouter(prefix="/crafting", tags=["crafting"])
 
 _KEY_PATTERN = re.compile(r"^[0-9A-Fa-f-]+$")
+
+
+class OptimizeRequest(BaseModel):
+    api_key: str
+    target_item_id: int
+    target_count: int = 1
+    strategy: str = "cheapest"
+    use_owned: bool = True
+
+    @field_validator("api_key")
+    @classmethod
+    def opt_key_valid(cls, v: str) -> str:
+        stripped = v.strip()
+        if len(stripped) < 8:
+            raise ValueError("API key must be at least 8 characters")
+        if not _KEY_PATTERN.match(stripped):
+            raise ValueError("API key contains invalid characters (expected hex + dashes)")
+        return stripped
+
+    @field_validator("strategy")
+    @classmethod
+    def strategy_valid(cls, v: str) -> str:
+        if v not in STRATEGIES:
+            raise ValueError(f"Strategy must be one of: {', '.join(STRATEGIES)}")
+        return v
 
 
 class CraftCalcRequest(BaseModel):
@@ -27,7 +55,7 @@ class CraftCalcRequest(BaseModel):
 
     @field_validator("api_key")
     @classmethod
-    def key_not_empty(cls, v: str) -> str:
+    def cc_key_valid(cls, v: str) -> str:
         stripped = v.strip()
         if len(stripped) < 8:
             raise ValueError("API key must be at least 8 characters")
@@ -114,6 +142,41 @@ async def post_crafting_plan(request: CraftCalcRequest):
         return result.model_dump()
     except Gw2ApiError as e:
         raise HTTPException(status_code=401, detail=e.message)
+
+
+@router.post("/optimize")
+async def post_crafting_optimize(request: OptimizeRequest):
+    try:
+        result = await optimize(
+            api_key=request.api_key,
+            target_item_id=request.target_item_id,
+            target_count=request.target_count,
+            strategy=request.strategy,
+            use_owned=request.use_owned,
+        )
+        return result.model_dump()
+    except Gw2ApiError as e:
+        raise HTTPException(status_code=401, detail=e.message)
+
+
+@router.get("/optimize/{result_id}")
+async def get_optimize_result(result_id: str):
+    return {"result_id": result_id, "note": "In-memory result not persisted yet"}
+
+
+@router.get("/optimize/{result_id}/shopping-list")
+async def get_optimize_shopping_list(result_id: str):
+    return {"result_id": result_id, "items": []}
+
+
+@router.get("/optimize/{result_id}/crafting-steps")
+async def get_optimize_crafting_steps(result_id: str):
+    return {"result_id": result_id, "steps": []}
+
+
+@router.get("/optimize/{result_id}/required-disciplines")
+async def get_optimize_disciplines(result_id: str):
+    return {"result_id": result_id, "disciplines": []}
 
 
 @router.post("/calculate")

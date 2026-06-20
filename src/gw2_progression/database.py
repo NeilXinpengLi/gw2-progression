@@ -68,6 +68,15 @@ CREATE TABLE IF NOT EXISTS item_holdings (
     FOREIGN KEY (snapshot_id) REFERENCES account_snapshots(id)
 );
 
+CREATE TABLE IF NOT EXISTS protected_assets (
+    account_name TEXT NOT NULL,
+    item_id INTEGER NOT NULL,
+    protected_count INTEGER DEFAULT 1,
+    reason TEXT DEFAULT 'manual_lock',
+    linked_goal_id TEXT DEFAULT '',
+    PRIMARY KEY (account_name, item_id)
+);
+
 CREATE TABLE IF NOT EXISTS progression_goal_templates (
     template_id TEXT PRIMARY KEY,
     goal_type TEXT NOT NULL,
