@@ -11,3 +11,9 @@ build/
 .idea/
 *.log
 desktop.ini
+
+htmlcov/
+.coverage
+.claude/
+AGENTS.md
+CLAUDE.md

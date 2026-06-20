@@ -311,100 +311,114 @@
 </main>
 
 <script>
-  const GW2_API = 'https://api.guildwars2.com';
+  const MAX_CACHE_SIZE = 5000;
 
   const _itemCache    = {};
   const _currencyCache= {};
   const _matCatCache  = {};
   const _masteryCache = {};
   const _mapCache     = {};
-  const _skinCache    = {};   // id -> { name, icon, type, subtype }
-  const _colorCache   = {};   // id -> { name, cloth, leather, metal } (each has RGB)
-  const _guildCache   = {};   // uuid -> { name, tag }
+  const _skinCache    = {};
+  const _colorCache   = {};
+  const _guildCache   = {};
 
-  async function gw2Fetch(path) {
-    const res = await fetch(`${GW2_API}${path}`);
+  async function backendResolve(type, ids) {
+    const res = await fetch('/resolve', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ type, ids: ids.map(String) }),
+    });
     if (!res.ok) return [];
     return res.json();
   }
 
+  async function backendResolveSingle(type, id) {
+    const res = await fetch('/resolve', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ type, id: String(id) }),
+    });
+    if (!res.ok) return null;
+    return res.json();
+  }
+
+  function cappedCacheAdd(cache, key, val) {
+    if (Object.keys(cache).length >= MAX_CACHE_SIZE) {
+      const oldest = Object.keys(cache)[0];
+      delete cache[oldest];
+    }
+    cache[key] = val;
+  }
+
   async function resolveItems(ids) {
     const missing = [...new Set(ids)].filter(id => id && !(id in _itemCache));
-    for (let i = 0; i < missing.length; i += 200) {
-      const chunk = missing.slice(i, i + 200);
-      const data = await gw2Fetch(`/v2/items?ids=${chunk.join(',')}`).catch(() => []);
-      for (const item of (Array.isArray(data) ? data : [])) {
-        _itemCache[item.id] = { name: item.name, icon: item.icon };
-      }
+    if (!missing.length) return;
+    const data = await backendResolve('items', missing);
+    for (const item of (Array.isArray(data) ? data : [])) {
+      cappedCacheAdd(_itemCache, item.id, { name: item.name, icon: item.icon });
     }
   }
 
   async function resolveCurrencies(ids) {
     const missing = [...new Set(ids)].filter(id => !(id in _currencyCache));
     if (!missing.length) return;
-    const data = await gw2Fetch(`/v2/currencies?ids=${missing.join(',')}`).catch(() => []);
+    const data = await backendResolve('currencies', missing);
     for (const c of (Array.isArray(data) ? data : [])) {
-      _currencyCache[c.id] = { name: c.name, description: c.description };
+      cappedCacheAdd(_currencyCache, c.id, { name: c.name, description: c.description });
     }
   }
 
   async function resolveMatCategories() {
     if (Object.keys(_matCatCache).length) return;
-    const data = await gw2Fetch('/v2/materials').catch(() => []);
+    const data = await backendResolve('materials', []);
     for (const cat of (Array.isArray(data) ? data : [])) {
-      _matCatCache[cat.id] = cat.name;
+      cappedCacheAdd(_matCatCache, cat.id, cat.name);
     }
   }
 
   async function resolveMasteries(ids) {
     const missing = [...new Set(ids)].filter(id => !(id in _masteryCache));
     if (!missing.length) return;
-    const data = await gw2Fetch(`/v2/masteries?ids=${missing.join(',')}`).catch(() => []);
+    const data = await backendResolve('masteries', missing);
     for (const m of (Array.isArray(data) ? data : [])) {
-      _masteryCache[m.id] = { name: m.name, region: m.region };
+      cappedCacheAdd(_masteryCache, m.id, { name: m.name, region: m.region });
     }
   }
 
   async function resolveMaps(ids) {
     const missing = [...new Set(ids)].filter(id => id && !(id in _mapCache));
     if (!missing.length) return;
-    const data = await gw2Fetch(`/v2/maps?ids=${missing.join(',')}`).catch(() => []);
+    const data = await backendResolve('maps', missing);
     for (const m of (Array.isArray(data) ? data : [])) {
-      _mapCache[m.id] = m.name;
+      cappedCacheAdd(_mapCache, m.id, m.name);
     }
   }
 
   async function resolveSkins(ids) {
     const missing = [...new Set(ids)].filter(id => id && !(id in _skinCache));
-    for (let i = 0; i < missing.length; i += 200) {
-      const chunk = missing.slice(i, i + 200);
-      const data = await gw2Fetch(`/v2/skins?ids=${chunk.join(',')}`).catch(() => []);
-      for (const s of (Array.isArray(data) ? data : [])) {
-        const subtype = s.details?.type || s.details?.weight_class || '';
-        _skinCache[s.id] = { name: s.name, icon: s.icon, type: s.type, subtype };
-      }
+    if (!missing.length) return;
+    const data = await backendResolve('skins', missing);
+    for (const s of (Array.isArray(data) ? data : [])) {
+      const subtype = s.details?.type || s.details?.weight_class || '';
+      cappedCacheAdd(_skinCache, s.id, { name: s.name, icon: s.icon, type: s.type, subtype });
     }
   }
 
   async function resolveGuilds(ids) {
     const missing = [...new Set(ids)].filter(id => id && !(id in _guildCache));
     await Promise.all(missing.map(async id => {
-      const data = await gw2Fetch(`/v2/guild/${id}`).catch(() => null);
-      _guildCache[id] = data ? { name: data.name, tag: data.tag } : { name: 'Unknown Guild', tag: '?' };
+      const data = await backendResolveSingle('guild', id);
+      cappedCacheAdd(_guildCache, id, data ? { name: data.name, tag: data.tag } : { name: 'Unknown Guild', tag: '?' });
     }));
   }
 
   async function resolveColors(ids) {
     const missing = [...new Set(ids)].filter(id => id != null && !(id in _colorCache));
     if (!missing.length) return;
-    for (let i = 0; i < missing.length; i += 200) {
-      const chunk = missing.slice(i, i + 200);
-      const data = await gw2Fetch(`/v2/colors?ids=${chunk.join(',')}`).catch(() => []);
-      for (const c of (Array.isArray(data) ? data : [])) {
-        // Use 'cloth' RGB as the representative color
-        const rgb = c.cloth?.rgb || c.leather?.rgb || c.metal?.rgb || [128, 128, 128];
-        _colorCache[c.id] = { name: c.name, hex: rgbToHex(rgb) };
-      }
+    const data = await backendResolve('colors', missing);
+    for (const c of (Array.isArray(data) ? data : [])) {
+      const rgb = c.cloth?.rgb || c.leather?.rgb || c.metal?.rgb || [128, 128, 128];
+      cappedCacheAdd(_colorCache, c.id, { name: c.name, hex: rgbToHex(rgb) });
     }
   }
 

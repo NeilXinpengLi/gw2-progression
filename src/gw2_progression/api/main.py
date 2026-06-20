@@ -8,6 +8,7 @@ from fastapi.staticfiles import StaticFiles
 from gw2_progression.gw2_client import _close_client
 
 from .routes.analyze import router as analyze_router
+from .routes.resolve import router as resolve_router
 
 STATIC_DIR = Path(__file__).parent.parent / "static"
 
@@ -20,6 +21,7 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title="GW2 Progression", version="0.1.0", lifespan=lifespan)
 app.include_router(analyze_router)
+app.include_router(resolve_router)
 app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 
 
