@@ -119,3 +119,104 @@ class TestAgent:
 
         assert len(advice.recommended_actions) > 0
         assert len(advice.weekly_plan) == 7
+
+
+class TestAuthService:
+
+    def test_create_and_get_session(self):
+        from gw2_progression.services.auth_service import create_session, get_session
+        token = create_session("test-api-key", "Player.1234")
+        assert len(token) > 20
+        session = get_session(token)
+        assert session is not None
+        assert session["api_key"] == "test-api-key"
+        assert session["account_name"] == "Player.1234"
+
+    def test_get_api_key_from_token(self):
+        from gw2_progression.services.auth_service import create_session, get_api_key
+        token = create_session("real-key", "Player.1234")
+        resolved = get_api_key(token)
+        assert resolved == "real-key"
+
+    def test_get_api_key_passthrough(self):
+        from gw2_progression.services.auth_service import get_api_key
+        assert get_api_key("real-key-123") == "real-key-123"
+
+
+class TestBuildServiceDetail:
+
+    def test_get_all_builds_count(self):
+        from gw2_progression.services.build_service import CURATED_BUILDS
+        assert len(CURATED_BUILDS) >= 20
+
+    def test_get_build_detail(self):
+        from gw2_progression.services.build_service import get_build
+        b = get_build("sc_dh")
+        assert b is not None
+        assert b.source == "snowcrows"
+        assert b.profession == "Guardian"
+
+    def test_build_not_found(self):
+        from gw2_progression.services.build_service import get_build
+        assert get_build("nonexistent") is None
+
+    @pytest.mark.asyncio
+    async def test_readiness_with_no_profession_match(self):
+        from gw2_progression.services.build_service import calculate_readiness
+
+        with patch("gw2_progression.analyzer.fetch_all", AsyncMock()) as m:
+            m.return_value.account_name = "Player.1234"
+            m.return_value.characters = [{"name":"Test","profession":"Mesmer"}]
+            m.return_value.materials = []
+            m.return_value.bank = []
+            m.return_value.shared_inventory = []
+            m.return_value.errors = {}
+
+            readiness = await calculate_readiness("fake-key", "sc_dh")
+
+        assert readiness.profession_match is False
+        assert readiness.readiness_score == 0.0
+
+
+class TestRecipeOptimizerDetail:
+
+    @pytest.mark.asyncio
+    async def test_optimizer_direct_buy(self):
+        from gw2_progression.services.recipe_optimizer import optimize_item
+
+        with patch("gw2_progression.services.recipe_optimizer._fetch_recipes_for_output", AsyncMock(return_value=[])):
+            decision = await optimize_item(19720, 100, {}, {19720: (3000, 3500)}, depth=0)
+        assert decision.decision == "buy"
+        assert decision.cost_buy == 100 * 3500
+
+    @pytest.mark.asyncio
+    async def test_optimizer_use_owned(self):
+        from gw2_progression.services.recipe_optimizer import optimize_item
+
+        with patch("gw2_progression.services.recipe_optimizer._fetch_recipes_for_output", AsyncMock(return_value=[])):
+            decision = await optimize_item(19720, 100, {19720: 200}, {}, depth=0)
+        assert decision.decision == "use_owned"
+        assert decision.cost_buy == 0
+
+    @pytest.mark.asyncio
+    async def test_optimizer_partial_owned(self):
+        from gw2_progression.services.recipe_optimizer import optimize_item
+
+        with patch("gw2_progression.services.recipe_optimizer._fetch_recipes_for_output", AsyncMock(return_value=[])):
+            owned = {19720: 30}
+            decision = await optimize_item(19720, 100, owned, {19720: (3000, 3500)}, depth=0)
+        assert decision.decision == "buy"
+        assert decision.owned_count == 30
+
+    @pytest.mark.asyncio
+    async def test_optimizer_cycle_guard(self):
+        from gw2_progression.services.recipe_optimizer import optimize_item
+
+        with patch("gw2_progression.services.recipe_optimizer._fetch_recipes_for_output", AsyncMock(return_value=[
+            {"id": 1, "output_item_id": 1, "output_item_count": 1, "ingredients": [{"item_id": 1, "count": 1}]}
+        ])):
+            decision = await optimize_item(1, 5, {}, {})
+        # Cycle detected, fallback to buy; craft not selected because
+        # ingredient cost (cycle→buy with 0 price) == direct_buy_cost (0)
+        assert decision.decision in ("buy", "craft")
+
