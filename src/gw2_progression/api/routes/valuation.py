@@ -5,7 +5,12 @@ from pydantic import BaseModel, field_validator
 
 from gw2_progression.database import cleanup_old_data, get_db, search_latest_holdings
 from gw2_progression.gw2_client import Gw2ApiError
-from gw2_progression.models import ItemHolding, ItemLocationResponse, ItemSearchResult
+from gw2_progression.models import (
+    ItemHolding,
+    ItemLocationResponse,
+    ItemSearchResult,
+    ValueAnalyzeResponse,
+)
 from gw2_progression.services.delta_service import compare_snapshots, get_latest_snapshots
 from gw2_progression.services.item_search_service import get_filtered_items, get_item_detail, search_items_by_name
 from gw2_progression.services.listing_service import analyze_depth, fetch_listings
@@ -47,16 +52,16 @@ def _holding_to_search(h: ItemHolding, snapshot_time: str = "") -> ItemSearchRes
     )
 
 
-@router.post("/analyze")
+@router.post("/analyze", response_model=ValueAnalyzeResponse)
 async def post_value_analyze(request: ValueRequest):
     try:
         result = await run_full_analysis(request.api_key)
-        return result.model_dump()
+        return result
     except Gw2ApiError as e:
         raise HTTPException(status_code=401, detail=e.message)
 
 
-@router.get("/items/search")
+@router.get("/items/search", response_model=list[ItemSearchResult])
 async def get_items_search(
     account_name: str = Query(..., description="Account name from /analyze response"),
     q: str | None = Query(None, description="Search by item ID or name"),

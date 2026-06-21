@@ -1,3 +1,4 @@
+import json
 import logging
 import time
 import uuid
@@ -5,14 +6,15 @@ from collections import defaultdict
 from contextlib import asynccontextmanager
 from pathlib import Path
 
-from fastapi import FastAPI, Request, WebSocket, WebSocketDisconnect
+from fastapi import Body, FastAPI, HTTPException, Request, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
-from gw2_progression.database import init_db
+from gw2_progression.database import close_pool, init_db
 from gw2_progression.gw2_client import Gw2ApiError
 from gw2_progression.gw2_client import _close_client as close_gw2_client
+from gw2_progression.services.auth_service import SESSION_TTL, create_session, get_api_key
 from gw2_progression.services.price_service import close_client as close_price_client
 from gw2_progression.services.price_service import warmup_price_cache
 from gw2_progression.services.progression_service import seed_templates
@@ -50,6 +52,7 @@ async def lifespan(app: FastAPI):
     logger.info("Shutting down GW2 Progression")
     await close_gw2_client()
     await close_price_client()
+    await close_pool()
 
 
 app = FastAPI(title="GW2 Progression", version="0.1.0", lifespan=lifespan)
@@ -118,6 +121,34 @@ app.include_router(tp_router)
 app.include_router(builds_router)
 app.include_router(agent_router)
 app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
+
+
+@app.post("/auth/session")
+async def create_session_endpoint(api_key: str = Body(...)):
+    from gw2_progression.analyzer import fetch_all
+
+    try:
+        contents = await fetch_all(api_key)
+        token = create_session(api_key, contents.account_name or "unknown")
+        return {"token": token, "account_name": contents.account_name, "expires_in": SESSION_TTL}
+    except Gw2ApiError as e:
+        raise HTTPException(status_code=401, detail=e.message)
+
+
+# Inject API key from session token into all /analyze and /value/analyze requests
+@app.middleware("http")
+async def session_middleware(request: Request, call_next):
+    if request.url.path in ("/analyze",) and request.method == "POST":
+        try:
+            body = await request.json()
+            key = body.get("api_key", "")
+            resolved = get_api_key(key)
+            if resolved != key:
+                body["api_key"] = resolved
+                request._body = json.dumps(body).encode()
+        except Exception:
+            pass
+    return await call_next(request)
 
 
 @app.get("/health")

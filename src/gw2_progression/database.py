@@ -1,4 +1,6 @@
+import asyncio
 import logging
+from contextlib import asynccontextmanager
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -10,10 +12,64 @@ logger = logging.getLogger("gw2.db")
 
 DB_DIR = Path(__file__).resolve().parent.parent.parent / "data"
 DB_PATH = DB_DIR / "gw2_progression.db"
+DB_POOL_SIZE = 5
+
+_pool: asyncio.Queue[aiosqlite.Connection] | None = None
 
 
 def _ensure_db_dir():
     DB_DIR.mkdir(parents=True, exist_ok=True)
+
+
+async def _create_connection() -> aiosqlite.Connection:
+    conn = await aiosqlite.connect(str(DB_PATH))
+    conn.row_factory = aiosqlite.Row
+    await conn.execute("PRAGMA journal_mode=WAL")
+    await conn.execute("PRAGMA foreign_keys=ON")
+    await conn.execute("PRAGMA synchronous=NORMAL")
+    return conn
+
+
+async def get_db() -> aiosqlite.Connection:
+    global _pool
+    if _pool is None:
+        _pool = asyncio.Queue(DB_POOL_SIZE)
+        for _ in range(DB_POOL_SIZE):
+            conn = await _create_connection()
+            await _pool.put(conn)
+    return await _pool.get()
+
+
+async def release_db(conn: aiosqlite.Connection):
+    global _pool
+    if _pool is not None and conn is not None:
+        await _pool.put(conn)
+
+
+async def close_pool():
+    global _pool
+    if _pool is not None:
+        while not _pool.empty():
+            try:
+                conn = await _pool.get_nowait()
+                await conn.close()
+            except asyncio.QueueEmpty:
+                break
+        _pool = None
+
+
+@asynccontextmanager
+async def using_db():
+    """Async context manager that acquires and releases a DB connection."""
+    conn = await get_db()
+    try:
+        yield conn
+        await conn.commit()
+    except Exception:
+        await conn.rollback()
+        raise
+    finally:
+        await release_db(conn)
 
 
 CREATE_TABLES = """
@@ -177,24 +233,14 @@ CREATE TABLE IF NOT EXISTS valuation_warnings (
 """
 
 
-async def get_db() -> aiosqlite.Connection:
-    _ensure_db_dir()
-    db = await aiosqlite.connect(str(DB_PATH))
-    db.row_factory = aiosqlite.Row
-    await db.execute("PRAGMA journal_mode=WAL")
-    await db.execute("PRAGMA foreign_keys=ON")
-    await db.execute("PRAGMA synchronous=NORMAL")
-    return db
-
-
 async def init_db():
     _ensure_db_dir()
-    db = await get_db()
+    conn = await _create_connection()
     try:
         for stmt in CREATE_TABLES.split(";"):
             s = stmt.strip()
             if s:
-                await db.execute(s)
+                await conn.execute(s)
         for idx_sql in [
             "CREATE INDEX IF NOT EXISTS idx_recipes_output ON static_recipes(output_item_id)",
             "CREATE INDEX IF NOT EXISTS idx_ingredients_recipe ON recipe_ingredients(recipe_id)",
@@ -204,13 +250,13 @@ async def init_db():
             "CREATE INDEX IF NOT EXISTS idx_history_account ON account_value_history(account_name)",
         ]:
             try:
-                await db.execute(idx_sql)
+                await conn.execute(idx_sql)
             except Exception:
                 pass
-        await db.commit()
+        await conn.commit()
         logger.info("Database initialized at %s", DB_PATH)
     finally:
-        await db.close()
+        await conn.close()
 
 
 async def save_price_snapshot(
