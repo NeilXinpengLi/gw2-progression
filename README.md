@@ -1,178 +1,175 @@
 # GW2 Progression
 
-A Guild Wars 2 account intelligence tool inspired by [gw2efficiency](https://gw2efficiency.com) and [HoYoLab](https://www.hoyolab.com). Connect your GW2 API key and get a full visual breakdown of your account — characters, equipment, wardrobe, wallet, inventory, achievements, PvP stats, and more.
+> **GW2 账号资产智能系统** — 对标 gw2efficiency 的账号价值计算、制作成本联动、Build 推荐、成长规划工具。
 
-![Python](https://img.shields.io/badge/Python-3.12-blue) ![FastAPI](https://img.shields.io/badge/FastAPI-0.110-green) ![License](https://img.shields.io/badge/license-MIT-lightgrey)
-
----
-
-## Features
-
-### Account Overview
-- Account name, world, total playtime, fractal level, daily AP, WvW rank
-- Full permission breakdown showing which GW2 API scopes are granted
-
-### Character Viewer
-- Switch between all characters on your account
-- **Paper doll** equipment layout — every gear slot shown with the skin's icon
-- Dye colors displayed as color dots on each slot (top-right corner)
-- Hover any slot for the skin name tooltip
-- Weapon swap sets (set 1 and set 2)
-- Trinkets: Back, Amulet, Accessory 1 & 2, Ring 1 & 2
-- Guild badge per character showing `[TAG] Guild Name` (fetched from the public GW2 API)
-- Full equipment list with icon, slot name, item name, and dye swatches
-
-### Wardrobe
-- All unlocked account skins displayed as an icon grid
-- Filter by type: **Armor**, **Weapon**, **Back Item**
-- Filter by subtype (auto-populated: Head, Coat, Greatsword, etc.)
-- Live search by skin name
-- Lazy-loads on first visit — fetches 1,000+ skin icons in batches
-
-### Wallet
-- All 50+ currencies with names and descriptions resolved from the GW2 API
-- Gold displayed as `Xg Xs Xc`
-- Sorted by quantity
-
-### Inventory
-- Top 40 materials by quantity with item icons and resolved category names
-- Bank slot usage summary
-
-### Progression
-- All unlocked masteries with region (Heart of Thorns, Path of Fire, etc.) and level
-- Mastery point totals (spent vs earned) per region
-- Total achievement count
-
-### PvP
-- PvP rank, wins, losses, win rate, desertions, byes
-- 10 most recent games with map name, result, score, and profession
-
-### Unlocks
-- Count of unlocked skins, dyes, minis, and finishers
-- Finisher list with permanent/quantity status
-
-### WvW
-- WvW rank and current team
+[![CI](https://github.com/NeilXinpengLi/gw2-progression/actions/workflows/ci.yml/badge.svg)](https://github.com/NeilXinpengLi/gw2-progression/actions/workflows/ci.yml)
+![Python](https://img.shields.io/badge/Python-3.12+-blue)
+![FastAPI](https://img.shields.io/badge/FastAPI-0.110-green)
+![Tests](https://img.shields.io/badge/tests-159-brightgreen)
+![Maturity](https://img.shields.io/badge/maturity-A--level-orange)
 
 ---
 
-## Tech Stack
+## 功能速览
 
-| Layer | Technology |
-|---|---|
-| Backend | Python 3.12, FastAPI, httpx, Pydantic |
-| Frontend | Vanilla HTML/CSS/JavaScript (no framework) |
-| Data | Guild Wars 2 Official API v2 |
-| Package | setuptools, pip editable install |
-| Tests | pytest |
-
----
-
-## Project Structure
-
-```
-gw2-progression/
-├── src/
-│   └── gw2_progression/
-│       ├── gw2_client.py       # All GW2 API calls (characters, wallet, skins, etc.)
-│       ├── analyzer.py         # Orchestrates all fetches into AccountContents model
-│       ├── static/
-│       │   └── index.html      # Full single-page UI (paper doll, wardrobe, tabs)
-│       └── api/
-│           ├── main.py         # FastAPI app, static file serving
-│           └── routes/
-│               └── analyze.py  # POST /analyze endpoint
-├── tests/
-│   └── test_analyzer.py        # Unit tests for the analyzer
-├── pyproject.toml
-└── README.md
-```
+| 模块 | 功能 | 状态 |
+|------|------|------|
+| **账号估值** | 6 种持仓归一化, 三口径估值 (Instant/Listing/Net Sell), 价格质量评分 | ✅ |
+| **数据可视化** | 资产构成饼图, 位置柱图, 趋势折线图, 历史对比 | ✅ |
+| **物品搜索** | 按名称/ID 搜索, 位置钻取, 市场深度, 套利检测 | ✅ |
+| **制作计算** | 配方树展开, 已有材料抵扣, 5 种优化策略, 防循环 | ✅ |
+| **目标追踪** | 创建/刷新/删除目标, 完成百分比, 剩余成本 | ✅ |
+| **传奇规划** | 8 个模板 (Bolt/Twilight/Nevermore/Astralaria/Ad Infinitum/Vision), 需求映射 | ✅ |
+| **Build 推荐** | 20 个 curated Build (SnowCrows + MetaBattle), readiness 评分 | ✅ |
+| **市场策略** | Sell/Buy 信号, 流动性警告, 受保护资产 | ✅ |
+| **成长 Agent** | 聚合分析, 行动建议, 7 天周计划 | ✅ |
+| **TP 订单簿** | /v2/commerce/listings, 市场深度, 套利分析 | ✅ |
 
 ---
 
-## Getting Started
+## 快速开始
 
-### Requirements
+### 前置条件
+
 - Python 3.12+
-- A Guild Wars 2 account with an API key
+- GW2 API Key ([获取](https://account.arena.net/applications))
 
-### Installation
+### 本地运行
 
-```powershell
-cd C:\Users\35403\projects\gw2-progression
+```bash
+# 安装依赖
 pip install -e ".[dev]"
+
+# 启动服务
+uvicorn gw2_progression.api.main:app
+
+# 打开浏览器 http://localhost:8000
 ```
 
-### Running the app
+### Docker 运行
 
-```powershell
-python -m uvicorn gw2_progression.api.main:app --reload
+```bash
+docker compose up -d
+
+# 查看健康状态
+docker compose ps
+
+# 自定义端口
+PORT=8080 docker compose up -d
 ```
 
-Open **http://127.0.0.1:8000** in your browser.
+---
 
-### Running tests
+## 环境变量
 
-```powershell
-python -m pytest tests/ -v
+| 变量 | 默认值 | 说明 |
+|------|--------|------|
+| `PORT` | `8000` | HTTP 端口 |
+| `RATE_LIMIT_REQUESTS` | `30` | 每分钟每 IP 请求上限 |
+| `RATE_LIMIT_WINDOW` | `60` | 速率窗口 (秒) |
+| `GW2_API_BASE` | `https://api.guildwars2.com` | GW2 API 地址 |
+| `LOG_LEVEL` | `INFO` | 日志级别 |
+
+---
+
+## 项目结构
+
+```
+src/gw2_progression/
+├── api/                    # FastAPI 路由层 (11 路由模块)
+│   ├── main.py             # 入口 + 中间件 (logging, rate-limit, session)
+│   └── routes/
+│       ├── analyze.py      # POST /analyze
+│       ├── resolve.py      # POST /resolve (GW2 静态数据代理)
+│       ├── valuation.py    # /value/* (21 端点)
+│       ├── crafting.py     # /crafting/* (10 端点)
+│       ├── goals.py        # /goals/* (5 端点)
+│       ├── progression.py  # /progression/* (3 端点)
+│       ├── builds.py       # /builds/* (4 端点)
+│       ├── tp_strategy.py  # /tp/* (6 端点)
+│       └── agent.py        # /agent/* (2 端点)
+├── services/               # 业务逻辑层 (22 服务)
+│   ├── gw2_client.py       # GW2 HTTP 客户端 (22 fetch_*)
+│   ├── analyzer.py         # 分析编排 + AccountContents
+│   ├── price_service.py    # 市场价格 + 价格质量
+│   ├── valuation_service.py# 估值引擎
+│   ├── holdings_service.py # 持仓归一化
+│   ├── recipe_service.py   # 配方引擎
+│   ├── recipe_optimizer.py # 多策略配方优化
+│   ├── delta_service.py    # 快照差分
+│   ├── listing_service.py  # TP 订单簿
+│   ├── build_service.py    # Build 推荐
+│   ├── agent_service.py    # 成长 Agent
+│   └── ...
+├── models.py               # 40+ Pydantic 数据模型
+├── database.py             # SQLite + 连接池 + 归档
+└── static/                 # 前端 SPA (7 JS 模块)
+    ├── index.html          # 18 Tab 面板
+    ├── app.js              # 核心 (caches, resolve, analyze)
+    ├── app-value.js        # 价值 Dashboard
+    ├── app-characters.js   # 角色/衣柜/背包/专精/Builds
+    ├── app-items.js        # 物品搜索
+    ├── app-crafting.js     # 制作计算
+    ├── app-goals.js        # 目标追踪
+    ├── app-planner.js      # Planner/Builds/Market/Advisor
+    └── style.css           # 响应式样式
 ```
 
 ---
 
-## Getting a GW2 API Key
+## API 概览 (40+ 端点)
 
-1. Log in at [account.arena.net](https://account.arena.net)
-2. Go to **Applications** → **New Key**
-3. Enable all permissions for full access:
-   - `account`, `characters`, `inventories`, `wallet`, `progression`
-   - `builds`, `unlocks`, `pvp`, `wvw`, `tradingpost`, `guilds`
-4. Copy the key and paste it into GW2 Progression
+| 分组 | 端点数 | 主要功能 |
+|------|--------|----------|
+| `/analyze` | 1 | 账号全量数据拉取 |
+| `/resolve` | 1 | GW2 静态数据代理 |
+| `/value/*` | 17 | 估值, 搜索, 差分, 订单簿 |
+| `/crafting/*` | 10 | 制作计算, 优化, 静态数据刷新 |
+| `/goals/*` | 5 | 目标 CRUD + 进度刷新 |
+| `/progression/*` | 3 | 传奇/升华规划 |
+| `/builds/*` | 4 | Build 推荐 |
+| `/tp/*` | 6 | 市场策略 |
+| `/agent/*` | 2 | 成长建议 |
 
-### Permission Notes
-
-| Permission | What it unlocks |
-|---|---|
-| `account` | Account name, world, playtime, fractal level, AP, WvW rank |
-| `characters` | All characters with equipment, dyes, crafting, guild |
-| `inventories` | Bank slots, materials storage, shared inventory |
-| `wallet` | All currency balances |
-| `progression` | Achievements, masteries, mastery points |
-| `builds` | Saved build templates |
-| `unlocks` | Skins, dyes, minis, finishers |
-| `pvp` | PvP rank, stats, recent games |
-| `wvw` | WvW rank and team |
-| `tradingpost` | Active buy/sell orders |
-| `guilds` | Guild tag and name per character (basic info only — full guild data requires guild leader key) |
+完整 API 文档请参考 [`ARCHITECTURE.md`](ARCHITECTURE.md)
 
 ---
 
-## How It Works
+## 测试
 
-1. You paste your API key and click **Analyze**
-2. The backend calls `/v2/tokeninfo` to validate the key and read granted permissions
-3. All permitted endpoints are fetched in parallel (characters, wallet, bank, materials, achievements, masteries, PvP, unlocks, etc.)
-4. The frontend then resolves display names from the **public** GW2 API (no key needed):
-   - Item names + icons via `/v2/items`
-   - Currency names + descriptions via `/v2/currencies`
-   - Material category names via `/v2/materials`
-   - Skin icons + types via `/v2/skins`
-   - Dye colors (exact RGB) via `/v2/colors`
-   - Mastery names + regions via `/v2/masteries`
-   - Map names via `/v2/maps`
-   - Guild name + tag via `/v2/guild/{id}`
-5. Everything renders client-side — your API key is only ever sent to your own local server
+```bash
+pytest tests/ -v          # 运行全部 159 测试
+pytest tests/ -q          # 简洁输出
+pytest tests/ --cov=src   # 覆盖率报告
+```
 
 ---
 
-## Privacy
+## 技术栈
 
-- Your API key is sent only to `http://127.0.0.1:8000` (your own machine)
-- No data is stored, logged, or sent to any third party
-- The app runs entirely locally
+- **后端**: Python 3.12+, FastAPI, httpx, aiosqlite
+- **前端**: Vanilla JS, Chart.js, 单页应用 (SPA)
+- **数据**: SQLite (WAL), 内存 TTL 缓存
+- **部署**: Docker, Docker Compose
+- **CI**: GitHub Actions (lint + test + docker)
+- **质量**: ruff, pytest, pre-commit
 
 ---
 
-## Inspired By
+## 成熟度
 
-- [gw2efficiency](https://gw2efficiency.com) — the gold standard for GW2 account tools
-- [HoYoLab](https://www.hoyolab.com) — the benchmark for game progression dashboards
+| 维度 | 评分 | 状态 |
+|------|------|------|
+| 测试覆盖 | 7/10 | 159 tests, 18 文件 |
+| 代码组织 | 8/10 | 22 services, 路由清晰, 内聚度 0.7-0.9 |
+| 错误处理 | 7/10 | 中间件隔离, DB 连接池 |
+| 性能 | 7/10 | TTL 缓存, 连接池, WAL |
+| 安全 | 6/10 | 速率限制, Session 管理 |
+| 前端 | 7/10 | 7 模块, Chart.js, 响应式 |
+| **综合** | **A-** | 功能完整, 架构清晰 |
+
+---
+
+## 许可证
+
+MIT

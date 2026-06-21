@@ -1,5 +1,6 @@
 import json
 import logging
+import os
 import time
 import uuid
 from collections import defaultdict
@@ -37,8 +38,8 @@ logging.basicConfig(
 )
 logger = logging.getLogger("gw2")
 
-RATE_LIMIT_REQUESTS = 30
-RATE_LIMIT_WINDOW = 60
+RATE_LIMIT_REQUESTS = int(os.environ.get("RATE_LIMIT_REQUESTS", "30"))
+RATE_LIMIT_WINDOW = int(os.environ.get("RATE_LIMIT_WINDOW", "60"))
 _rate_limit_buckets: dict[str, list] = defaultdict(list)
 
 
