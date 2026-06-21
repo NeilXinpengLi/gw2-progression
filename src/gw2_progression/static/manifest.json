@@ -1,0 +1,10 @@
+{
+  "name": "GW2 Progression",
+  "short_name": "GW2Prog",
+  "description": "Guild Wars 2 account intelligence and progression planning tool",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0f0f0f",
+  "theme_color": "#c8956c",
+  "icons": []
+}

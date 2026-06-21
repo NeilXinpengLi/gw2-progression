@@ -1,5 +1,8 @@
 """Backend proxy for public GW2 API static data + TTLCache integration."""
 
+from urllib.parse import quote
+
+import httpx
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
@@ -34,8 +37,6 @@ class ResolveRequest(BaseModel):
 
 
 async def _gw2_fetch(path: str) -> dict | list:
-    import httpx
-
     async with httpx.AsyncClient(timeout=15) as client:
         resp = await client.get(f"{GW2_BASE}{path}")
     if not resp.is_success:
@@ -75,8 +76,6 @@ async def resolve(req: ResolveRequest) -> dict | list:
         cached = _cache.get(cache_key)
         if cached is not None:
             return cached
-        from urllib.parse import quote
-
         data = await _gw2_fetch(ep.format(query=quote(req.query.strip())))
         if isinstance(data, list) and len(data) > 50:
             data = data[:50]

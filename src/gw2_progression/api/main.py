@@ -15,7 +15,7 @@ from fastapi.staticfiles import StaticFiles
 from gw2_progression.database import close_pool, init_db
 from gw2_progression.gw2_client import Gw2ApiError
 from gw2_progression.gw2_client import _close_client as close_gw2_client
-from gw2_progression.services.auth_service import SESSION_TTL, create_session, get_api_key
+from gw2_progression.services.auth_service import SESSION_TTL, create_session, delete_session, get_api_key, list_sessions
 from gw2_progression.services.price_service import close_client as close_price_client
 from gw2_progression.services.price_service import warmup_price_cache
 from gw2_progression.services.progression_service import seed_templates
@@ -130,20 +130,34 @@ async def create_session_endpoint(api_key: str = Body(...)):
 
     try:
         contents = await fetch_all(api_key)
-        token = create_session(api_key, contents.account_name or "unknown")
+        token = await create_session(api_key, contents.account_name or "unknown")
         return {"token": token, "account_name": contents.account_name, "expires_in": SESSION_TTL}
     except Gw2ApiError as e:
         raise HTTPException(status_code=401, detail=e.message)
 
 
-# Inject API key from session token into all /analyze and /value/analyze requests
+@app.get("/auth/sessions")
+async def list_sessions_endpoint():
+    sessions = await list_sessions()
+    return sessions
+
+
+@app.delete("/auth/session/{token}")
+async def delete_session_endpoint(token: str):
+    deleted = await delete_session(token)
+    if not deleted:
+        raise HTTPException(status_code=404, detail="Session not found")
+    return {"status": "deleted"}
+
+
+# Inject API key from session token into requests
 @app.middleware("http")
 async def session_middleware(request: Request, call_next):
-    if request.url.path in ("/analyze",) and request.method == "POST":
+    if request.url.path in ("/analyze", "/value/analyze") and request.method == "POST":
         try:
             body = await request.json()
             key = body.get("api_key", "")
-            resolved = get_api_key(key)
+            resolved = await get_api_key(key)
             if resolved != key:
                 body["api_key"] = resolved
                 request._body = json.dumps(body).encode()

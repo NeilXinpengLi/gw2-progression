@@ -179,10 +179,11 @@ document.getElementById('key-input').addEventListener('keydown', e => { if (e.ke
 
 let _accountData = null;
 let _abortController = null;
+let _sessionToken = null;
 
 async function runAnalyze() {
-  const key = document.getElementById('key-input').value.trim();
-  if (!key) {
+  const rawKey = document.getElementById('key-input').value.trim();
+  if (!rawKey) {
     const msg = document.getElementById('status-msg');
     msg.className = 'error';
     msg.textContent = 'Please paste a GW2 API key first.';
@@ -195,7 +196,33 @@ async function runAnalyze() {
   const msg = document.getElementById('status-msg');
   btn.disabled = true;
   msg.className = '';
-  msg.innerHTML = '<span class="spinner"></span> Fetching account data…';
+  let useKey = rawKey;
+
+  // Use existing session token if available, otherwise create a new session
+  if (_sessionToken) {
+    useKey = _sessionToken;
+    msg.innerHTML = '<span class="spinner"></span> Restoring session…';
+  } else {
+    msg.innerHTML = '<span class="spinner"></span> Creating session…';
+    try {
+      const sessionRes = await fetch('/auth/session', {
+        method: 'POST', headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ api_key: rawKey }), signal,
+      });
+      if (sessionRes.ok) {
+        const session = await sessionRes.json();
+        _sessionToken = session.token;
+        useKey = session.token;
+        msg.innerHTML = `<span class="spinner"></span> Session created for ${session.account_name}. Fetching data…`;
+        loadAccountSelector();
+      }
+    } catch(e) {
+      msg.innerHTML = '<span class="spinner"></span> Session creation failed, using direct auth…';
+    }
+  }
+
+  if (_abortController) _abortController.abort();
+  _abortController = new AbortController();
 
   try {
     document.querySelectorAll('.tab-loading').forEach(el => el.remove());
@@ -209,13 +236,13 @@ async function runAnalyze() {
       fetch('/analyze', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ api_key: key }),
+        body: JSON.stringify({ api_key: useKey }),
         signal,
       }),
       fetch('/value/analyze', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ api_key: key }),
+        body: JSON.stringify({ api_key: useKey }),
         signal,
       }),
     ]);
@@ -281,6 +308,10 @@ async function runAnalyze() {
     ]);
 
     msg.textContent = `Loaded data for ${data.account_name}`;
+    // Save to localStorage
+    if (_sessionToken) {
+      try { localStorage.setItem('gw2_session', _sessionToken); } catch(e) {}
+    }
     renderAll(data);
   } catch (e) {
     if (e.name === 'AbortError') return;
@@ -294,6 +325,42 @@ async function runAnalyze() {
     btn.disabled = false;
   }
 }
+
+// ── Account Management ──
+async function loadAccountSelector() {
+  const sel = document.getElementById('account-selector');
+  try {
+    const res = await fetch('/auth/sessions');
+    if (!res.ok) return;
+    const sessions = await res.json();
+    if (sessions.length > 1) {
+      sel.classList.remove('hidden');
+      sel.innerHTML = '<option value="">Switch account…</option>' +
+        sessions.map(s => `<option value="${s.token}">${s.account_name}</option>`).join('');
+      sel.onchange = () => {
+        if (sel.value) {
+          localStorage.setItem('gw2_session', sel.value);
+          location.reload();
+        }
+      };
+    }
+  } catch(e) { /* ignore */ }
+}
+
+// Restore session on page load and auto-analyze
+(function() {
+  try {
+    const saved = localStorage.getItem('gw2_session');
+    if (saved) {
+      _sessionToken = saved;
+      document.getElementById('key-input').value = saved;
+      const analyzeBtn = document.getElementById('analyze-btn');
+      if (analyzeBtn && !analyzeBtn.disabled) {
+        setTimeout(runAnalyze, 300);
+      }
+    }
+  } catch(e) {}
+})();
 
 function renderAll(d) {
   document.querySelectorAll('.tab-loading').forEach(el => el.remove());

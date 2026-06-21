@@ -124,6 +124,14 @@ CREATE TABLE IF NOT EXISTS item_holdings (
     FOREIGN KEY (snapshot_id) REFERENCES account_snapshots(id)
 );
 
+CREATE TABLE IF NOT EXISTS account_sessions (
+    token TEXT PRIMARY KEY,
+    api_key TEXT NOT NULL,
+    account_name TEXT NOT NULL,
+    created_at TEXT NOT NULL,
+    last_used_at TEXT NOT NULL
+);
+
 CREATE TABLE IF NOT EXISTS protected_assets (
     account_name TEXT NOT NULL,
     item_id INTEGER NOT NULL,

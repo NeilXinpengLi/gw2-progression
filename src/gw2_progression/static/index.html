@@ -6,6 +6,8 @@
   <title>GW Progression</title>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
   <link rel="stylesheet" href="/static/style.css" />
+  <link rel="manifest" href="/static/manifest.json" />
+  <meta name="theme-color" content="#c8956c" />
 </head>
 <body>
 
@@ -36,14 +38,15 @@
 </nav>
 
 <main>
-  <div id="key-section">
-    <h2>Connect Your Account</h2>
-    <div id="key-row">
-      <input id="key-input" type="text" placeholder="Paste your GW2 API key…" autocomplete="off" spellcheck="false" aria-label="GW2 API key" />
-      <button id="analyze-btn" aria-label="Analyze account">Analyze</button>
+    <div id="key-section">
+      <h2>Connect Your Account</h2>
+      <div id="key-row">
+        <input id="key-input" type="text" placeholder="Paste your GW2 API key…" autocomplete="off" spellcheck="false" aria-label="GW2 API key" />
+        <button id="analyze-btn" aria-label="Analyze account">Analyze</button>
+        <select id="account-selector" class="hidden" aria-label="Switch account"></select>
+      </div>
+      <div id="status-msg" role="status" aria-live="polite"></div>
     </div>
-    <div id="status-msg" role="status" aria-live="polite"></div>
-  </div>
 
   <div id="results" class="hidden">
 
