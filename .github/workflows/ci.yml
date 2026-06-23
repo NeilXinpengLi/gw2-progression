@@ -17,33 +17,37 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: ${{ env.PYTHON_VERSION }}
-          cache: "pip"
       - run: pip install ruff
-      - run: ruff check src/ tests/
-      - run: ruff format --check src/ tests/
+      - run: ruff check --output-format=github
+      - run: ruff format --check
 
   test:
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        python-version: ["3.12", "3.13"]
+    needs: lint
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
-          python-version: ${{ matrix.python-version }}
-          cache: "pip"
-      - run: pip install -e ".[dev]"
-      - run: pytest tests/ -v --tb=short -q
+          python-version: ${{ env.PYTHON_VERSION }}
+      - name: Install dependencies
+        run: |
+          pip install -e ".[dev]"
+          pip install pytest-cov
+      - name: Run tests with coverage
+        run: |
+          python -m pytest --cov --cov-report=term --cov-fail-under=69 -v --tb=short -q
+        env:
+          CI: "true"
 
   docker:
     runs-on: ubuntu-latest
-    needs: [lint, test]
-    if: github.ref == 'refs/heads/main'
+    needs: test
     steps:
       - uses: actions/checkout@v4
-      - run: docker build -t gw2-progression .
-      - run: docker run -d --name gw2-test -p 8000:8000 gw2-progression
-      - run: sleep 5
-      - run: curl --retry 5 --retry-delay 2 --retry-connrefused http://localhost:8000/health
-      - run: docker stop gw2-test
+      - name: Build Docker image
+        run: docker build --target production -t gw2-progression .
+      - name: Test Docker image starts
+        run: |
+          docker run -d -p 8000:8000 --name gw2-test gw2-progression
+          sleep 10
+          curl -f http://localhost:8000/health || (docker logs gw2-test && exit 1)
