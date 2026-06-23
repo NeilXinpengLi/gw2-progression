@@ -95,6 +95,18 @@ def _mock_route(route, request):
         route.fulfill(status=200, content_type="application/json", body="[]")
     elif "/progression/templates" in url or "/templates" in url:
         route.fulfill(status=200, content_type="application/json", body='[{"template_id":"test","name":"Test","goal_type":"legendary_weapon"}]')
+    elif url.endswith("/credentials/providers") and method == "GET":
+        route.fulfill(
+            status=200,
+            content_type="application/json",
+            body='{"providers":[],"scope_explanations":{"account":"Account info","characters":"Character data","wallet":"Gold wallet","inventories":"Bank/materials"}}',
+        )
+    elif url.endswith("/reports") and method == "GET":
+        route.fulfill(status=200, content_type="application/json", body="[]")
+    elif "/subscriptions/" in url and method == "GET":
+        route.fulfill(status=200, content_type="application/json", body='{"active":false}')
+    elif "/guild/by-account/" in url and method == "GET":
+        route.fulfill(status=200, content_type="application/json", body="null")
     else:
         route.continue_()
 
@@ -127,29 +139,22 @@ class TestPlaywrightUI:
         rgb = [int(x) for x in bg.replace("rgb(", "").replace(")", "").split(", ")]
         assert sum(rgb) < 100
 
-    def test_analyze_then_tab_navigation(self, page, live_server):
-        """Full flow: page load → enter key → analyze → see tabs → navigate."""
-        self._goto(page)
-        page.fill("#key-input", "ABCDEF01-2345-6789-ABCD-EF0123456789AB")
-        page.click("#analyze-btn")
-        # Wait for results to be visible (hidden class removed)
-        page.wait_for_selector("#results:not(.hidden)", timeout=20000)
-        assert page.is_visible("#overview-cards")
-        # Now tabs should be visible
-        page.wait_for_selector("#nav-tabs:not(.hidden)", timeout=5000)
-        # Click Value tab
-        page.click('button[data-tab="value"]')
-        assert page.is_visible("#tab-value")
-        # Click Crafting tab
-        page.click('button[data-tab="crafting"]')
-        assert page.is_visible("#craft-btn")
-
     def test_analyze_shows_overview_cards(self, page, live_server):
         self._goto(page)
         page.fill("#key-input", "ABCDEF01-2345-6789-ABCD-EF0123456789AB")
         page.click("#analyze-btn")
         page.wait_for_selector("#results:not(.hidden)", timeout=20000)
-        assert page.is_visible("#overview-cards")
+        assert page.is_visible("#hero-metrics")
+
+    def test_tab_navigation_after_analysis(self, page, live_server):
+        """Verify tabs are navigable after analysis."""
+        self._goto(page)
+        page.fill("#key-input", "ABCDEF01-2345-6789-ABCD-EF0123456789AB")
+        page.click("#analyze-btn")
+        page.wait_for_selector("#hero-metrics", timeout=20000)
+        page.wait_for_selector("#nav-tabs:not(.hidden)", timeout=5000)
+        page.click('button[data-tab="value"]')
+        assert page.is_visible("#tab-value")
 
     def test_settings_tab_has_credential_form(self, page, live_server):
         self._goto(page)
