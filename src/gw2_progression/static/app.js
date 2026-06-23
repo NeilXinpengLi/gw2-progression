@@ -291,14 +291,13 @@ async function loadAccountSelector() {
   } catch(e) {}
 })();
 
-const _renderedTabs = new Set();
+// ── Legacy tab panels for Advanced Tools ──
+const _legacyTabContent = {};
 
-function ensureTabRendered(tab) {
-  if (_renderedTabs.has(tab)) return;
-  _renderedTabs.add(tab);
+function renderLegacyTab(tab) {
   const d = getAccountData();
   if (!d) return;
-  const tabRender = {
+  const renders = {
     value: () => renderValue && renderValue(_valueData),
     characters: () => renderCharacters && renderCharacters(d.characters || []),
     wardrobe: () => setupWardrobe && setupWardrobe(d.unlocked_skins || []),
@@ -309,8 +308,54 @@ function ensureTabRendered(tab) {
     unlocks: () => renderUnlocks && renderUnlocks(d),
     wvw: () => renderWvw && renderWvw(d),
     builds: () => renderBuilds && renderBuilds(d),
+    crafting: () => {},  // handled by dom events
+    items: () => {},
+    goals: () => {},
+    guild: () => {},
+    settings: () => {},
   };
-  if (tabRender[tab]) tabRender[tab]();
+  if (renders[tab]) renders[tab]();
+}
+
+// ── Advanced Tools: card click → show legacy panel ──
+document.addEventListener('click', e => {
+  const card = e.target.closest('.adv-tool');
+  if (!card) return;
+  const tab = card.dataset.tab;
+  const tools = document.getElementById('advanced-tools');
+  const panel = document.getElementById('advanced-tool-panel');
+  const content = document.getElementById('adv-tool-content');
+  if (!tools || !panel || !content) return;
+
+  // Render legacy content into the panel
+  const legacyId = 'tab-' + tab;
+  const legacyEl = document.getElementById(legacyId);
+  if (legacyEl) {
+    content.innerHTML = legacyEl.innerHTML || '<div class="dim">Loading…</div>';
+  }
+  renderLegacyTab(tab);
+
+  tools.style.display = 'none';
+  panel.style.display = 'block';
+});
+
+document.getElementById('adv-back-btn')?.addEventListener('click', () => {
+  document.getElementById('advanced-tools').style.display = '';
+  document.getElementById('advanced-tool-panel').style.display = 'none';
+});
+
+// ── Tab rendering for the new 4-page system ──
+const _renderedTabs = new Set();
+
+function ensureTabRendered(tab) {
+  if (_renderedTabs.has(tab)) return;
+  _renderedTabs.add(tab);
+  const d = getAccountData();
+  if (!d) return;
+  if (tab === 'overview') return;
+  if (tab === 'coach') renderCoach();
+  if (tab === 'timeline') renderTimeline();
+  if (tab === 'advanced') renderAdvancedTools();
 }
 
 function dismissInsight() {
@@ -384,6 +429,111 @@ function renderAll(d) {
   loadScopeExplanations();
   // Show insight screen first
   showInsightScreen(d);
+}
+
+function renderCoach() {
+  const p0 = document.getElementById('coach-p0');
+  const p1 = document.getElementById('coach-p1');
+  const p2 = document.getElementById('coach-p2');
+  const d = getAccountData();
+  if (!d || !p0) return;
+
+  const vs = _valueData?.summary || {};
+  const totalGold = Math.floor((vs.total_value_buy || 0) / 10000);
+  const walletGold = Math.floor(((d.wallet || []).find(w => w.id === 1)?.value || 0) / 10000);
+  const chars = d.characters || [];
+  const maxLevel = chars.filter(c => c.level === 80).length;
+
+  let p0html = '', p1html = '', p2html = '';
+
+  if (totalGold > 0) {
+    p0html += `<div style="display:flex;align-items:center;gap:10px;background:var(--bg2);border:1px solid #3a2a1a;border-radius:8px;padding:12px;margin-bottom:6px"><span style="font-size:20px">💰</span><span style="flex:1;font-size:13px">Your total assets are <strong>${totalGold.toLocaleString()}g</strong>. Review valued items below.</span></div>`;
+  }
+  if (maxLevel < chars.length) {
+    p0html += `<div style="display:flex;align-items:center;gap:10px;background:var(--bg2);border:1px solid #3a2a1a;border-radius:8px;padding:12px;margin-bottom:6px"><span style="font-size:20px">⬆</span><span style="flex:1;font-size:13px">Level ${chars.length - maxLevel} characters to 80 for full build access.</span></div>`;
+  }
+  p0.innerHTML = p0html ? `<div class="section-title" style="color:#d0a050">🔴 P0 — Critical</div>${p0html}` : '';
+
+  if (walletGold < 100) {
+    p1html += `<div style="display:flex;align-items:center;gap:10px;background:var(--bg2);border:1px solid #1a3a2a;border-radius:8px;padding:12px;margin-bottom:6px"><span style="font-size:20px">🪙</span><span style="flex:1;font-size:13px">Low liquid gold. Run T4 fractals and dailies for steady income (~20g/day).</span></div>`;
+  }
+  p1.innerHTML = p1html ? `<div class="section-title" style="color:#6bc46b">🟢 P1 — Growth</div>${p1html}` : '';
+
+  p2html += `<div style="display:flex;align-items:center;gap:10px;background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:12px;margin-bottom:6px"><span style="font-size:20px">📋</span><span style="flex:1;font-size:13px">Complete daily achievements and world boss trains for rewards.</span></div>`;
+  p2.innerHTML = p2html ? `<div class="section-title" style="color:#5a9ece">🔵 P2 — Optional</div>${p2html}` : '';
+
+  if (!p0html && !p1html && !p2html) {
+    p0.innerHTML = '<div class="dim" style="padding:16px 0">No coach data available yet. Complete an analysis first.</div>';
+  }
+}
+
+function renderTimeline() {
+  const d = getAccountData();
+  if (!d) return;
+  const days = ['Day 1','Day 2','Day 3','Day 4','Day 5','Day 6','Day 7'];
+  const tasks = [
+    'Sell & Liquidate — Review TP listings, sell excess materials',
+    'Goal Progress — Farm time-gated materials, use mystic forge',
+    'Build Gear — Acquire missing items, run T4 fractals',
+    'Map Completion — Gather volatile magic, farm currencies',
+    'Fractal Push — Complete dailies + recommended',
+    'WvW / PvP — Earn skirmish tickets & pips',
+    'Review & Plan — Assess progress, plan next week'
+  ];
+  const grid = document.getElementById('timeline-grid');
+  if (!grid) return;
+  grid.innerHTML = days.map((day, i) => {
+    const pct = Math.min(i * 15, 90);
+    const colors = ['#5a3a1a','#2a4a2a','#1a3a4a','#2a2a4a','#4a2a4a','#4a3a1a','#1a4a3a'];
+    return `<div style="background:${colors[i]};border:1px solid var(--border);border-radius:8px;padding:10px">
+      <div style="font-size:11px;font-weight:600;color:var(--gold);margin-bottom:4px">${day}</div>
+      <div style="font-size:11px;color:var(--text);margin-bottom:4px">${tasks[i]}</div>
+      <div style="height:3px;background:var(--bg3);border-radius:2px;overflow:hidden">
+        <div style="height:100%;width:${pct}%;background:var(--gold);border-radius:2px"></div>
+      </div>
+    </div>`;
+  }).join('');
+
+  // Load quests
+  if (d.account_name) {
+    fetch(`/quests/${encodeURIComponent(d.account_name)}`)
+      .then(r => r.json())
+      .then(data => {
+        const list = document.getElementById('quest-list');
+        const prog = document.getElementById('quest-progress');
+        if (list) {
+          prog.textContent = `(${data.completed}/${data.total})`;
+          list.innerHTML = data.quests.map(q => `
+            <div style="display:flex;align-items:center;gap:10px;background:var(--bg2);border:1px solid ${q.completed ? '#2a4a2a' : 'var(--border)'};border-radius:6px;padding:8px 12px;cursor:pointer"
+                 onclick="toggleQuest('${q.key}', ${!q.completed})">
+              <span style="font-size:14px;color:${q.completed ? '#6bc46b' : 'var(--text-dim)'}">${q.completed ? '✅' : '⬜'}</span>
+              <span style="flex:1;font-size:12px">${q.label}</span></div>`
+          ).join('');
+        }
+      }).catch(() => {});
+  }
+}
+
+function renderAdvancedTools() {
+  const grid = document.getElementById('advanced-tools');
+  if (!grid || grid.children.length > 0) return;
+  const tools = [
+    { icon: '💰', name: 'Value Engine', desc: 'Full asset valuation & charts', tab: 'value' },
+    { icon: '⚒', name: 'Crafting Calculator', desc: 'Recipe tree & cost optimizer', tab: 'crafting' },
+    { icon: '🔍', name: 'Item Search', desc: 'Find items across your account', tab: 'items' },
+    { icon: '⚔', name: 'Build Explorer', desc: 'Build readiness & gear check', tab: 'builds' },
+    { icon: '🏆', name: 'Goals & Legendaries', desc: 'Track legendary progress', tab: 'goals' },
+    { icon: '👤', name: 'Characters', desc: 'Equipment & inventory', tab: 'characters' },
+    { icon: '🪙', name: 'Wallet', desc: 'Gold, karma & currencies', tab: 'wallet' },
+    { icon: '👥', name: 'Guild Workspace', desc: 'Multi-account aggregation', tab: 'guild' },
+    { icon: '⚙', name: 'Settings', desc: 'Credentials & subscription', tab: 'settings' },
+  ];
+  grid.innerHTML = tools.map(t => `
+    <div class="adv-tool" data-tab="${t.tab}" style="cursor:pointer;background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:14px;text-align:center">
+      <div style="font-size:26px;margin-bottom:4px">${t.icon}</div>
+      <div style="font-weight:600;font-size:13px">${t.name}</div>
+      <div style="font-size:11px;color:var(--text-dim);margin-top:2px">${t.desc}</div>
+    </div>`).join('');
 }
 
 // Lazy-render tabs on first click

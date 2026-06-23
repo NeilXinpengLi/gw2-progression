@@ -153,34 +153,29 @@ class TestPlaywrightUI:
         page.wait_for_selector("#nav-tabs:not(.hidden)", timeout=5000)
         assert page.is_visible("#tab-overview")
 
-    def test_settings_tab_has_credential_form(self, page, live_server):
+    def test_coach_tab_exists(self, page, live_server):
         self._goto(page)
         page.fill("#key-input", "ABCDEF01-2345-6789-ABCD-EF0123456789AB")
         page.click("#analyze-btn")
         page.wait_for_selector("#results:not(.hidden)", timeout=20000)
-        page.click('button[data-tab="settings"]')
-        assert page.is_visible("#cred-provider")
-        assert page.is_visible("#cred-key")
-        assert page.is_visible("#cred-save-btn")
+        page.click('button[data-tab="coach"]')
+        assert page.is_visible("#coach-content")
 
-    def test_products_tab_exists(self, page, live_server):
+    def test_timeline_tab_exists(self, page, live_server):
         self._goto(page)
         page.fill("#key-input", "ABCDEF01-2345-6789-ABCD-EF0123456789AB")
         page.click("#analyze-btn")
         page.wait_for_selector("#results:not(.hidden)", timeout=20000)
-        page.click('button[data-tab="products"]')
-        assert page.is_visible("#tab-products")
+        page.click('button[data-tab="timeline"]')
+        assert page.is_visible("#timeline-grid")
 
-    def test_guild_tab_has_forms(self, page, live_server):
+    def test_advanced_tab_has_tools(self, page, live_server):
         self._goto(page)
         page.fill("#key-input", "ABCDEF01-2345-6789-ABCD-EF0123456789AB")
         page.click("#analyze-btn")
         page.wait_for_selector("#results:not(.hidden)", timeout=20000)
-        page.click('button[data-tab="guild"]')
-        assert page.is_visible("#guild-name")
-        assert page.is_visible("#guild-invite")
-        assert page.is_visible("#guild-create-btn")
-        assert page.is_visible("#guild-join-btn")
+        page.click('button[data-tab="advanced"]')
+        assert page.is_visible("#advanced-tools")
 
     def test_export_report_button_exists(self, page, live_server):
         self._goto(page)
@@ -190,13 +185,11 @@ class TestPlaywrightUI:
         export_btn = page.locator("#export-report-btn")
         assert export_btn.is_visible()
 
-    def test_all_tabs_clickable_after_analysis(self, page, live_server):
-        """Verify all major tabs can be clicked without error."""
+    def test_all_main_tabs_clickable(self, page, live_server):
         self._goto(page)
         page.fill("#key-input", "ABCDEF01-2345-6789-ABCD-EF0123456789AB")
         page.click("#analyze-btn")
         page.wait_for_selector("#results:not(.hidden)", timeout=20000)
-        tabs = ["overview", "value", "characters", "wallet", "inventory", "goals", "settings"]
-        for tab in tabs:
-            page.click(f'button[data-tab="{tab}"]')
+        for tab in ["overview", "coach", "timeline", "advanced"]:
+            page.click(f'button[data-tab="{tab}"]', timeout=5000)
             assert page.is_visible(f"#tab-{tab}")

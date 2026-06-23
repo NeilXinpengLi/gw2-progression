@@ -17,27 +17,10 @@
 </header>
 
 <nav id="nav-tabs" class="hidden" role="tablist" aria-label="Account sections">
-  <button class="active" data-tab="overview" role="tab" aria-selected="true">Overview</button>
-  <button data-tab="value" role="tab" aria-selected="false">Value</button>
-  <button data-tab="characters" role="tab" aria-selected="false">Characters</button>
-  <button data-tab="wardrobe" role="tab" aria-selected="false">Wardrobe</button>
-  <button data-tab="wallet" role="tab" aria-selected="false">Wallet</button>
-  <button data-tab="inventory" role="tab" aria-selected="false">Inventory</button>
-  <button data-tab="progression" role="tab" aria-selected="false">Progression</button>
-  <button data-tab="pvp" role="tab" aria-selected="false">PvP</button>
-  <button data-tab="unlocks" role="tab" aria-selected="false">Unlocks</button>
-  <button data-tab="builds" role="tab" aria-selected="false">Builds</button>
-  <button data-tab="wvw" role="tab" aria-selected="false">WvW</button>
-  <button data-tab="items" role="tab" aria-selected="false">Items</button>
-  <button data-tab="planner" role="tab" aria-selected="false">Planner</button>
-  <button data-tab="market" role="tab" aria-selected="false">Market</button>
-  <button data-tab="advisor" role="tab" aria-selected="false">Advisor</button>
-  <button data-tab="crafting" role="tab" aria-selected="false">Crafting</button>
-  <button data-tab="goals" role="tab" aria-selected="false">Goals</button>
-  <button data-tab="guild" role="tab" aria-selected="false">Guild</button>
-  <button data-tab="products" role="tab" aria-selected="false">Products</button>
-  <button data-tab="settings" role="tab" aria-selected="false">Settings</button>
-  <button id="more-tools-btn" style="color:var(--text-dim);font-size:11px">▼ More</button>
+  <button class="active" data-tab="overview" role="tab" aria-selected="true">🏠 Home</button>
+  <button data-tab="coach" role="tab" aria-selected="false">🎯 Coach</button>
+  <button data-tab="timeline" role="tab" aria-selected="false">📈 Timeline</button>
+  <button data-tab="advanced" role="tab" aria-selected="false">🔧 Advanced</button>
 </nav>
 
 <main>
@@ -89,560 +72,79 @@
       </div>
     </div>
 
-  <div id="results" class="hidden">
+    <div id="results" class="hidden">
 
-    <!-- ── Overview (Action-first) ── -->
+    <!-- ── Page 1: Home (Action Center) ── -->
     <div class="tab-panel active" id="tab-overview" role="tabpanel">
       <div class="tab-loading"><span class="spinner"></span> Loading…</div>
-
-      <!-- Insight Screen (shown once after analysis) -->
-      <div id="insight-screen" style="display:none;margin-bottom:16px">
-        <div id="insight-hero" style="background:linear-gradient(135deg,#1a2a1a,#2a1a2a);border:1px solid #3a2a3a;border-radius:12px;padding:20px;text-align:center;margin-bottom:12px"></div>
-        <div id="insight-grid" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px"></div>
-        <div style="text-align:center;margin-top:8px">
-          <button id="insight-dismiss-btn" class="btn-sm" onclick="dismissInsight()">Got it — show me my Dashboard →</button>
+      <div id="insight-screen" style="display:none">
+        <div id="insight-hero" style="background:linear-gradient(135deg,#1a2a1a,#2a1a2a);border:1px solid #3a2a3a;border-radius:12px;padding:24px;text-align:center;margin-bottom:12px"></div>
+        <div id="insight-grid" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px;margin-bottom:16px"></div>
+        <div style="text-align:center">
+          <button id="insight-dismiss-btn" class="btn-sm" onclick="dismissInsight()">🎯 Show me my Next Move →</button>
         </div>
       </div>
-
-      <!-- Action Center (hidden until insight dismissed) -->
       <div id="action-center">
-
-      <!-- Today You Should Do (dominant — top of page) -->
-      <div id="today-section" style="display:none;margin-bottom:16px">
-        <div class="section-title" style="font-size:18px;font-weight:700;color:var(--gold)">🎯 Today You Should Do</div>
-        <div id="today-list" style="display:flex;flex-direction:column;gap:6px"></div>
+        <div id="today-section" style="display:none;margin-bottom:16px">
+          <div style="font-size:13px;color:var(--text-dim);margin-bottom:8px">YOUR NEXT BEST MOVE</div>
+          <div id="today-list" style="display:flex;flex-direction:column;gap:6px"></div>
+        </div>
+        <div id="hero-metrics" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin-bottom:16px"></div>
+        <div id="quick-stats" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:8px;margin-bottom:16px"></div>
+        <details style="margin-bottom:12px">
+          <summary style="cursor:pointer;color:var(--text-dim);font-size:13px">📋 Account Details</summary>
+          <div class="stat-cards" id="overview-cards" style="margin-top:8px"></div>
+        </details>
+        <div style="margin:12px 0">
+          <button id="export-report-btn" class="btn btn-sm" onclick="exportReport()" disabled>📄 Export Report</button>
+        </div>
+        <div id="report-history" style="display:none;margin-bottom:12px"><div class="section-title">Recent Reports</div><div id="report-list" style="font-size:13px"></div></div>
+        <div class="section-title">Permissions</div>
+        <div class="perm-grid" id="perm-grid"></div>
+        <div class="tab-error" id="err-overview"></div>
       </div>
-
-      <!-- Progression Timeline -->
-      <div id="timeline-section" style="display:none;margin-bottom:16px">
-        <div class="section-title" style="font-size:16px">📈 7-Day Growth Path</div>
-        <div id="timeline-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:8px"></div>
-      </div>
-
-      <!-- Weekly Quests -->
-      <div id="quest-section" style="display:none;margin-bottom:16px">
-        <div class="section-title" style="font-size:16px">🎯 Weekly Quests <span id="quest-progress" class="dim" style="font-size:12px;font-weight:normal"></span></div>
-        <div id="quest-list" style="display:flex;flex-direction:column;gap:4px"></div>
-      </div>
-
-      <!-- Quick Stats -->
-      <div id="quick-stats" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:10px;margin-bottom:16px"></div>
-
-      <!-- Overview Cards (secondary) -->
-      <details style="margin-bottom:12px">
-        <summary style="cursor:pointer;color:var(--text-dim);font-size:13px">📋 Account Details</summary>
-        <div class="stat-cards" id="overview-cards" style="margin-top:8px"></div>
-      </details>
-
-      <!-- Recommendations (collapsed) -->
-      <details style="margin-bottom:12px">
-        <summary style="cursor:pointer;color:var(--text-dim);font-size:13px">💡 Recommendations</summary>
-        <div id="recommendations-list" style="font-size:13px;margin-top:8px"></div>
-      </details>
-
-      </div><!-- /action-center -->
-
-      <!-- Export + Report History -->
-      <div style="margin:12px 0">
-        <button id="export-report-btn" class="btn btn-sm" onclick="exportReport()" disabled>📄 Export Report</button>
-        <span id="export-status" class="dim" style="margin-left:8px;font-size:12px"></span>
-      </div>
-      <div id="report-history" style="display:none;margin-bottom:12px">
-        <div class="section-title">Recent Reports</div>
-        <div id="report-list" style="font-size:13px"></div>
-      </div>
-
-      <!-- Permissions -->
-      <div class="section-title">Permissions</div>
-      <div class="perm-grid" id="perm-grid"></div>
-      <div class="tab-error" id="err-overview"></div>
     </div>
 
-    <!-- ── Value Dashboard ── -->
-    <div class="tab-panel" id="tab-value" role="tabpanel">
-      <div class="tab-loading"><span class="spinner"></span> Loading value data…</div>
-      <div class="tab-error" id="err-value"></div>
-
-      <div class="section-title">Account Value</div>
-      <div class="value-summary-cards" id="value-summary-cards"></div>
-
-      <div class="value-metrics-row">
-        <div class="value-card value-card-instant">
-          <div class="vc-label">Instant Sell Value</div>
-          <div class="vc-value" id="vc-instant">—</div>
-          <div class="vc-sub">at highest buy orders (conservative)</div>
-        </div>
-        <div class="value-card value-card-listing">
-          <div class="vc-label">Listing Value</div>
-          <div class="vc-value" id="vc-listing">—</div>
-          <div class="vc-sub">at lowest sell orders (optimistic)</div>
-        </div>
-        <div class="value-card value-card-net">
-          <div class="vc-label">Net Sell Value</div>
-          <div class="vc-value" id="vc-net">—</div>
-          <div class="vc-sub">after 15% TP fees</div>
-        </div>
-      </div>
-
-      <div class="value-charts-row">
-        <div class="chart-container">
-          <div class="section-title" style="margin-top:0">Asset Composition</div>
-          <canvas id="value-pie-chart"></canvas>
-        </div>
-        <div class="chart-container">
-          <div class="section-title" style="margin-top:0">Value by Location</div>
-          <canvas id="value-bar-chart"></canvas>
-        </div>
-      </div>
-
-      <div class="value-stats-row">
-        <div class="value-stat-box">
-          <div class="vsl-label">Priced Items</div>
-          <div class="vsl-value" id="vs-priced">—</div>
-        </div>
-        <div class="value-stat-box">
-          <div class="vsl-label">Unpriced Items</div>
-          <div class="vsl-value" id="vs-unpriced">—</div>
-        </div>
-        <div class="value-stat-box">
-          <div class="vsl-label">Account Bound</div>
-          <div class="vsl-value" id="vs-bound">—</div>
-        </div>
-        <div class="value-stat-box">
-          <div class="vsl-label">Last Snapshot</div>
-          <div class="vsl-value vsl-small" id="vs-time">—</div>
-        </div>
-      </div>
-
-      <div class="section-title">Top Valuable Items</div>
-      <div id="value-top-items-container"><div class="tab-loading"><span class="spinner"></span> Computing top items…</div></div>
-      <table class="data-table" id="value-top-table">
-        <thead><tr><th>#</th><th>Item</th><th>Location</th><th>Qty</th><th>Buy Value</th><th>Sell Value</th><th>Status</th></tr></thead>
-        <tbody></tbody>
-      </table>
-
-      <div class="section-title">
-        <span style="cursor:pointer" onclick="toggleMaterials()">▶ Materials by Category</span>
-      </div>
-      <div id="materials-section" style="display:none">
-        <div id="materials-grid" class="dim" style="padding:8px 0">Loading…</div>
-      </div>
-
-      <div class="section-title">
-        <span style="cursor:pointer" onclick="toggleHoldings()">▼ All Holdings (<span id="holdings-count">0</span> items)</span>
-      </div>
-      <div id="holdings-section" style="display:none">
-        <div class="holdings-controls">
-          <input id="holdings-search" type="text" placeholder="Filter by item ID…" aria-label="Search items" oninput="filterHoldings()" />
-          <select id="holdings-location" aria-label="Location filter" onchange="filterHoldings()">
-            <option value="">All locations</option>
-            <option value="material_storage">Material Storage</option>
-            <option value="bank">Bank</option>
-            <option value="character">Character</option>
-            <option value="shared_inventory">Shared Inventory</option>
-            <option value="tradingpost">Trading Post</option>
-            <option value="wallet">Wallet</option>
-          </select>
-          <select id="holdings-status" aria-label="Status filter" onchange="filterHoldings()">
-            <option value="">All statuses</option>
-            <option value="priced">Priced</option>
-            <option value="unpriced">Unpriced</option>
-            <option value="account_bound">Account Bound</option>
-          </select>
-        </div>
-        <div id="holdings-count-display" class="dim" style="font-size:12px;margin-bottom:8px"></div>
-        <div id="holdings-table-wrapper">
-          <table class="data-table" id="holdings-table">
-            <thead><tr><th>Item</th><th>Count</th><th>Location</th><th>Buy Value</th><th>Sell Value</th><th>Status</th></tr></thead>
-            <tbody></tbody>
-          </table>
-          <div id="holdings-pagination" class="holdings-pagination"></div>
-        </div>
-      </div>
-
-      <div class="section-title">Value History</div>
-      <div class="chart-container chart-wide" id="history-chart-container">
-        <canvas id="value-line-chart"></canvas>
-      </div>
-      <div id="value-history-empty" class="dim" style="padding:20px 0;text-align:center">No history data yet. Run valuation again to build history.</div>
-
-      <div class="section-title">
-        <span style="cursor:pointer" onclick="toggleDelta()">▶ Value Change Since Last Snapshot</span>
-      </div>
-      <div id="value-delta-section" style="display:none">
-        <div id="value-delta-summary" class="value-stats-row" style="margin-bottom:12px"></div>
-        <div class="craft-columns">
-          <div class="craft-col">
-            <div class="section-title" style="margin-top:0">Top Gainers</div>
-            <div id="value-top-gainers"><div class="dim" style="padding:8px 0">Loading…</div></div>
-          </div>
-          <div class="craft-col">
-            <div class="section-title" style="margin-top:0">Top Decliners</div>
-            <div id="value-top-decliners"><div class="dim" style="padding:8px 0">Loading…</div></div>
-          </div>
-        </div>
-      </div>
-
-      <div class="section-title">Valuation Warnings</div>
-      <div id="value-warnings"></div>
-    </div>
-
-    <!-- ── Characters ── -->
-    <div class="tab-panel" id="tab-characters" role="tabpanel">
-      <div class="section-title">Characters</div>
+    <!-- ── Page 2: Coach ── -->
+    <div class="tab-panel" id="tab-coach" role="tabpanel">
       <div class="tab-loading"><span class="spinner"></span> Loading…</div>
-      <div class="tab-error" id="err-characters"></div>
-      <div class="char-selector" id="char-selector"></div>
-      <div id="char-detail"></div>
+      <div id="coach-content">
+        <div style="font-size:18px;font-weight:700;color:var(--gold);margin-bottom:4px">🎯 Your Coach Plan</div>
+        <div style="font-size:12px;color:var(--text-dim);margin-bottom:16px">Personalized growth recommendations based on your account data.</div>
+        <div id="coach-p0"></div><div id="coach-p1"></div><div id="coach-p2"></div>
+      </div>
     </div>
 
-    <!-- ── Wardrobe ── -->
-    <div class="tab-panel" id="tab-wardrobe" role="tabpanel">
-      <div class="section-title">Wardrobe</div>
+    <!-- ── Page 3: Timeline ── -->
+    <div class="tab-panel" id="tab-timeline" role="tabpanel">
       <div class="tab-loading"><span class="spinner"></span> Loading…</div>
-      <div class="tab-error" id="err-skins"></div>
-      <div class="wardrobe-controls">
-        <input id="wardrobe-search" type="text" placeholder="Search skins…" aria-label="Search skins" />
-        <select id="wardrobe-type" aria-label="Skin type filter">
-          <option value="">All types</option>
-          <option value="Armor">Armor</option>
-          <option value="Weapon">Weapon</option>
-          <option value="Back">Back Item</option>
-        </select>
-        <select id="wardrobe-subtype" aria-label="Skin subtype filter">
-          <option value="">All subtypes</option>
-        </select>
-      </div>
-      <div class="wardrobe-count" id="wardrobe-count"></div>
-      <div id="wardrobe-loading" class="wardrobe-loading hidden"><span class="spinner"></span> Loading wardrobe…</div>
-      <div class="skin-grid" id="skin-grid"></div>
+      <div style="font-size:18px;font-weight:700;color:var(--gold);margin-bottom:4px">📈 Your 7-Day Growth Path</div>
+      <div style="font-size:12px;color:var(--text-dim);margin-bottom:16px">Follow this weekly rhythm to maximize your progression.</div>
+      <div id="timeline-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:8px;margin-bottom:16px"></div>
+      <div class="section-title">✅ Weekly Quests <span id="quest-progress" class="dim" style="font-size:12px;font-weight:normal"></span></div>
+      <div id="quest-list" style="display:flex;flex-direction:column;gap:4px;margin-bottom:16px"></div>
     </div>
 
-    <!-- ── Wallet ── -->
-    <div class="tab-panel" id="tab-wallet" role="tabpanel">
-      <div class="section-title">Wallet</div>
+    <!-- ── Page 4: Advanced Tools ── -->
+    <div class="tab-panel" id="tab-advanced" role="tabpanel">
       <div class="tab-loading"><span class="spinner"></span> Loading…</div>
-      <div class="tab-error" id="err-wallet"></div>
-      <div id="wallet-list"></div>
-    </div>
-
-    <!-- ── Inventory ── -->
-    <div class="tab-panel" id="tab-inventory" role="tabpanel">
-      <div class="section-title">Materials (top 40 by quantity)</div>
-      <div class="tab-loading"><span class="spinner"></span> Loading…</div>
-      <div class="tab-error" id="err-inventory"></div>
-      <table class="data-table" id="materials-table">
-        <thead><tr><th>Item</th><th>Quantity</th><th>Category</th></tr></thead>
-        <tbody></tbody>
-      </table>
-      <div class="section-title">Bank Slots Used</div>
-      <div id="bank-summary"></div>
-      <div class="section-title">Shared Inventory</div>
-      <div id="shared-inv-list"></div>
-    </div>
-
-    <!-- ── Progression ── -->
-    <div class="tab-panel" id="tab-progression" role="tabpanel">
-      <div class="section-title">Masteries</div>
-      <div class="tab-loading"><span class="spinner"></span> Loading…</div>
-      <div class="tab-error" id="err-progression"></div>
-      <table class="data-table" id="masteries-table">
-        <thead><tr><th>Mastery</th><th>Region</th><th>Level</th></tr></thead>
-        <tbody></tbody>
-      </table>
-      <div class="section-title">Mastery Points</div>
-      <div class="stat-cards" id="mastery-point-cards"></div>
-      <div class="section-title">Achievements Tracked</div>
-      <div id="achiev-summary"></div>
-    </div>
-
-    <!-- ── PvP ── -->
-    <div class="tab-panel" id="tab-pvp" role="tabpanel">
-      <div class="section-title">PvP Stats</div>
-      <div class="tab-loading"><span class="spinner"></span> Loading…</div>
-      <div class="tab-error" id="err-pvp"></div>
-      <div class="pvp-grid" id="pvp-grid"></div>
-      <div class="section-title">Recent Games</div>
-      <table class="data-table" id="pvp-games-table">
-        <thead><tr><th>Map</th><th>Result</th><th>Score</th><th>Profession</th></tr></thead>
-        <tbody></tbody>
-      </table>
-      <div class="section-title">Ladder Standings</div>
-      <div id="pvp-standings-list"></div>
-    </div>
-
-    <!-- ── Unlocks ── -->
-    <div class="tab-panel" id="tab-unlocks" role="tabpanel">
-      <div class="section-title">Unlocks</div>
-      <div class="tab-loading"><span class="spinner"></span> Loading…</div>
-      <div class="tab-error" id="err-unlocks"></div>
-      <div class="unlock-grid" id="unlock-grid"></div>
-      <div class="section-title">Finishers</div>
-      <table class="data-table" id="finishers-table">
-        <thead><tr><th>Finisher ID</th><th>Permanent</th><th>Quantity</th></tr></thead>
-        <tbody></tbody>
-      </table>
-    </div>
-
-    <!-- ── WvW ── -->
-    <div class="tab-panel" id="tab-wvw" role="tabpanel">
-      <div class="section-title">World vs World</div>
-      <div class="tab-loading"><span class="spinner"></span> Loading…</div>
-      <div class="tab-error" id="err-wvw"></div>
-      <div class="stat-cards" id="wvw-cards"></div>
-    </div>
-
-    <!-- ── Items ── -->
-    <div class="tab-panel" id="tab-items" role="tabpanel">
-      <div class="section-title">Item Search</div>
-      <div id="items-controls">
-        <div class="craft-row">
-          <input id="items-search-input" type="text" placeholder="Search by item name or ID…" aria-label="Search items" autocomplete="off" style="flex:2" />
-          <select id="items-location-filter" aria-label="Location filter">
-            <option value="">All locations</option>
-            <option value="material_storage">Material Storage</option>
-            <option value="bank">Bank</option>
-            <option value="character">Character</option>
-            <option value="shared_inventory">Shared Inventory</option>
-            <option value="tradingpost">Trading Post</option>
-            <option value="wallet">Wallet</option>
-          </select>
-          <select id="items-status-filter" aria-label="Status filter">
-            <option value="">All statuses</option>
-            <option value="priced">Priced</option>
-            <option value="unpriced">Unpriced</option>
-            <option value="account_bound">Account Bound</option>
-          </select>
-          <button id="items-search-btn">Search</button>
-        </div>
-        <div id="items-status" class="dim" style="margin-top:8px;font-size:13px">Search across all account holdings by item name or ID.</div>
-      </div>
-
-      <div class="section-title">Quick Filters</div>
-      <div class="perm-grid" style="margin-bottom:16px">
-        <button class="quick-filter-btn" data-filter="high_value">⭐ High Value</button>
-        <button class="quick-filter-btn" data-filter="unpriced">❓ Unpriced</button>
-        <button class="quick-filter-btn" data-filter="account_bound">🔒 Account Bound</button>
-      </div>
-
-      <div id="items-results" class="hidden">
-        <div class="section-title" id="items-results-title">Results</div>
-        <table class="data-table" id="items-results-table">
-          <thead><tr><th>Item</th><th>Count</th><th>Location</th><th>Buy Value</th><th>Sell Value</th><th>Status</th></tr></thead>
-          <tbody></tbody>
-        </table>
-
-        <div id="items-detail" class="hidden">
-          <div class="section-title" id="items-detail-title">Item Detail</div>
-          <div id="items-detail-grid" class="value-stats-row"></div>
-          <div id="items-detail-tp"></div>
-          <div id="items-detail-locations"></div>
-          <button id="items-detail-back" style="background:var(--bg3);border:1px solid var(--border);border-radius:3px;color:var(--text);cursor:pointer;font-size:13px;padding:6px 16px;margin-top:8px">← Back to results</button>
-        </div>
+      <div id="advanced-tools" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:10px"></div>
+      <div id="advanced-tool-panel" style="display:none">
+        <button id="adv-back-btn" class="btn-sm" style="margin-bottom:12px">← Back to Tools</button>
+        <div id="adv-tool-content"></div>
       </div>
     </div>
 
-    <!-- ── Goals ── -->
-    <div class="tab-panel" id="tab-goals" role="tabpanel">
-      <div class="section-title">Goal Tracker</div>
-      <div id="goals-controls">
-        <div class="craft-row">
-          <input id="goals-target" type="number" placeholder="Target item ID" aria-label="Target item ID" style="width:120px" />
-          <input id="goals-qty" type="number" value="1" min="1" aria-label="Quantity" style="width:70px" />
-          <select id="goals-priority" aria-label="Priority">
-            <option value="high">High</option>
-            <option value="normal" selected>Normal</option>
-            <option value="low">Low</option>
-          </select>
-          <button id="goals-create-btn">+ Add Goal</button>
-        </div>
-        <div id="goals-status" class="dim" style="margin-top:8px;font-size:13px">Create a goal to track crafting progress over time.</div>
-      </div>
-
-      <div id="goals-list" class="hidden">
-        <div class="section-title">Active Goals</div>
-        <div id="goals-cards"></div>
-      </div>
-    </div>
-
-    <!-- ── Planner ── -->
-    <div class="tab-panel" id="tab-planner" role="tabpanel">
-      <div class="section-title">Legendary & Ascended Planner</div>
-      <div id="planner-controls">
-        <div class="craft-row">
-          <select id="planner-template" style="flex:2;min-width:200px"></select>
-          <button id="planner-btn">Generate Plan</button>
-        </div>
-        <div id="planner-status" class="dim" style="margin-top:8px;font-size:13px">Select a goal template and generate your personalized plan.</div>
-      </div>
-      <div id="planner-plan" class="hidden">
-        <div id="planner-summary" class="value-metrics-row"></div>
-        <div id="planner-requirements" class="data-table"></div>
-      </div>
-    </div>
-
-    <!-- ── Builds ── -->
-    <div class="tab-panel" id="tab-builds" role="tabpanel">
-      <div class="section-title">Build Recommendations</div>
-      <div class="craft-row"><button id="builds-btn">Analyze Build Readiness</button></div>
-      <div id="builds-status" class="dim" style="margin-top:8px;font-size:13px">Analyze your account to find the builds you're closest to playing.</div>
-      <div id="builds-results" class="hidden"></div>
-    </div>
-
-    <!-- ── Market ── -->
-    <div class="tab-panel" id="tab-market" role="tabpanel">
-      <div class="section-title">Market Strategy</div>
-      <div class="craft-row"><button id="market-btn">Analyze Market Signals</button></div>
-      <div id="market-status" class="dim" style="margin-top:8px;font-size:13px">Find sell candidates, buy opportunities, and market warnings.</div>
-      <div id="market-results" class="hidden">
-        <div class="craft-columns">
-          <div class="craft-col"><div class="section-title" style="margin-top:0">Sell Candidates</div><div id="market-sell"></div></div>
-          <div class="craft-col"><div class="section-title" style="margin-top:0">Buy Candidates</div><div id="market-buy"></div></div>
-        </div>
-        <div class="section-title">Warnings</div>
-        <div id="market-warnings"></div>
-      </div>
-    </div>
-
-    <!-- ── Advisor ── -->
-    <div class="tab-panel" id="tab-advisor" role="tabpanel">
-      <div class="section-title">Progression Advisor</div>
-      <div class="craft-row"><button id="advisor-btn">Generate Advice</button></div>
-      <div id="advisor-status" class="dim" style="margin-top:8px;font-size:13px">Get personalized weekly plan and recommended actions for your account.</div>
-      <div id="advisor-results" class="hidden">
-        <div class="section-title">Recommended Actions</div>
-        <div id="advisor-actions"></div>
-        <div class="section-title">This Week's Plan</div>
-        <div id="advisor-weekly"></div>
-      </div>
-    </div>
-
-    <!-- ── Crafting ── -->
-    <div class="tab-panel" id="tab-crafting" role="tabpanel">
-      <div class="section-title">Crafting Calculator</div>
-      <div id="crafting-controls">
-        <div class="craft-row">
-          <div style="position:relative;flex:1;min-width:200px">
-            <input id="craft-search" type="text" placeholder="Search item by name…" aria-label="Search item" autocomplete="off" />
-            <div id="craft-search-results" class="craft-search-dropdown hidden"></div>
-          </div>
-          <span class="dim" style="font-size:12px">or</span>
-          <input id="craft-target" type="number" placeholder="Item ID" aria-label="Target item ID" min="1" style="width:120px" />
-          <input id="craft-qty" type="number" value="1" min="1" aria-label="Quantity" style="width:70px" />
-          <label class="craft-check-label"><input id="craft-use-owned" type="checkbox" checked /> Owned</label>
-          <button id="craft-btn" aria-label="Calculate">Calculate</button>
-        </div>
-        <div id="craft-status" class="dim" style="margin-top:8px;font-size:13px">Search an item by name or enter an item ID.</div>
-      </div>
-
-      <div id="craft-results" class="hidden">
-        <div id="craft-target-name" class="gold-val" style="font-size:18px;font-weight:600;margin-bottom:12px"></div>
-
-        <div class="value-metrics-row">
-          <div class="value-card value-card-instant">
-            <div class="vc-label">Total Buy Cost</div>
-            <div class="vc-value" id="craft-buy-cost">—</div>
-            <div class="vc-sub">buying all missing materials</div>
-          </div>
-          <div class="value-card value-card-listing">
-            <div class="vc-label">Total Craft Cost</div>
-            <div class="vc-value" id="craft-craft-cost">—</div>
-            <div class="vc-sub">crafting recursively</div>
-          </div>
-          <div class="value-card">
-            <div class="vc-label">Owned Used</div>
-            <div class="vc-value" id="craft-owned-used" style="color:#6bc46b">—</div>
-            <div class="vc-sub">materials from account</div>
-          </div>
-        </div>
-
-        <div class="craft-columns">
-          <div class="craft-col">
-            <div class="section-title" style="margin-top:0">Shopping List</div>
-            <div id="craft-shopping"><div class="dim">No missing materials.</div></div>
-          </div>
-          <div class="craft-col">
-            <div class="section-title" style="margin-top:0">Crafting Steps</div>
-            <div id="craft-steps"><div class="dim">No steps required.</div></div>
-          </div>
-        </div>
-
-        <div class="section-title">Missing Materials Detail</div>
-        <div id="craft-missing-detail"><div class="dim">All materials are owned or the item has no recipe.</div></div>
-
-        <div class="section-title">Alternative Recipes</div>
-        <div id="craft-alternatives"><div class="dim">No alternative recipes found.</div></div>
-      </div>
-    </div>
-
-    <div class="tab-panel" id="tab-guild" role="tabpanel">
-      <div class="section-title">Guild Workspace</div>
-      <div style="font-size:12px;color:var(--text-dim);line-height:1.5;margin-bottom:12px;padding:10px 14px;background:var(--bg2);border:1px solid var(--border);border-radius:6px">
-        <strong style="color:var(--gold)">Why join a Guild workspace?</strong><br>
-        📊 Compare account values across members<br>
-        🎭 See profession coverage and gaps in your team<br>
-        📈 Track combined asset growth over time<br>
-        🏆 Identify who's closest to key builds and goals<br>
-        👥 Great for raid groups, WvW squads, and guild officers
-      </div>
-      <div id="guild-section">
-        <div id="guild-create-form" style="margin-bottom:12px">
-          <div style="display:flex;gap:8px;align-items:end;flex-wrap:wrap">
-            <input id="guild-name" type="text" placeholder="Guild name" style="background:var(--bg3);color:var(--text);border:1px solid var(--border);padding:4px 8px;border-radius:4px;font-size:13px;width:180px">
-            <button id="guild-create-btn" class="btn-sm">Create Guild</button>
-          </div>
-        </div>
-        <div id="guild-join-form" style="margin-bottom:12px">
-          <div style="display:flex;gap:8px;align-items:end;flex-wrap:wrap">
-            <input id="guild-invite" type="text" placeholder="Invite code" style="background:var(--bg3);color:var(--text);border:1px solid var(--border);padding:4px 8px;border-radius:4px;font-size:13px;width:180px">
-            <button id="guild-join-btn" class="btn-sm">Join Guild</button>
-          </div>
-        </div>
-        <div id="guild-status" class="dim" style="font-size:13px"></div>
-        <div id="guild-members" style="margin-top:12px"></div>
-        <div id="guild-aggregate" style="margin-top:12px"></div>
-      </div>
-    </div>
-    <div class="tab-panel" id="tab-products" role="tabpanel">
-      <div class="section-title">Reports & Products</div>
-      <div id="product-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:12px"></div>
-    </div>
-    <div class="tab-panel" id="tab-settings" role="tabpanel">
-      <div class="section-title">Credentials & API Keys</div>
-      <div id="credential-list"></div>
-      <div id="credential-form" style="margin-top:12px">
-        <div class="section-title">Add Credential</div>
-        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:end">
-          <select id="cred-provider" style="background:var(--bg3);color:var(--text);border:1px solid var(--border);padding:4px 8px;border-radius:4px;font-size:13px">
-            <option value="">Select provider…</option>
-          </select>
-          <input id="cred-label" type="text" placeholder="Label (optional)" style="background:var(--bg3);color:var(--text);border:1px solid var(--border);padding:4px 8px;border-radius:4px;font-size:13px;width:160px">
-          <input id="cred-key" type="password" placeholder="API Key" style="background:var(--bg3);color:var(--text);border:1px solid var(--border);padding:4px 8px;border-radius:4px;font-size:13px;flex:1;min-width:200px">
-          <button id="cred-save-btn" class="btn-sm">Save</button>
-        </div>
-        <div id="cred-status" class="dim" style="margin-top:6px;font-size:12px"></div>
-      </div>
-
-      <div class="section-title" style="margin-top:16px">Affiliate Program</div>
-      <div id="affiliate-section" style="font-size:13px">
-        <div style="display:flex;gap:8px;align-items:end;flex-wrap:wrap;margin-bottom:8px">
-          <input id="aff-name" type="text" placeholder="Your name/alias" style="background:var(--bg3);color:var(--text);border:1px solid var(--border);padding:4px 8px;border-radius:4px;font-size:13px;width:180px">
-          <button id="aff-create-btn" class="btn-sm">Create Referral Code</button>
-        </div>
-        <div id="aff-display" class="dim"></div>
-      </div>
-
-      <div class="section-title" style="margin-top:16px">Weekly Report Subscription</div>
-      <div id="subscription-section" style="font-size:13px">
-        <div style="display:flex;gap:8px;align-items:end;flex-wrap:wrap">
-          <input id="sub-email" type="email" placeholder="Your email" style="background:var(--bg3);color:var(--text);border:1px solid var(--border);padding:4px 8px;border-radius:4px;font-size:13px;width:220px">
-          <button id="sub-btn" class="btn-sm">Subscribe</button>
-        </div>
-        <div id="sub-status" class="dim" style="margin-top:6px;font-size:12px"></div>
-      </div>
-    </div>
-  </div>
-</main>
+    <!-- Hidden containers for legacy rendering -->
+    <div id="hidden-tab-panels" style="display:none">
+      <div id="tab-value"></div><div id="tab-characters"></div><div id="tab-builds"></div>
+      <div id="tab-goals"></div><div id="tab-wallet"></div><div id="tab-crafting"></div>
+      <div id="tab-items"></div><div id="tab-guild"></div><div id="tab-settings"></div>
+      <div id="tab-wvw"></div><div id="tab-pvp"></div><div id="tab-unlocks"></div>
+      <div id="tab-progression"></div><div id="tab-wardrobe"></div><div id="tab-inventory"></div>
+      <div id="tab-planner"></div><div id="tab-market"></div><div id="tab-advisor"></div>
+      <div id="tab-products"></div>
+    </div></main>
 
 <script type="module" src="/static/app.js"></script>
 </body>
