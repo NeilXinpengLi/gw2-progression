@@ -259,6 +259,17 @@ CREATE TABLE IF NOT EXISTS reports (
     snapshot_time TEXT,
     created_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
+
+CREATE TABLE IF NOT EXISTS credentials (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    provider TEXT NOT NULL,
+    label TEXT NOT NULL DEFAULT '',
+    encrypted_value TEXT NOT NULL,
+    fingerprint TEXT NOT NULL DEFAULT '',
+    session_token TEXT,
+    last_used_at TEXT,
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
 """
 
 
