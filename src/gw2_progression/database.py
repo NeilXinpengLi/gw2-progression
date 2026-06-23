@@ -380,6 +380,27 @@ CREATE TABLE IF NOT EXISTS delivery_jobs (
     FOREIGN KEY (order_id) REFERENCES orders(id),
     FOREIGN KEY (product_id) REFERENCES products(id)
 );
+
+CREATE TABLE IF NOT EXISTS affiliates (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL,
+    referral_code TEXT NOT NULL UNIQUE,
+    commission_rate REAL NOT NULL DEFAULT 0.2,
+    payout_email TEXT DEFAULT '',
+    total_earned_copper INTEGER NOT NULL DEFAULT 0,
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE TABLE IF NOT EXISTS referral_sales (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    affiliate_id INTEGER NOT NULL,
+    order_id INTEGER NOT NULL,
+    commission_copper INTEGER NOT NULL DEFAULT 0,
+    status TEXT NOT NULL DEFAULT 'pending',
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    FOREIGN KEY (affiliate_id) REFERENCES affiliates(id),
+    FOREIGN KEY (order_id) REFERENCES orders(id)
+);
 """
 
 

@@ -16,10 +16,9 @@ router = APIRouter(prefix="/guild", tags=["guild"])
 async def post_create_guild(body: dict = Body(...)):
     name = body.get("name", "")
     account_name = body.get("account_name", "")
-    api_key = body.get("api_key", "")
-    if not name or not account_name or not api_key:
-        raise HTTPException(status_code=422, detail="name, account_name, and api_key required")
-    guild = await create_guild(name, account_name, api_key)
+    if not name or not account_name:
+        raise HTTPException(status_code=422, detail="name and account_name required")
+    guild = await create_guild(name, account_name, "")
     return guild
 
 
@@ -27,10 +26,9 @@ async def post_create_guild(body: dict = Body(...)):
 async def post_join_guild(body: dict = Body(...)):
     invite_code = body.get("invite_code", "")
     account_name = body.get("account_name", "")
-    api_key = body.get("api_key", "")
-    if not invite_code or not account_name or not api_key:
-        raise HTTPException(status_code=422, detail="invite_code, account_name, and api_key required")
-    guild = await join_guild(invite_code, account_name, api_key)
+    if not invite_code or not account_name:
+        raise HTTPException(status_code=422, detail="invite_code and account_name required")
+    guild = await join_guild(invite_code, account_name, "")
     if not guild:
         raise HTTPException(status_code=404, detail="Invalid invite code")
     return guild

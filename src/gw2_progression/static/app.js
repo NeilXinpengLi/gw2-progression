@@ -715,13 +715,17 @@ async function loadProducts() {
         const p = JSON.parse(btn.dataset.product.replace(/&quot;/g, '"'));
         const email = prompt("Enter your email for delivery:", "");
         if (!email) return;
-        fetch("/commerce/orders", {
+        const ref = prompt("Referral code (optional):", "");
+        const url = ref ? "/affiliates/purchase" : "/commerce/orders";
+        const body = ref
+          ? JSON.stringify({ product_id: p.id, customer_email: email, referral_code: ref })
+          : JSON.stringify({ product_id: p.id, customer_email: email });
+        fetch(url, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ product_id: p.id, customer_email: email }),
+          body,
         }).then(r => r.json()).then(order => {
-          alert(`Order placed! License key: ${order.license_key}\nCheck delivery in Settings tab.`);
-          loadOrders();
+          alert(`Order placed! License key: ${order.license_key || ''}`);
         }).catch(e => alert("Error: " + e.message));
       });
     });
@@ -731,6 +735,22 @@ async function loadProducts() {
 async function loadOrders() {
   // Display orders in settings or as a section
 }
+
+// ── Affiliate ──
+document.getElementById("aff-create-btn")?.addEventListener("click", async () => {
+  const name = document.getElementById("aff-name").value;
+  const display = document.getElementById("aff-display");
+  if (!name) { display.textContent = "Enter your name."; return; }
+  try {
+    const res = await fetch("/affiliates", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name }),
+    });
+    const aff = await res.json();
+    display.innerHTML = `Your referral code: <code style="background:var(--bg3);padding:2px 6px;border-radius:3px">${aff.referral_code}</code> — Share this with others!`;
+  } catch (e) { display.textContent = `Error: ${e.message}`; }
+});
 
 // Init credentials UI on page load
 loadProviders();

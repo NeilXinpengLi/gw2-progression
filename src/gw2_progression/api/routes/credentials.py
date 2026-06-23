@@ -72,6 +72,7 @@ async def post_validate_credential(credential_id: int):
 
     if cred["provider"] == "gw2":
         import httpx
+
         try:
             async with httpx.AsyncClient(timeout=10) as client:
                 resp = await client.get(

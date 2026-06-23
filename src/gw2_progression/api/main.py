@@ -22,6 +22,7 @@ from gw2_progression.services.product_service import seed_products
 from gw2_progression.services.progression_service import seed_templates
 from gw2_progression.services.provider_service import seed_providers
 
+from .routes.affiliates import router as affiliates_router
 from .routes.agent import router as agent_router
 from .routes.analyze import router as analyze_router
 from .routes.builds import router as builds_router
@@ -58,6 +59,13 @@ async def lifespan(app: FastAPI):
     await seed_templates()
     await seed_products()
     await seed_providers()
+    # Process pending delivery jobs
+    try:
+        from gw2_progression.services.commerce_service import process_pending_deliveries
+
+        await process_pending_deliveries()
+    except Exception as e:
+        logger.warning("Delivery processing failed: %s", e)
     yield
     logger.info("Shutting down GW2 Progression")
     await close_gw2_client()
@@ -133,6 +141,7 @@ app.include_router(tp_router)
 app.include_router(builds_router)
 app.include_router(commerce_router)
 app.include_router(credentials_router)
+app.include_router(affiliates_router)
 app.include_router(agent_router)
 app.include_router(subscriptions_router)
 app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")

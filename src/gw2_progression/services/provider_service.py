@@ -3,9 +3,14 @@
 from gw2_progression.database import using_db
 
 SEED_PROVIDERS = [
-    {"id": "gw2", "category": "game", "name": "Guild Wars 2 API", "auth_type": "api_key",
-     "capabilities": '["account","characters","wallet","inventories","progression","builds","tradingpost","unlocks","pvp","wvw"]',
-     "cost_model": "free"},
+    {
+        "id": "gw2",
+        "category": "game",
+        "name": "Guild Wars 2 API",
+        "auth_type": "api_key",
+        "capabilities": '["account","characters","wallet","inventories","progression","builds","tradingpost","unlocks","pvp","wvw"]',
+        "cost_model": "free",
+    },
     {"id": "openai", "category": "llm", "name": "OpenAI", "auth_type": "api_key", "capabilities": '["chat","completion","embedding"]', "cost_model": "token_based"},
     {"id": "anthropic", "category": "llm", "name": "Anthropic Claude", "auth_type": "api_key", "capabilities": '["chat","completion"]', "cost_model": "token_based"},
     {"id": "deepseek", "category": "llm", "name": "DeepSeek", "auth_type": "api_key", "capabilities": '["chat","completion"]', "cost_model": "token_based"},

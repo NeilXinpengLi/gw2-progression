@@ -31,18 +31,18 @@ async def create_order(product_id: int, customer_email: str, customer_name: str 
         )
         order_id = cursor.lastrowid
 
-        feature_flags = json.dumps({
-            "report_type": product["slug"],
-            "max_downloads": 10,
-        })
+        feature_flags = json.dumps(
+            {
+                "report_type": product["slug"],
+                "max_downloads": 10,
+            }
+        )
         await conn.execute(
             """INSERT INTO licenses (license_key, product_id, order_id, feature_flags, max_uses)
                VALUES (?, ?, ?, ?, 10)""",
             (license_key, product_id, order_id, feature_flags),
         )
-        cursor = await conn.execute(
-            "SELECT last_insert_rowid()"
-        )
+        cursor = await conn.execute("SELECT last_insert_rowid()")
         license_id = cursor.lastrowid
 
         # Create delivery job
@@ -64,9 +64,7 @@ async def create_order(product_id: int, customer_email: str, customer_name: str 
 
 async def verify_license(license_key: str) -> dict | None:
     async with using_db() as conn:
-        cursor = await conn.execute(
-            "SELECT * FROM licenses WHERE license_key = ?", (license_key,)
-        )
+        cursor = await conn.execute("SELECT * FROM licenses WHERE license_key = ?", (license_key,))
         row = await cursor.fetchone()
     if not row:
         return None
@@ -124,6 +122,41 @@ async def get_orders(customer_email: str | None = None) -> list[dict]:
         }
         for r in rows
     ]
+
+
+async def process_pending_deliveries():
+    """Process all pending delivery jobs by generating reports."""
+    from gw2_progression.services.report_service import generate_report
+
+    rows = []
+    async with using_db() as conn:
+        cursor = await conn.execute(
+            "SELECT dj.id, dj.order_id, dj.product_id, o.customer_email, o.customer_name FROM delivery_jobs dj JOIN orders o ON dj.order_id = o.id WHERE dj.status = 'pending' LIMIT 10"
+        )
+        rows = await cursor.fetchall()
+    for row in rows:
+        job_id, order_id, product_id, email, name = row
+        try:
+            report = await generate_report(
+                account_name=name or "customer",
+                report_type="product",
+                title=f"Order #{order_id} Report",
+                summary=f"Your ordered report (#{product_id}) has been generated.",
+            )
+            async with using_db() as conn:
+                await conn.execute(
+                    "UPDATE delivery_jobs SET status = 'done', dashboard_url = ? WHERE id = ?",
+                    (f"/reports/{report.report_id}", job_id),
+                )
+            from gw2_progression.services.delivery_service import _send_email
+
+            _send_email(email, report)
+        except Exception as e:
+            async with using_db() as conn:
+                await conn.execute(
+                    "UPDATE delivery_jobs SET status = 'failed', error = ? WHERE id = ?",
+                    (str(e), job_id),
+                )
 
 
 async def get_delivery_jobs(order_id: int | None = None) -> list[dict]:
