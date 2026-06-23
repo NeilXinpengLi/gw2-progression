@@ -401,6 +401,17 @@ CREATE TABLE IF NOT EXISTS referral_sales (
     FOREIGN KEY (affiliate_id) REFERENCES affiliates(id),
     FOREIGN KEY (order_id) REFERENCES orders(id)
 );
+
+CREATE TABLE IF NOT EXISTS audit_log (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    actor TEXT NOT NULL DEFAULT '',
+    action TEXT NOT NULL,
+    resource TEXT NOT NULL DEFAULT '',
+    detail TEXT DEFAULT '',
+    ip_address TEXT DEFAULT '',
+    success INTEGER NOT NULL DEFAULT 1,
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
 """
 
 

@@ -27,6 +27,7 @@ from gw2_progression.services.provider_service import seed_providers
 from .routes.affiliates import router as affiliates_router
 from .routes.agent import router as agent_router
 from .routes.analyze import router as analyze_router
+from .routes.audit import router as audit_router
 from .routes.builds import router as builds_router
 from .routes.commerce import router as commerce_router
 from .routes.crafting import router as crafting_router
@@ -166,6 +167,7 @@ app.include_router(builds_router)
 app.include_router(commerce_router)
 app.include_router(credentials_router)
 app.include_router(affiliates_router)
+app.include_router(audit_router)
 app.include_router(agent_router)
 app.include_router(subscriptions_router)
 app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
@@ -174,12 +176,15 @@ app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 @app.post("/auth/session")
 async def create_session_endpoint(api_key: str = Body(...)):
     from gw2_progression.analyzer import fetch_all
+    from gw2_progression.services.audit_service import record_audit
 
     try:
         contents = await fetch_all(api_key)
         token = await create_session(api_key, contents.account_name or "unknown")
+        await record_audit(actor=contents.account_name or "unknown", action="session.create", resource="auth", detail="Session created", success=True)
         return {"token": token, "account_name": contents.account_name, "expires_in": SESSION_TTL}
     except Gw2ApiError as e:
+        await record_audit(action="session.create", resource="auth", detail=f"Failed: {e.message}", success=False)
         raise HTTPException(status_code=401, detail=e.message)
 
 
@@ -191,9 +196,12 @@ async def list_sessions_endpoint():
 
 @app.delete("/auth/session/{token}")
 async def delete_session_endpoint(token: str):
+    from gw2_progression.services.audit_service import record_audit
+
     deleted = await delete_session(token)
     if not deleted:
         raise HTTPException(status_code=404, detail="Session not found")
+    await record_audit(action="session.delete", resource="auth", detail=f"Token {token[:8]}...")
     return {"status": "deleted"}
 
 
