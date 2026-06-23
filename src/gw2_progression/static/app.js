@@ -354,7 +354,38 @@ function renderOverview(d) {
     `).join('');
   }
 
-  // ── 3. Quick Stats ──
+  // ── 3. Progression Timeline ──
+  const days = ['Day 1','Day 2','Day 3','Day 4','Day 5','Day 6','Day 7'];
+  const timelineTasks = [];
+  if (chars.length) timelineTasks.push('Level remaining characters to 80');
+  if (walletGold > 0) timelineTasks.push('Sell high-value materials from storage');
+  if (skinCount < 100) timelineTasks.push('Complete map completion for skins');
+  timelineTasks.push('Check crafting dailies for time-gated materials');
+  timelineTasks.push('Review Trading Post for profitable flips');
+  timelineTasks.push('Run T4 Fractals for ascended gear');
+  if (timelineTasks.length < 7) timelineTasks.push('Farm Winterberry / Volatile Magic for trophies');
+  if (timelineTasks.length < 7) timelineTasks.push('Complete world boss trains for gold');
+  if (timelineTasks.length < 7) timelineTasks.push('Work on legendary collections');
+  if (timelineTasks.length < 7) timelineTasks.push('Participate in guild missions');
+
+  const timelineSection = document.getElementById('timeline-section');
+  const timelineGrid = document.getElementById('timeline-grid');
+  if (timelineTasks.length) {
+    timelineSection.style.display = 'block';
+    timelineGrid.innerHTML = days.map((day, i) => {
+      const task = timelineTasks[i % timelineTasks.length];
+      const done = i === 0 ? '0%' : i === 1 ? '15%' : i === 2 ? '30%' : i === 3 ? '45%' : i === 4 ? '60%' : i === 5 ? '75%' : '90%';
+      const color = i === 0 ? '#5a3a1a' : i === 1 ? '#2a4a2a' : i === 2 ? '#1a3a4a' : i === 3 ? '#2a2a4a' : i === 4 ? '#4a2a4a' : i === 5 ? '#4a3a1a' : '#1a4a3a';
+      return `<div style="background:${color};border:1px solid var(--border);border-radius:8px;padding:10px;position:relative;overflow:hidden">
+        <div style="position:absolute;bottom:0;left:0;height:3px;width:${done};background:var(--gold);border-radius:0 2px 0 0"></div>
+        <div style="font-size:11px;font-weight:600;color:var(--gold);margin-bottom:4px">${day}</div>
+        <div style="font-size:11px;color:var(--text)">${task}</div>
+        <div style="font-size:10px;color:var(--text-dim);margin-top:4px">${done} complete</div>
+      </div>`;
+    }).join('');
+  }
+
+  // ── 4. Quick Stats ──
   const stats = [
     { label: 'Total Value', value: `${Math.floor((vs.total_value_buy || 0) / 10000).toLocaleString()}g`, sub: `${vs.priced_item_count || 0} items` },
     { label: 'Wallet', value: `${walletGold.toLocaleString()}g`, sub: 'liquid gold' },

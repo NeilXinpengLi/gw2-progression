@@ -1,10 +1,13 @@
 """Playwright E2E browser tests with page.route() API mocking."""
 
 import json
+import os
 import socket
 import threading
 import time
 import urllib.request
+
+os.environ["RATE_LIMIT_REQUESTS"] = "9999"
 
 import pytest
 
