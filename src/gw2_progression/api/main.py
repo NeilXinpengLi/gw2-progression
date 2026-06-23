@@ -34,6 +34,7 @@ from .routes.crafting import router as crafting_router
 from .routes.credentials import router as credentials_router
 from .routes.goals import router as goals_router
 from .routes.guild import router as guild_router
+from .routes.payment import router as payment_router
 from .routes.progression import router as progression_router
 from .routes.reports import router as reports_router
 from .routes.resolve import router as resolve_router
@@ -170,6 +171,7 @@ app.include_router(credentials_router)
 app.include_router(affiliates_router)
 app.include_router(audit_router)
 app.include_router(workspaces_router)
+app.include_router(payment_router)
 app.include_router(agent_router)
 app.include_router(subscriptions_router)
 app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
