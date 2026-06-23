@@ -296,8 +296,82 @@ document.getElementById('nav-tabs').addEventListener('click', e => {
   if (btn) ensureTabRendered(btn.dataset.tab);
 });
 
-// ── Overview ──
+// ── Overview: Action Center ──
 function renderOverview(d) {
+  // ── 1. Hero Metrics ──
+  const vs = _valueData?.summary || {};
+  const totalGold = Math.floor((vs.total_value_buy || 0) / 10000);
+  const walletGold = Math.floor(((d.wallet || []).find(w => w.id === 1)?.value || 0) / 10000);
+  const charCount = (d.characters || []).length;
+  const skinCount = d.unlocked_skins_count || 0;
+
+  document.getElementById('hero-metrics').innerHTML = [
+    { icon: '💰', label: 'Total Value', value: `${totalGold.toLocaleString()}g`, sub: 'across all assets', color: 'var(--gold-light)' },
+    { icon: '🪙', label: 'Wallet', value: `${walletGold.toLocaleString()}g`, sub: 'liquid gold', color: '#6bc46b' },
+    { icon: '👤', label: 'Characters', value: charCount, sub: `${skinCount} skins`, color: '#5a9e9e' },
+  ].map(h => `<div style="background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:16px;text-align:center">
+    <div style="font-size:28px;margin-bottom:4px">${h.icon}</div>
+    <div style="font-size:12px;color:var(--text-dim)">${h.label}</div>
+    <div style="font-size:24px;font-weight:700;color:${h.color}">${h.value}</div>
+    <div style="font-size:11px;color:var(--text-dim)">${h.sub}</div>
+  </div>`).join('');
+
+  // ── 2. Today You Should Do ──
+  const todayActions = [];
+  if (totalGold > 0) {
+    todayActions.push({ icon: '💰', priority: 'P0', text: `你的账号总资产价值 ${totalGold.toLocaleString()}g。查看 Top Items 了解最值钱的资产。`, action: 'Value', tab: 'value' });
+  }
+  const chars = d.characters || [];
+  if (chars.length) {
+    const maxLevel = chars.filter(c => c.level === 80).length;
+    if (maxLevel < chars.length) {
+      todayActions.push({ icon: '⬆', priority: 'P1', text: `你有 ${chars.length - maxLevel} 个角色未满级。提升到 80 级以解锁 Build 推荐。`, action: 'Level Up', tab: 'characters' });
+    }
+    const profs = new Set(chars.map(c => c.profession));
+    if (profs.size < 3) {
+      todayActions.push({ icon: '🎭', priority: 'P1', text: `只有 ${profs.size} 个职业。创建新角色体验不同玩法。`, action: 'New Character', tab: 'characters' });
+    }
+  }
+  if (skinCount > 0 && skinCount < 200) {
+    todayActions.push({ icon: '🎨', priority: 'P2', text: `${skinCount} 皮肤已解锁。通过地图完成和收藏获取更多皮肤。`, action: 'Wardrobe', tab: 'wardrobe' });
+  }
+  if (_valueData?.summary?.unpriced_item_count > 0) {
+    todayActions.push({ icon: '❓', priority: 'P1', text: `${_valueData.summary.unpriced_item_count} 件物品缺少价格数据。添加 tradingpost 权限以自动定价。`, action: 'Fix Permissions', tab: 'value' });
+  }
+
+  const todaySection = document.getElementById('today-section');
+  const todayList = document.getElementById('today-list');
+  if (todayActions.length) {
+    todaySection.style.display = 'block';
+    todayList.innerHTML = todayActions.map(a => `
+      <div style="display:flex;align-items:center;gap:10px;background:var(--bg2);border:1px solid var(--border);border-radius:6px;padding:10px 14px;cursor:pointer"
+           onclick="document.querySelector('[data-tab=${a.tab}]')?.click()">
+        <span style="font-size:18px">${a.icon}</span>
+        <span style="font-size:11px;background:${a.priority === 'P0' ? '#5a3a1a' : a.priority === 'P1' ? '#2a3a2a' : '#1a2a3a'};color:${a.priority === 'P0' ? '#d0a050' : a.priority === 'P1' ? '#6bc46b' : '#5a9ece'};padding:1px 6px;border-radius:3px;font-weight:600">${a.priority}</span>
+        <span style="flex:1;font-size:13px">${a.text}</span>
+        <span style="font-size:12px;color:var(--gold)">${a.action} →</span>
+      </div>
+    `).join('');
+  }
+
+  // ── 3. Quick Stats ──
+  const stats = [
+    { label: 'Total Value', value: `${Math.floor((vs.total_value_buy || 0) / 10000).toLocaleString()}g`, sub: `${vs.priced_item_count || 0} items` },
+    { label: 'Wallet', value: `${walletGold.toLocaleString()}g`, sub: 'liquid gold' },
+    { label: 'Materials', value: `${Math.floor((vs.material_value_buy || 0) / 10000).toLocaleString()}g`, sub: 'material storage' },
+    { label: 'Bank', value: `${Math.floor((vs.bank_value_buy || 0) / 10000).toLocaleString()}g`, sub: 'bank items' },
+    { label: 'Characters', value: charCount, sub: `${[...new Set(chars.map(c => c.profession))].length} professions` },
+    { label: 'Skins', value: skinCount, sub: `${d.unlocked_dyes_count || 0} dyes` },
+  ];
+  document.getElementById('quick-stats').innerHTML = stats.map(s => `
+    <div style="background:var(--bg2);border:1px solid var(--border);border-radius:6px;padding:12px">
+      <div style="font-size:11px;color:var(--text-dim);text-transform:uppercase;letter-spacing:1px">${s.label}</div>
+      <div style="font-size:18px;font-weight:600;color:var(--gold-light)">${s.value}</div>
+      <div style="font-size:11px;color:var(--text-dim)">${s.sub}</div>
+    </div>
+  `).join('');
+
+  // ── 4. Account Details (collapsed) ──
   const created = d.account_created ? new Date(d.account_created).toLocaleDateString() : '—';
   const cards = [
     { label: 'Account',       value: d.account_name || '—',              sub: `World ${d.account_world}` },
@@ -306,10 +380,6 @@ function renderOverview(d) {
     { label: 'Fractal Level', value: d.fractal_level ?? '—',             sub: 'highest tier' },
     { label: 'Daily AP',      value: (d.daily_ap ?? 0).toLocaleString(), sub: 'achievement points' },
     { label: 'Monthly AP',    value: (d.monthly_ap ?? 0).toLocaleString(),sub: 'monthly achievements' },
-    { label: 'WvW Rank',      value: d.wvw_rank ?? '—',                  sub: 'world vs world' },
-    { label: 'Characters',    value: (d.characters || []).length,         sub: 'on account' },
-    { label: 'Skins',         value: d.unlocked_skins_count ?? '—',      sub: 'unlocked' },
-    { label: 'Dyes',          value: d.unlocked_dyes_count ?? '—',       sub: 'unlocked' },
   ];
   document.getElementById('overview-cards').innerHTML = cards.map(c => `
     <div class="stat-card">
@@ -380,79 +450,6 @@ function renderOverview(d) {
       </div>`;
    });
 
-  // ── Quick Actions ──
-  const quickGrid = document.getElementById('quick-actions-grid');
-  const quickSection = document.getElementById('quick-actions');
-  const recList = document.getElementById('recommendations-list');
-  const recSection = document.getElementById('top-recommendations');
-  if (!quickGrid) return;
-
-  const valueData = _valueData;
-  const actions = [];
-  const recs = [];
-
-  // Build quick actions based on data
-  if (valueData?.summary) {
-    const s = valueData.summary;
-    if (s.unpriced_item_count > 0) {
-      actions.push({ icon: '💰', label: 'Unpriced Items', desc: `${s.unpriced_item_count} items need price data. Add TP permissions or check item IDs.`, tab: 'value' });
-      recs.push(`Open the Items tab to review ${s.unpriced_item_count} unpriced items. Add 'tradingpost' permission for automatic pricing.`);
-    }
-    if (s.priced_item_count > 0) {
-      actions.push({ icon: '📊', label: 'Export Report', desc: 'Generate a downloadable JSON report of your account value.', tab: 'overview', id: 'export-report-btn' });
-    }
-  }
-
-  const walletGold = (d.wallet || []).find(w => w.id === 1)?.value || 0;
-  const chars = d.characters || [];
-  const professions = new Set(chars.map(c => c.profession));
-  const maxChars = chars.length;
-
-  if (walletGold > 0) {
-    const goldDisplay = (walletGold / 10000).toFixed(1);
-    actions.push({ icon: '🪙', label: 'Wallet', desc: `${goldDisplay}g total gold across account.`, tab: 'wallet' });
-  }
-  if (maxChars > 0) {
-    actions.push({ icon: '👤', label: 'Characters', desc: `${maxChars} characters, ${professions.size} professions: ${[...professions].slice(0, 5).join(', ')}${professions.size > 5 ? '...' : ''}`, tab: 'characters' });
-  }
-  if (d.unlocked_skins_count > 0) {
-    actions.push({ icon: '🎨', label: 'Wardrobe', desc: `${d.unlocked_skins_count} skins unlocked.`, tab: 'wardrobe' });
-    if (d.unlocked_skins_count < 100) recs.push('Consider unlocking more skins through map completion and collections to increase account value.');
-  }
-
-  // Goal recommendations
-  if (window._goals && window._goals.length > 0) {
-    const incomplete = window._goals.filter(g => (g.progress || 0) < 100);
-    if (incomplete.length > 0) {
-      const nearest = incomplete.sort((a, b) => (b.progress || 0) - (a.progress || 0))[0];
-      recs.push(`Your closest goal is "${nearest.name}" (${Math.round(nearest.progress || 0)}% complete). Focus on missing requirements.`);
-    }
-  }
-
-  // Build recommendations
-  if (window._buildReadiness && window._buildReadiness.length > 0) {
-    const best = window._buildReadiness[0];
-    if (best.readiness_score > 0) recs.push(`Best build match: ${best.build_name} (${Math.round(best.readiness_score * 100)}% ready, ${best.missing_items_count} items missing).`);
-  }
-
-  if (actions.length) {
-    quickSection.style.display = 'block';
-    quickGrid.innerHTML = actions.map(a => {
-      const clickHandler = a.tab === 'overview' && a.id
-        ? `onclick="document.getElementById('${a.id}').click()"`
-        : a.tab ? `onclick="document.querySelector('[data-tab=${a.tab}]')?.click()"` : '';
-      return `<div style="background:var(--bg2);border:1px solid var(--border);border-radius:6px;padding:12px;cursor:pointer" ${clickHandler}>
-        <div style="font-size:20px;margin-bottom:4px">${a.icon}</div>
-        <div style="font-size:13px;font-weight:600;color:var(--gold)">${a.label}</div>
-        <div style="font-size:11px;color:var(--text-dim);margin-top:4px">${a.desc}</div>
-      </div>`;
-    }).join('');
-  }
-
-  if (recs.length) {
-    recSection.style.display = 'block';
-    recList.innerHTML = recs.map(r => `<div style="padding:6px 0;border-bottom:1px solid var(--border);font-size:13px">💡 ${r}</div>`).join('');
-  }
 }
 
 // Characters, Wardrobe, Wallet, Inventory, Progression, PvP, Unlocks, WvW, Builds moved to app-characters.js
