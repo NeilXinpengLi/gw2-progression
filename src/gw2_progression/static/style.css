@@ -241,12 +241,43 @@ main { max-width: 1200px; margin: 0 auto; padding: 32px 24px; }
   .value-charts-row { grid-template-columns: 1fr; }
 }
 
-@media (max-width: 480px) {
-  .stat-cards { grid-template-columns: 1fr 1fr; gap: 8px; }
-  .stat-card { padding: 12px; }
-  .stat-card .value { font-size: 18px; }
+@media (max-width: 640px) {
+  body { font-size: 14px; }
+  header { flex-direction: column; text-align: center; gap: 4px; padding: 12px; }
+  #key-row { flex-direction: column; gap: 8px; }
+  #key-input { width: 100% !important; }
+  #nav-tabs { overflow-x: auto; -webkit-overflow-scrolling: touch; flex-wrap: nowrap; padding: 0 4px; }
+  #nav-tabs button { flex: 0 0 auto; padding: 8px 10px; font-size: 11px; }
+  .stat-cards { grid-template-columns: 1fr 1fr; gap: 6px; }
+  .stat-card { padding: 10px; }
+  .stat-card .value { font-size: 16px; }
+  #hero-metrics { grid-template-columns: 1fr 1fr !important; }
+  #quick-stats { grid-template-columns: 1fr 1fr !important; gap: 6px; }
+  #timeline-grid { grid-template-columns: 1fr 1fr !important; }
+  #today-list > div { flex-wrap: wrap; padding: 8px 10px; }
+  .section-title { font-size: 14px; }
+  .value-metrics-row { grid-template-columns: 1fr; }
+  .value-stats-row { grid-template-columns: repeat(2, 1fr); }
+  .value-charts-row { grid-template-columns: 1fr; }
   .unlock-grid { grid-template-columns: 1fr 1fr; }
   .pvp-grid { grid-template-columns: 1fr 1fr; }
+  .craft-row { flex-direction: column; }
+  #product-grid { grid-template-columns: 1fr !important; }
+  #credential-form > div { flex-direction: column; }
+  #guild-create-form > div, #guild-join-form > div { flex-direction: column; }
+}
+
+@media (max-width: 480px) {
+  .stat-cards { grid-template-columns: 1fr 1fr; gap: 6px; }
+  .stat-card { padding: 8px; }
+  .stat-card .value { font-size: 15px; }
+  .stat-card .label { font-size: 10px; }
+  .unlock-grid { grid-template-columns: 1fr; }
+  .pvp-grid { grid-template-columns: 1fr; }
+  #hero-metrics { grid-template-columns: 1fr !important; }
+  #quick-stats { grid-template-columns: 1fr !important; }
+  #timeline-grid { grid-template-columns: 1fr !important; }
+}
   .data-table { font-size: 12px; }
   .data-table th, .data-table td { padding: 6px 8px; }
   .skin-grid { grid-template-columns: repeat(auto-fill, minmax(64px, 1fr)); }

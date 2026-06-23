@@ -78,6 +78,10 @@ async function runAnalyze() {
     return;
   }
   showStepProgress(ANALYZE_STEPS);
+  // Hide welcome banner on first analyze
+  const welcomeBanner = document.getElementById('welcome-banner');
+  if (welcomeBanner) welcomeBanner.classList.add('hidden');
+
   if (_abortController) _abortController.abort();
   _abortController = new AbortController();
   let signal = _abortController.signal;
@@ -236,6 +240,17 @@ async function loadAccountSelector() {
     }
   } catch(e) { /* ignore */ }
 }
+
+// Show welcome banner if no saved session
+(function() {
+  try {
+    const saved = localStorage.getItem('gw2_session');
+    if (!saved) {
+      const banner = document.getElementById('welcome-banner');
+      if (banner) banner.classList.remove('hidden');
+    }
+  } catch(e) {}
+})();
 
 // Restore session on page load and auto-analyze
 (function() {
