@@ -9,14 +9,15 @@ async def save_credential(
     api_key: str,
     label: str = "",
     session_token: str | None = None,
+    workspace_id: int | None = None,
 ) -> dict:
     encrypted = encrypt_value(api_key)
     fp = fingerprint(api_key)
     async with using_db() as conn:
         cursor = await conn.execute(
-            """INSERT INTO credentials (provider, label, encrypted_value, fingerprint, session_token)
-               VALUES (?, ?, ?, ?, ?)""",
-            (provider, label, encrypted, fp, session_token),
+            """INSERT INTO credentials (provider, label, encrypted_value, fingerprint, session_token, workspace_id)
+               VALUES (?, ?, ?, ?, ?, ?)""",
+            (provider, label, encrypted, fp, session_token, workspace_id),
         )
         return {
             "id": cursor.lastrowid,
@@ -26,12 +27,15 @@ async def save_credential(
         }
 
 
-async def list_credentials(session_token: str | None = None) -> list[dict]:
-    if session_token:
-        query = "SELECT id, provider, label, fingerprint, last_used_at, created_at FROM credentials WHERE session_token = ? ORDER BY created_at DESC"
+async def list_credentials(session_token: str | None = None, workspace_id: int | None = None) -> list[dict]:
+    if workspace_id:
+        query = "SELECT id, provider, label, fingerprint, status, last_used_at, created_at FROM credentials WHERE workspace_id = ? ORDER BY created_at DESC"
+        params = (workspace_id,)
+    elif session_token:
+        query = "SELECT id, provider, label, fingerprint, status, last_used_at, created_at FROM credentials WHERE session_token = ? ORDER BY created_at DESC"
         params = (session_token,)
     else:
-        query = "SELECT id, provider, label, fingerprint, last_used_at, created_at FROM credentials ORDER BY created_at DESC"
+        query = "SELECT id, provider, label, fingerprint, status, last_used_at, created_at FROM credentials ORDER BY created_at DESC"
         params = ()
 
     rows = []
@@ -44,8 +48,9 @@ async def list_credentials(session_token: str | None = None) -> list[dict]:
             "provider": r[1],
             "label": r[2],
             "fingerprint": r[3],
-            "last_used_at": r[4],
-            "created_at": r[5],
+            "status": r[4],
+            "last_used_at": r[5],
+            "created_at": r[6],
         }
         for r in rows
     ]

@@ -412,6 +412,24 @@ CREATE TABLE IF NOT EXISTS audit_log (
     success INTEGER NOT NULL DEFAULT 1,
     created_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
+
+CREATE TABLE IF NOT EXISTS workspaces (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL,
+    slug TEXT NOT NULL UNIQUE,
+    owner_account TEXT NOT NULL,
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE TABLE IF NOT EXISTS workspace_members (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    workspace_id INTEGER NOT NULL,
+    account_name TEXT NOT NULL,
+    role TEXT NOT NULL DEFAULT 'member',
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    FOREIGN KEY (workspace_id) REFERENCES workspaces(id),
+    UNIQUE(workspace_id, account_name)
+);
 """
 
 
@@ -427,6 +445,7 @@ async def init_db():
             "ALTER TABLE credentials ADD COLUMN status TEXT NOT NULL DEFAULT 'unknown'",
             "ALTER TABLE credentials ADD COLUMN scopes TEXT DEFAULT ''",
             "ALTER TABLE credentials ADD COLUMN last_validated_at TEXT",
+            "ALTER TABLE credentials ADD COLUMN workspace_id INTEGER DEFAULT NULL",
             "ALTER TABLE progression_goal_templates ADD COLUMN source_url TEXT DEFAULT ''",
             "ALTER TABLE progression_goal_templates ADD COLUMN patch_version TEXT DEFAULT ''",
             "ALTER TABLE progression_goal_templates ADD COLUMN review_status TEXT DEFAULT 'unreviewed'",

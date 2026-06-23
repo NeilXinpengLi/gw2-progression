@@ -40,6 +40,7 @@ from .routes.resolve import router as resolve_router
 from .routes.subscriptions import router as subscriptions_router
 from .routes.tp_strategy import router as tp_router
 from .routes.valuation import router as valuation_router
+from .routes.workspaces import router as workspaces_router
 
 STATIC_DIR = Path(__file__).parent.parent / "static"
 
@@ -168,6 +169,7 @@ app.include_router(commerce_router)
 app.include_router(credentials_router)
 app.include_router(affiliates_router)
 app.include_router(audit_router)
+app.include_router(workspaces_router)
 app.include_router(agent_router)
 app.include_router(subscriptions_router)
 app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
