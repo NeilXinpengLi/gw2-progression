@@ -26,6 +26,7 @@ from .routes.builds import router as builds_router
 from .routes.crafting import router as crafting_router
 from .routes.goals import router as goals_router
 from .routes.progression import router as progression_router
+from .routes.reports import router as reports_router
 from .routes.resolve import router as resolve_router
 from .routes.tp_strategy import router as tp_router
 from .routes.valuation import router as valuation_router
@@ -113,6 +114,7 @@ async def rate_limit_middleware(request: Request, call_next):
 
 
 app.include_router(analyze_router)
+app.include_router(reports_router)
 app.include_router(resolve_router)
 app.include_router(valuation_router)
 app.include_router(crafting_router)

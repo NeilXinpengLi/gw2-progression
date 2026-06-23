@@ -106,9 +106,17 @@ class TestSearchHoldings:
         cursor.fetchall = AsyncMock(
             return_value=[
                 _FakeRow(
-                    item_id=19976, count=100, location_type="material_storage", location_ref=None,
-                    binding_status=None, tradable=1, vendor_value=0,
-                    price_buy=20000, price_sell=21600, value_buy=200000, value_sell=216000,
+                    item_id=19976,
+                    count=100,
+                    location_type="material_storage",
+                    location_ref=None,
+                    binding_status=None,
+                    tradable=1,
+                    vendor_value=0,
+                    price_buy=20000,
+                    price_sell=21600,
+                    value_buy=200000,
+                    value_sell=216000,
                     valuation_status="priced",
                 )
             ]
@@ -153,7 +161,10 @@ class TestSaveSnapshot:
         mock_db.execute = AsyncMock(return_value=AsyncMock(lastrowid=42))
 
         summary = ValueSummary(
-            total_value_buy=1000000, total_value_sell=1200000, net_sell_value=1020000, wallet_value=500000,
+            total_value_buy=1000000,
+            total_value_sell=1200000,
+            net_sell_value=1020000,
+            wallet_value=500000,
         )
         holdings = [
             ItemHolding(item_id=19976, count=100, location_type="material_storage", valuation_status="priced", value_buy=200000, value_sell=216000),

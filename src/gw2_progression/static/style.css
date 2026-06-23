@@ -144,6 +144,9 @@ main { max-width: 1200px; margin: 0 auto; padding: 32px 24px; }
 .pvp-stat .ps-val { color: var(--gold-light); font-size: 20px; font-weight: 600; }
 
 .hidden { display: none !important; }
+.btn-sm { background: var(--bg3); border: 1px solid var(--border); color: var(--text); padding: 6px 14px; border-radius: 4px; cursor: pointer; font-size: 12px; }
+.btn-sm:hover { background: #3a3a3a; }
+.btn-sm:disabled { opacity: .5; cursor: default; }
 .tab-panel { display: none; }
 .tab-panel.active { display: block; }
 

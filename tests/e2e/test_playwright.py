@@ -10,20 +10,42 @@ import pytest
 SERVER_PORT = 9885
 BASE_URL = f"http://127.0.0.1:{SERVER_PORT}"
 
-MOCK_SESSION = json.dumps({"token":"mock-token","account_name":"P.Player","expires_in":86400})
+MOCK_SESSION = json.dumps({"token": "mock-token", "account_name": "P.Player", "expires_in": 86400})
 MOCK_EMPTY = json.dumps({})
-MOCK_ANALYZE = json.dumps({
-    "account_name":"Playwright.Player","account_world":1001,
-    "characters":[{"name":"TestChar","profession":"Guardian","level":80,"equipment":[],"bags":[],"crafting":[],"deaths":0,"age":1000}],
-    "wallet":[{"id":1,"value":500000}],"bank":[],"materials":[],"inventory":[],
-    "unlocked_skins":[],"unlocked_dyes":[],"unlocked_minis":[],"unlocked_finishers":[],
-    "masteries":[],"mastery_points":{},"pvp_stats":{},"pvp_games":[],"pvp_standings":[],
-    "builds":[],"guilds":[],"wvw_stats":{},"errors":{},
-})
-MOCK_VALUE = json.dumps({
-    "summary":{"total_value_buy":2000000,"wallet_value":500000,"reliable_value":1500000,"priced_item_count":10},
-    "top_items":[],"holdings":[],"breakdown":{"by_location":[]},"history":[],"warnings":[],
-})
+MOCK_ANALYZE = json.dumps(
+    {
+        "account_name": "Playwright.Player",
+        "account_world": 1001,
+        "characters": [{"name": "TestChar", "profession": "Guardian", "level": 80, "equipment": [], "bags": [], "crafting": [], "deaths": 0, "age": 1000}],
+        "wallet": [{"id": 1, "value": 500000}],
+        "bank": [],
+        "materials": [],
+        "inventory": [],
+        "unlocked_skins": [],
+        "unlocked_dyes": [],
+        "unlocked_minis": [],
+        "unlocked_finishers": [],
+        "masteries": [],
+        "mastery_points": {},
+        "pvp_stats": {},
+        "pvp_games": [],
+        "pvp_standings": [],
+        "builds": [],
+        "guilds": [],
+        "wvw_stats": {},
+        "errors": {},
+    }
+)
+MOCK_VALUE = json.dumps(
+    {
+        "summary": {"total_value_buy": 2000000, "wallet_value": 500000, "reliable_value": 1500000, "priced_item_count": 10},
+        "top_items": [],
+        "holdings": [],
+        "breakdown": {"by_location": []},
+        "history": [],
+        "warnings": [],
+    }
+)
 
 
 def _run_server():
@@ -53,7 +75,7 @@ def _mock_route(route, request):
     if url.endswith("/auth/session") and method == "POST":
         route.fulfill(status=200, content_type="application/json", body=MOCK_SESSION)
     elif url.endswith("/auth/sessions") and method == "GET":
-        route.fulfill(status=200, content_type="application/json", body=f'[{MOCK_SESSION}]')
+        route.fulfill(status=200, content_type="application/json", body=f"[{MOCK_SESSION}]")
     elif "/value/analyze" in url and method == "POST":
         route.fulfill(status=200, content_type="application/json", body=MOCK_VALUE)
     elif url.endswith("/analyze") and method == "POST":
@@ -61,8 +83,7 @@ def _mock_route(route, request):
     elif "/resolve" in url and method == "POST":
         route.fulfill(status=200, content_type="application/json", body="[]")
     elif "/progression/templates" in url or "/templates" in url:
-        route.fulfill(status=200, content_type="application/json",
-                      body='[{"template_id":"test","name":"Test","goal_type":"legendary_weapon"}]')
+        route.fulfill(status=200, content_type="application/json", body='[{"template_id":"test","name":"Test","goal_type":"legendary_weapon"}]')
     else:
         route.continue_()
 

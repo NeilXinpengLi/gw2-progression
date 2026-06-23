@@ -378,6 +378,9 @@ function renderAll(d) {
   renderWvw(d);
   renderBuilds(d);
   setupWardrobe(d.unlocked_skins || []);
+  const exportBtn = document.getElementById('export-report-btn');
+  if (exportBtn) exportBtn.disabled = false;
+  loadReportHistory();
 }
 
 // ── Overview ──
@@ -781,3 +784,81 @@ function filterHoldings() {
   window._holdingsPage = 0;
   renderHoldingsPage();
 }
+
+// ── Report Export ──
+async function exportReport() {
+  const btn = document.getElementById('export-report-btn');
+  const status = document.getElementById('export-status');
+  const data = _accountData;
+  if (!data) {
+    status.textContent = 'Run analysis first.';
+    return;
+  }
+  btn.disabled = true;
+  status.innerHTML = '<span class="spinner"></span> Generating report…';
+
+  const topItems = (_valueData?.top_items || []).slice(0, 10).map(i => ({
+    item_id: i.item_id,
+    name: itemName(i.item_id),
+    count: i.count,
+    value_buy: i.value_buy,
+    value_sell: i.value_sell,
+  }));
+
+  const params = new URLSearchParams({
+    account_name: data.account_name,
+    report_type: 'full',
+    title: `Account Report — ${data.account_name}`,
+    summary: `Generated report for ${data.account_name} with ${(data.characters || []).length} characters.`,
+    total_value_buy: _valueData?.summary?.total_value_buy || 0,
+    total_value_sell: _valueData?.summary?.total_value_sell || 0,
+    wallet_gold: (_valueData?.summary?.wallet_value || 0),
+    character_count: (data.characters || []).length,
+    goal_count: 0,
+    goal_progress_pct: 0,
+    build_readiness_pct: 0,
+  });
+
+  try {
+    const res = await fetch(`/reports/generate?${params}`, { method: 'POST' });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const report = await res.json();
+    status.textContent = `Report #${report.report_id} generated.`;
+    setTimeout(() => { status.textContent = ''; }, 3000);
+    loadReportHistory();
+    // Enable download of raw report JSON
+    const blob = new Blob([JSON.stringify(report, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `gw2-report-${data.account_name}-${new Date().toISOString().slice(0, 10)}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+  } catch (e) {
+    status.textContent = `Error: ${e.message}`;
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+async function loadReportHistory() {
+  const data = _accountData;
+  if (!data) return;
+  const container = document.getElementById('report-history');
+  const list = document.getElementById('report-list');
+  try {
+    const res = await fetch(`/reports?account_name=${encodeURIComponent(data.account_name)}&limit=10`);
+    if (!res.ok) return;
+    const reports = await res.json();
+    if (!reports.length) { container.style.display = 'none'; return; }
+    container.style.display = 'block';
+    list.innerHTML = reports.map(r =>
+      `<div style="display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid var(--border)">
+        <span>${r.title || r.report_type} <span class="dim">(#${r.report_id})</span></span>
+        <span class="dim">${r.created_at ? r.created_at.slice(0, 16).replace('T', ' ') : ''}</span>
+      </div>`
+    ).join('');
+  } catch (e) { /* ignore */ }
+}
+
+

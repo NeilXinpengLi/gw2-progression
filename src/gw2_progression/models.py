@@ -413,3 +413,24 @@ class CraftingResponse(BaseModel):
     crafting_steps: list[dict] = []
     recipe_tree: CraftStep | None = None
     alternative_recipes: list[dict] = []
+
+
+class AccountReport(BaseModel):
+    report_id: int = 0
+    account_name: str
+    report_type: str  # full | value | goals | builds
+    title: str = ""
+    summary: str = ""
+    total_value_buy: int = 0
+    total_value_sell: int = 0
+    wallet_gold: int = 0
+    character_count: int = 0
+    goal_count: int = 0
+    goal_progress_pct: float = 0.0
+    build_readiness_pct: float = 0.0
+    top_items: list[dict] = []
+    goal_details: list[dict] = []
+    build_details: list[dict] = []
+    recommendations: list[str] = []
+    snapshot_time: str = ""
+    created_at: str = ""

@@ -130,9 +130,7 @@ class TestAgent:
                 with patch("httpx.AsyncClient") as mock_client:
                     mock_resp = MagicMock()
                     mock_resp.status_code = 200
-                    mock_resp.json.return_value = {
-                        "choices": [{"message": {"content": '{"summary": "Test", "recommended_actions": []}'}}]
-                    }
+                    mock_resp.json.return_value = {"choices": [{"message": {"content": '{"summary": "Test", "recommended_actions": []}'}}]}
                     mock_client.return_value.__aenter__.return_value.post = AsyncMock(return_value=mock_resp)
                     result = await _call_llm("test prompt")
         assert result is not None
@@ -169,14 +167,14 @@ class TestAgent:
     def test_parse_llm_response_code_fence(self):
         from gw2_progression.services.agent_service import _parse_llm_response
 
-        content = "```json\n{\"summary\": \"Wrapped\", \"recommended_actions\": []}\n```"
+        content = '```json\n{"summary": "Wrapped", "recommended_actions": []}\n```'
         result = _parse_llm_response(content)
         assert result["summary"] == "Wrapped"
 
     def test_parse_llm_response_code_fence_no_lang(self):
         from gw2_progression.services.agent_service import _parse_llm_response
 
-        content = "```\n{\"summary\": \"No lang\", \"recommended_actions\": []}\n```"
+        content = '```\n{"summary": "No lang", "recommended_actions": []}\n```'
         result = _parse_llm_response(content)
         assert result["summary"] == "No lang"
 
@@ -195,9 +193,7 @@ class TestAgent:
                 with patch("httpx.AsyncClient") as mock_client:
                     mock_resp = MagicMock()
                     mock_resp.status_code = 200
-                    mock_resp.json.return_value = {
-                        "content": [{"text": '{"summary": "Claude", "recommended_actions": []}'}]
-                    }
+                    mock_resp.json.return_value = {"content": [{"text": '{"summary": "Claude", "recommended_actions": []}'}]}
                     mock_client.return_value.__aenter__.return_value.post = AsyncMock(return_value=mock_resp)
                     result = await _call_llm("test prompt")
         assert result["summary"] == "Claude"
@@ -208,9 +204,7 @@ class TestAgent:
 
         llm_result = {
             "summary": "LLM powered summary",
-            "recommended_actions": [
-                {"action": "test_action", "target": "test", "reason": "LLM reason", "cost": 1000}
-            ],
+            "recommended_actions": [{"action": "test_action", "target": "test", "reason": "LLM reason", "cost": 1000}],
             "weekly_plan": [
                 {"day": "Monday", "tasks": ["Task 1"]},
                 {"day": "Tuesday", "tasks": ["Task 2"]},

@@ -238,6 +238,27 @@ CREATE TABLE IF NOT EXISTS valuation_warnings (
     item_id INTEGER,
     FOREIGN KEY (snapshot_id) REFERENCES account_snapshots(id)
 );
+
+CREATE TABLE IF NOT EXISTS reports (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    account_name TEXT NOT NULL,
+    report_type TEXT NOT NULL,
+    title TEXT NOT NULL DEFAULT '',
+    summary TEXT NOT NULL DEFAULT '',
+    total_value_buy INTEGER NOT NULL DEFAULT 0,
+    total_value_sell INTEGER NOT NULL DEFAULT 0,
+    wallet_gold INTEGER NOT NULL DEFAULT 0,
+    character_count INTEGER NOT NULL DEFAULT 0,
+    goal_count INTEGER NOT NULL DEFAULT 0,
+    goal_progress_pct REAL NOT NULL DEFAULT 0.0,
+    build_readiness_pct REAL NOT NULL DEFAULT 0.0,
+    top_items TEXT NOT NULL DEFAULT '[]',
+    goal_details TEXT NOT NULL DEFAULT '[]',
+    build_details TEXT NOT NULL DEFAULT '[]',
+    recommendations TEXT NOT NULL DEFAULT '[]',
+    snapshot_time TEXT,
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
 """
 
 

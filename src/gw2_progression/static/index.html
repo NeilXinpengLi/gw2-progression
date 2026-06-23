@@ -54,6 +54,14 @@
     <div class="tab-panel active" id="tab-overview" role="tabpanel">
       <div class="tab-loading"><span class="spinner"></span> Loading…</div>
       <div class="stat-cards" id="overview-cards"></div>
+      <div style="margin:12px 0">
+        <button id="export-report-btn" class="btn btn-sm" onclick="exportReport()" disabled>📄 Export Report</button>
+        <span id="export-status" class="dim" style="margin-left:8px;font-size:12px"></span>
+      </div>
+      <div id="report-history" style="display:none;margin-bottom:12px">
+        <div class="section-title">Recent Reports</div>
+        <div id="report-list" style="font-size:13px"></div>
+      </div>
       <div class="section-title">Permissions</div>
       <div class="perm-grid" id="perm-grid"></div>
       <div class="tab-error" id="err-overview"></div>
