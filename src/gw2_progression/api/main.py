@@ -18,11 +18,14 @@ from gw2_progression.gw2_client import _close_client as close_gw2_client
 from gw2_progression.services.auth_service import SESSION_TTL, create_session, delete_session, get_api_key, list_sessions
 from gw2_progression.services.price_service import close_client as close_price_client
 from gw2_progression.services.price_service import warmup_price_cache
+from gw2_progression.services.product_service import seed_products
 from gw2_progression.services.progression_service import seed_templates
+from gw2_progression.services.provider_service import seed_providers
 
 from .routes.agent import router as agent_router
 from .routes.analyze import router as analyze_router
 from .routes.builds import router as builds_router
+from .routes.commerce import router as commerce_router
 from .routes.crafting import router as crafting_router
 from .routes.credentials import router as credentials_router
 from .routes.goals import router as goals_router
@@ -53,6 +56,8 @@ async def lifespan(app: FastAPI):
     await init_db()
     await warmup_price_cache()
     await seed_templates()
+    await seed_products()
+    await seed_providers()
     yield
     logger.info("Shutting down GW2 Progression")
     await close_gw2_client()
@@ -126,6 +131,7 @@ app.include_router(guild_router)
 app.include_router(progression_router)
 app.include_router(tp_router)
 app.include_router(builds_router)
+app.include_router(commerce_router)
 app.include_router(credentials_router)
 app.include_router(agent_router)
 app.include_router(subscriptions_router)

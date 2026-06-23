@@ -243,6 +243,7 @@ function renderAll(d) {
   loadReportHistory();
   loadSubscription();
   loadGuild();
+  loadScopeExplanations();
 }
 
 // ── Overview ──
@@ -569,6 +570,21 @@ document.getElementById("cred-save-btn")?.addEventListener("click", async () => 
   } catch (e) { status.textContent = `Error: ${e.message}`; }
 });
 
+// ── Permission Explanations ──
+async function loadScopeExplanations() {
+  const grid = document.getElementById("perm-grid");
+  if (!grid || grid.children.length > 0) return;
+  try {
+    const res = await fetch("/credentials/providers");
+    if (!res.ok) return;
+    const data = await res.json();
+    const ex = data.scope_explanations || {};
+    grid.innerHTML = Object.entries(ex).map(([scope, desc]) =>
+      `<div class="perm-item"><span class="perm-badge granted">${scope}</span><span class="dim">${desc}</span></div>`
+    ).join("");
+  } catch (e) { /* ignore */ }
+}
+
 // ── Subscription Management ──
 async function loadSubscription() {
   const data = getAccountData();
@@ -672,6 +688,49 @@ document.getElementById("guild-join-btn")?.addEventListener("click", async () =>
     else { document.getElementById("guild-status").textContent = "Invalid invite code."; }
   } catch (e) { document.getElementById("guild-status").textContent = `Error: ${e.message}`; }
 });
+
+// ── Products Tab ──
+async function loadProducts() {
+  const grid = document.getElementById("product-grid");
+  try {
+    const res = await fetch("/commerce/products");
+    if (!res.ok) return;
+    const products = await res.json();
+    grid.innerHTML = products.map(p => `
+      <div style="background:var(--bg2);border:1px solid var(--border);border-radius:6px;padding:16px">
+        <div style="font-size:15px;font-weight:600;color:var(--gold);margin-bottom:6px">${p.name}</div>
+        <div style="font-size:12px;color:var(--text-dim);margin-bottom:8px">${p.description}</div>
+        <div style="font-size:13px;margin-bottom:8px">
+          <span class="gold-val">${p.price_gold >= 1 ? p.price_gold.toFixed(1) + 'g' : (p.price_copper / 100).toFixed(0) + 's'}</span>
+          <span class="dim"> (${p.type})</span>
+        </div>
+        <div style="font-size:12px;color:var(--text-dim);margin-bottom:8px">
+          ${p.deliverables.map(d => '<span style="background:var(--bg3);padding:2px 6px;border-radius:3px;margin:2px;display:inline-block">' + d + '</span>').join("")}
+        </div>
+        <button class="btn-sm buy-btn" data-product='${JSON.stringify(p).replace(/"/g, "&quot;")}'>Buy Now</button>
+      </div>
+    `).join("");
+    grid.querySelectorAll(".buy-btn").forEach(btn => {
+      btn.addEventListener("click", () => {
+        const p = JSON.parse(btn.dataset.product.replace(/&quot;/g, '"'));
+        const email = prompt("Enter your email for delivery:", "");
+        if (!email) return;
+        fetch("/commerce/orders", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ product_id: p.id, customer_email: email }),
+        }).then(r => r.json()).then(order => {
+          alert(`Order placed! License key: ${order.license_key}\nCheck delivery in Settings tab.`);
+          loadOrders();
+        }).catch(e => alert("Error: " + e.message));
+      });
+    });
+  } catch (e) { /* ignore */ }
+}
+
+async function loadOrders() {
+  // Display orders in settings or as a section
+}
 
 // Init credentials UI on page load
 loadProviders();

@@ -264,15 +264,40 @@ CREATE TABLE IF NOT EXISTS reports (
     created_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
+CREATE TABLE IF NOT EXISTS providers (
+    id TEXT PRIMARY KEY,
+    category TEXT NOT NULL,
+    name TEXT NOT NULL,
+    auth_type TEXT NOT NULL DEFAULT 'api_key',
+    capabilities TEXT NOT NULL DEFAULT '[]',
+    cost_model TEXT NOT NULL DEFAULT 'free',
+    enabled INTEGER NOT NULL DEFAULT 1
+);
+
 CREATE TABLE IF NOT EXISTS credentials (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     provider TEXT NOT NULL,
     label TEXT NOT NULL DEFAULT '',
     encrypted_value TEXT NOT NULL,
     fingerprint TEXT NOT NULL DEFAULT '',
+    status TEXT NOT NULL DEFAULT 'unknown',
+    scopes TEXT DEFAULT '',
     session_token TEXT,
     last_used_at TEXT,
+    last_validated_at TEXT,
     created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE TABLE IF NOT EXISTS credential_usage (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    credential_id INTEGER NOT NULL,
+    feature TEXT NOT NULL,
+    provider TEXT NOT NULL,
+    request_count INTEGER NOT NULL DEFAULT 1,
+    estimated_cost_copper INTEGER NOT NULL DEFAULT 0,
+    status TEXT NOT NULL DEFAULT 'success',
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    FOREIGN KEY (credential_id) REFERENCES credentials(id)
 );
 
 CREATE TABLE IF NOT EXISTS subscriptions (
@@ -302,6 +327,59 @@ CREATE TABLE IF NOT EXISTS guild_members (
     created_at TEXT NOT NULL DEFAULT (datetime('now')),
     FOREIGN KEY (guild_id) REFERENCES guild_workspaces(id)
 );
+
+CREATE TABLE IF NOT EXISTS products (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    slug TEXT NOT NULL UNIQUE,
+    name TEXT NOT NULL,
+    description TEXT NOT NULL DEFAULT '',
+    price_copper INTEGER NOT NULL DEFAULT 0,
+    type TEXT NOT NULL DEFAULT 'one_time',
+    deliverables TEXT NOT NULL DEFAULT '[]',
+    sample_url TEXT DEFAULT '',
+    active INTEGER NOT NULL DEFAULT 1,
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE TABLE IF NOT EXISTS orders (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    product_id INTEGER NOT NULL,
+    customer_email TEXT NOT NULL,
+    customer_name TEXT DEFAULT '',
+    amount_copper INTEGER NOT NULL DEFAULT 0,
+    status TEXT NOT NULL DEFAULT 'pending',
+    license_key TEXT,
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    FOREIGN KEY (product_id) REFERENCES products(id)
+);
+
+CREATE TABLE IF NOT EXISTS licenses (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    license_key TEXT NOT NULL UNIQUE,
+    product_id INTEGER NOT NULL,
+    order_id INTEGER,
+    feature_flags TEXT NOT NULL DEFAULT '{}',
+    max_uses INTEGER NOT NULL DEFAULT 0,
+    used_count INTEGER NOT NULL DEFAULT 0,
+    expires_at TEXT,
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    FOREIGN KEY (product_id) REFERENCES products(id),
+    FOREIGN KEY (order_id) REFERENCES orders(id)
+);
+
+CREATE TABLE IF NOT EXISTS delivery_jobs (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    order_id INTEGER NOT NULL,
+    product_id INTEGER NOT NULL,
+    status TEXT NOT NULL DEFAULT 'pending',
+    output_pdf_url TEXT DEFAULT '',
+    output_csv_url TEXT DEFAULT '',
+    dashboard_url TEXT DEFAULT '',
+    error TEXT DEFAULT '',
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    FOREIGN KEY (order_id) REFERENCES orders(id),
+    FOREIGN KEY (product_id) REFERENCES products(id)
+);
 """
 
 
@@ -314,6 +392,9 @@ async def init_db():
             if s:
                 await conn.execute(s)
         for migration_sql in [
+            "ALTER TABLE credentials ADD COLUMN status TEXT NOT NULL DEFAULT 'unknown'",
+            "ALTER TABLE credentials ADD COLUMN scopes TEXT DEFAULT ''",
+            "ALTER TABLE credentials ADD COLUMN last_validated_at TEXT",
             "ALTER TABLE progression_goal_templates ADD COLUMN source_url TEXT DEFAULT ''",
             "ALTER TABLE progression_goal_templates ADD COLUMN patch_version TEXT DEFAULT ''",
             "ALTER TABLE progression_goal_templates ADD COLUMN review_status TEXT DEFAULT 'unreviewed'",

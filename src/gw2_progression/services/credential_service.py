@@ -107,3 +107,33 @@ async def touch_credential(credential_id: int) -> None:
             "UPDATE credentials SET last_used_at = ? WHERE id = ?",
             (datetime.utcnow().isoformat(), credential_id),
         )
+
+
+async def update_credential_status(credential_id: int, status: str, scopes: str = "") -> None:
+    from datetime import datetime
+
+    async with using_db() as conn:
+        await conn.execute(
+            "UPDATE credentials SET status = ?, scopes = ?, last_validated_at = ? WHERE id = ?",
+            (status, scopes, datetime.utcnow().isoformat(), credential_id),
+        )
+
+
+async def record_usage(credential_id: int, feature: str, provider: str, cost_copper: int = 0) -> None:
+    async with using_db() as conn:
+        await conn.execute(
+            """INSERT INTO credential_usage (credential_id, feature, provider, estimated_cost_copper)
+               VALUES (?, ?, ?, ?)""",
+            (credential_id, feature, provider, cost_copper),
+        )
+
+
+async def get_usage_stats(credential_id: int) -> dict:
+    async with using_db() as conn:
+        cursor = await conn.execute(
+            """SELECT COUNT(*) as total_uses, COALESCE(SUM(estimated_cost_copper), 0) as total_cost
+               FROM credential_usage WHERE credential_id = ?""",
+            (credential_id,),
+        )
+        row = await cursor.fetchone()
+    return {"total_uses": row[0] if row else 0, "total_cost_copper": row[1] if row else 0}
