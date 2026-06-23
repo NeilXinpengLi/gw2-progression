@@ -150,7 +150,11 @@ CREATE TABLE IF NOT EXISTS progression_goal_templates (
     category TEXT DEFAULT '',
     difficulty_level TEXT DEFAULT 'medium',
     estimated_time_class TEXT DEFAULT 'long',
-    enabled INTEGER NOT NULL DEFAULT 1
+    enabled INTEGER NOT NULL DEFAULT 1,
+    source_url TEXT DEFAULT '',
+    patch_version TEXT DEFAULT '',
+    review_status TEXT DEFAULT 'unreviewed',
+    deprecated INTEGER NOT NULL DEFAULT 0
 );
 
 CREATE TABLE IF NOT EXISTS goal_requirements (
@@ -281,6 +285,16 @@ async def init_db():
             s = stmt.strip()
             if s:
                 await conn.execute(s)
+        for migration_sql in [
+            "ALTER TABLE progression_goal_templates ADD COLUMN source_url TEXT DEFAULT ''",
+            "ALTER TABLE progression_goal_templates ADD COLUMN patch_version TEXT DEFAULT ''",
+            "ALTER TABLE progression_goal_templates ADD COLUMN review_status TEXT DEFAULT 'unreviewed'",
+            "ALTER TABLE progression_goal_templates ADD COLUMN deprecated INTEGER NOT NULL DEFAULT 0",
+        ]:
+            try:
+                await conn.execute(migration_sql)
+            except Exception:
+                pass  # Column already exists
         for idx_sql in [
             "CREATE INDEX IF NOT EXISTS idx_recipes_output ON static_recipes(output_item_id)",
             "CREATE INDEX IF NOT EXISTS idx_ingredients_recipe ON recipe_ingredients(recipe_id)",

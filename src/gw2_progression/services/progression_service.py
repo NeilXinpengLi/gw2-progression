@@ -22,6 +22,9 @@ CURATED_TEMPLATES = [
         category="Weapon",
         difficulty_level="medium",
         estimated_time_class="long",
+        source_url="https://wiki.guildwars2.com/wiki/Bolt",
+        patch_version="2.0.0",
+        review_status="reviewed",
     ),
     # 2. Twilight (Legendary Greatsword)
     ProgressionGoalTemplate(
@@ -33,6 +36,9 @@ CURATED_TEMPLATES = [
         category="Weapon",
         difficulty_level="medium",
         estimated_time_class="long",
+        source_url="https://wiki.guildwars2.com/wiki/Twilight",
+        patch_version="2.0.0",
+        review_status="reviewed",
     ),
     # 3. Nevermore (Legendary Staff)
     ProgressionGoalTemplate(
@@ -44,6 +50,9 @@ CURATED_TEMPLATES = [
         category="Weapon",
         difficulty_level="hard",
         estimated_time_class="very_long",
+        source_url="https://wiki.guildwars2.com/wiki/Nevermore",
+        patch_version="3.0.0",
+        review_status="reviewed",
     ),
     # 4. Astralaria (Legendary Axe)
     ProgressionGoalTemplate(
@@ -55,6 +64,9 @@ CURATED_TEMPLATES = [
         category="Weapon",
         difficulty_level="hard",
         estimated_time_class="very_long",
+        source_url="https://wiki.guildwars2.com/wiki/Astralaria",
+        patch_version="3.0.0",
+        review_status="reviewed",
     ),
     # 5. Ad Infinitum (Legendary Backpack)
     ProgressionGoalTemplate(
@@ -66,6 +78,9 @@ CURATED_TEMPLATES = [
         category="Back",
         difficulty_level="hard",
         estimated_time_class="very_long",
+        source_url="https://wiki.guildwars2.com/wiki/Ad_Infinitum",
+        patch_version="3.0.0",
+        review_status="reviewed",
     ),
     # 6. Vision (Legendary Ring)
     ProgressionGoalTemplate(
@@ -77,6 +92,9 @@ CURATED_TEMPLATES = [
         category="Trinket",
         difficulty_level="hard",
         estimated_time_class="very_long",
+        source_url="https://wiki.guildwars2.com/wiki/Vision",
+        patch_version="4.0.0",
+        review_status="reviewed",
     ),
     # 7. Ascended Zojja's Greatsword (Berserker)
     ProgressionGoalTemplate(
@@ -88,6 +106,9 @@ CURATED_TEMPLATES = [
         category="Weapon",
         difficulty_level="easy",
         estimated_time_class="medium",
+        source_url="https://wiki.guildwars2.com/wiki/Zojja%27s_Greatsword",
+        patch_version="2.0.0",
+        review_status="reviewed",
     ),
     # 8. Ascended Heavy Armor Set (Berserker)
     ProgressionGoalTemplate(
@@ -99,6 +120,77 @@ CURATED_TEMPLATES = [
         category="Armor",
         difficulty_level="medium",
         estimated_time_class="long",
+        review_status="reviewed",
+    ),
+    # 9. Sunrise (Legendary Greatsword)
+    ProgressionGoalTemplate(
+        template_id="leg_greatsword_sunrise",
+        goal_type="legendary_weapon",
+        name="Sunrise (Legendary Greatsword)",
+        target_item_id=30703,
+        expansion="Core",
+        category="Weapon",
+        difficulty_level="medium",
+        estimated_time_class="long",
+        source_url="https://wiki.guildwars2.com/wiki/Sunrise",
+        patch_version="2.0.0",
+        review_status="reviewed",
+    ),
+    # 10. The Bifrost (Legendary Staff)
+    ProgressionGoalTemplate(
+        template_id="leg_staff_bifrost",
+        goal_type="legendary_weapon",
+        name="The Bifrost (Legendary Staff)",
+        target_item_id=30705,
+        expansion="Core",
+        category="Weapon",
+        difficulty_level="medium",
+        estimated_time_class="long",
+        source_url="https://wiki.guildwars2.com/wiki/The_Bifrost",
+        patch_version="2.0.0",
+        review_status="reviewed",
+    ),
+    # 11. Frostfang (Legendary Axe)
+    ProgressionGoalTemplate(
+        template_id="leg_axe_frostfang",
+        goal_type="legendary_weapon",
+        name="Frostfang (Legendary Axe)",
+        target_item_id=30709,
+        expansion="Core",
+        category="Weapon",
+        difficulty_level="medium",
+        estimated_time_class="long",
+        source_url="https://wiki.guildwars2.com/wiki/Frostfang",
+        patch_version="2.0.0",
+        review_status="reviewed",
+    ),
+    # 12. Incinerator (Legendary Dagger)
+    ProgressionGoalTemplate(
+        template_id="leg_dagger_incinerator",
+        goal_type="legendary_weapon",
+        name="Incinerator (Legendary Dagger)",
+        target_item_id=30713,
+        expansion="Core",
+        category="Weapon",
+        difficulty_level="medium",
+        estimated_time_class="long",
+        source_url="https://wiki.guildwars2.com/wiki/Incinerator",
+        patch_version="2.0.0",
+        review_status="reviewed",
+    ),
+    # 13. Aurora (Legendary Trinket)
+    ProgressionGoalTemplate(
+        template_id="leg_trinket_aurora",
+        goal_type="legendary_trinket",
+        name="Aurora (Legendary Trinket)",
+        target_item_id=84767,
+        expansion="LWS3",
+        category="Trinket",
+        difficulty_level="hard",
+        estimated_time_class="very_long",
+        source_url="https://wiki.guildwars2.com/wiki/Aurora",
+        patch_version="4.0.0",
+        review_status="reviewed",
     ),
 ]
 
@@ -177,9 +269,14 @@ async def seed_templates():
         for t in CURATED_TEMPLATES:
             await db.execute(
                 """INSERT INTO progression_goal_templates
-                (template_id, goal_type, name, target_item_id, expansion, category, difficulty_level, estimated_time_class)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
-                (t.template_id, t.goal_type, t.name, t.target_item_id, t.expansion, t.category, t.difficulty_level, t.estimated_time_class),
+                (template_id, goal_type, name, target_item_id, expansion, category, difficulty_level, estimated_time_class, source_url, patch_version, review_status, deprecated)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                (
+                    t.template_id, t.goal_type, t.name, t.target_item_id,
+                    t.expansion, t.category, t.difficulty_level, t.estimated_time_class,
+                    t.source_url, t.patch_version, t.review_status,
+                    1 if t.deprecated else 0,
+                ),
             )
         for r in CURATED_REQUIREMENTS:
             await db.execute(

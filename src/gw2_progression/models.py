@@ -217,6 +217,10 @@ class ProgressionGoalTemplate(BaseModel):
     difficulty_level: str = "medium"
     estimated_time_class: str = "long"
     enabled: bool = True
+    source_url: str = ""
+    patch_version: str = ""
+    review_status: str = "unreviewed"  # unreviewed | reviewed | outdated | deprecated
+    deprecated: bool = False
 
 
 class GoalRequirement(BaseModel):
