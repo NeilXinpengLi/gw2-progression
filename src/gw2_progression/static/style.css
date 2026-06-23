@@ -152,8 +152,13 @@ main { max-width: 1200px; margin: 0 auto; padding: 32px 24px; }
 
 .spinner { display: inline-block; width: 16px; height: 16px; border: 2px solid var(--border); border-top-color: var(--gold); border-radius: 50%; animation: spin .7s linear infinite; vertical-align: middle; margin-right: 6px; }
 @keyframes spin { to { transform: rotate(360deg); } }
+@keyframes pulse-badge { 0%,100% { opacity:1; } 50% { opacity:.5; } }
+.step-badge.active { animation: pulse-badge 1s ease-in-out infinite; }
 
 .error-box { background: #2a1515; border: 1px solid #5a2020; border-radius: 4px; color: #c07070; padding: 12px 16px; margin-top: 8px; }
+.step-badge { background: var(--bg3); border: 1px solid var(--border); border-radius: 12px; padding: 3px 10px; font-size: 11px; color: var(--text-dim); transition: all .3s; }
+.step-badge.active { background: #2a3a2a; border-color: #5a9e5a; color: #8bc48b; }
+.step-badge.done { background: #1a3a1a; border-color: #3a8a3a; color: #6bc46b; }
 .tab-error { margin-bottom: 8px; }
 .tab-error:empty { display: none; }
 .tab-loading { color: var(--text-dim); font-size: 13px; padding: 16px 0; }

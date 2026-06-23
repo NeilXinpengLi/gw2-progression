@@ -41,6 +41,34 @@ document.getElementById('nav-tabs').addEventListener('click', e => {
 document.getElementById('analyze-btn').addEventListener('click', runAnalyze);
 document.getElementById('key-input').addEventListener('keydown', e => { if (e.key === 'Enter') runAnalyze(); });
 
+function setStep(step, state) {
+  const el = document.querySelector(`.step-badge[data-step="${step}"]`);
+  if (el) {
+    el.classList.remove('active', 'done');
+    if (state) el.classList.add(state);
+  }
+}
+function resetSteps() {
+  document.querySelectorAll('.step-badge').forEach(el => el.classList.remove('active', 'done'));
+  document.getElementById('progress-steps').classList.remove('hidden');
+}
+function showStepProgress(steps) {
+  resetSteps();
+  let i = 0;
+  const tick = () => {
+    if (i < steps.length) {
+      const prev = steps[i - 1];
+      if (prev) setStep(prev, 'done');
+      setStep(steps[i], 'active');
+      i++;
+      setTimeout(tick, 800);
+    }
+  };
+  tick();
+}
+
+const ANALYZE_STEPS = ['tokeninfo','account','characters','wallet','bank','materials','inventory','achievements','masteries','builds','guilds','pvp','tp','unlocks','wvw','done'];
+
 async function runAnalyze() {
   const rawKey = document.getElementById('key-input').value.trim();
   if (!rawKey) {
@@ -49,6 +77,7 @@ async function runAnalyze() {
     msg.textContent = 'Please paste a GW2 API key first.';
     return;
   }
+  showStepProgress(ANALYZE_STEPS);
   if (_abortController) _abortController.abort();
   _abortController = new AbortController();
   let signal = _abortController.signal;

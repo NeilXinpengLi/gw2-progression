@@ -41,7 +41,7 @@
 </nav>
 
 <main>
-    <div id="key-section">
+      <div id="key-section">
       <h2>Connect Your Account</h2>
       <div style="font-size:12px;color:var(--text-dim);margin-bottom:12px;line-height:1.5">
         Enter your <a href="https://account.arena.net/applications" target="_blank" style="color:var(--gold)">GW2 API Key</a> to analyze your account.
@@ -61,6 +61,24 @@
         <select id="account-selector" class="hidden" aria-label="Switch account"></select>
       </div>
       <div id="status-msg" role="status" aria-live="polite"></div>
+      <div id="progress-steps" class="hidden" style="margin-top:8px;display:flex;flex-wrap:wrap;gap:4px">
+        <span class="step-badge" data-step="tokeninfo">Token</span>
+        <span class="step-badge" data-step="account">Account</span>
+        <span class="step-badge" data-step="characters">Characters</span>
+        <span class="step-badge" data-step="wallet">Wallet</span>
+        <span class="step-badge" data-step="bank">Bank</span>
+        <span class="step-badge" data-step="materials">Materials</span>
+        <span class="step-badge" data-step="inventory">Inventory</span>
+        <span class="step-badge" data-step="achievements">Achievements</span>
+        <span class="step-badge" data-step="masteries">Masteries</span>
+        <span class="step-badge" data-step="builds">Builds</span>
+        <span class="step-badge" data-step="guilds">Guilds</span>
+        <span class="step-badge" data-step="pvp">PvP</span>
+        <span class="step-badge" data-step="tp">TP</span>
+        <span class="step-badge" data-step="unlocks">Unlocks</span>
+        <span class="step-badge" data-step="wvw">WvW</span>
+        <span class="step-badge" data-step="done">Done</span>
+      </div>
     </div>
 
   <div id="results" class="hidden">
