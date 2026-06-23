@@ -434,6 +434,18 @@ CREATE TABLE IF NOT EXISTS workspace_members (
     FOREIGN KEY (workspace_id) REFERENCES workspaces(id),
     UNIQUE(workspace_id, account_name)
 );
+
+CREATE TABLE IF NOT EXISTS quest_progress (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    account_name TEXT NOT NULL,
+    quest_key TEXT NOT NULL,
+    quest_label TEXT NOT NULL DEFAULT '',
+    day_index INTEGER NOT NULL DEFAULT 0,
+    completed INTEGER NOT NULL DEFAULT 0,
+    week_start TEXT NOT NULL,
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    UNIQUE(account_name, quest_key, week_start)
+);
 """
 
 

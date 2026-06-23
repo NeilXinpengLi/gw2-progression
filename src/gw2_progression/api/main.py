@@ -36,6 +36,7 @@ from .routes.goals import router as goals_router
 from .routes.guild import router as guild_router
 from .routes.payment import router as payment_router
 from .routes.progression import router as progression_router
+from .routes.quests import router as quests_router
 from .routes.reports import router as reports_router
 from .routes.resolve import router as resolve_router
 from .routes.subscriptions import router as subscriptions_router
@@ -164,6 +165,7 @@ app.include_router(crafting_router)
 app.include_router(goals_router)
 app.include_router(guild_router)
 app.include_router(progression_router)
+app.include_router(quests_router)
 app.include_router(tp_router)
 app.include_router(builds_router)
 app.include_router(commerce_router)

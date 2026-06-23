@@ -385,7 +385,30 @@ function renderOverview(d) {
     }).join('');
   }
 
-  // ── 4. Quick Stats ──
+  // ── 4. Weekly Quests (after analysis) ──
+  if (d.account_name) {
+    fetch(`/quests/${encodeURIComponent(d.account_name)}`)
+      .then(r => r.json())
+      .then(data => {
+        const section = document.getElementById('quest-section');
+        const list = document.getElementById('quest-list');
+        const prog = document.getElementById('quest-progress');
+        if (!section || !list) return;
+        section.style.display = 'block';
+        prog.textContent = `${data.completed}/${data.total} (${data.progress_pct}%)`;
+        list.innerHTML = data.quests.map(q => `
+          <div style="display:flex;align-items:center;gap:10px;background:var(--bg2);border:1px solid ${q.completed ? '#2a4a2a' : 'var(--border)'};border-radius:6px;padding:8px 12px;cursor:pointer"
+               onclick="toggleQuest('${q.key}', ${!q.completed})">
+            <span style="font-size:16px;color:${q.completed ? '#6bc46b' : 'var(--text-dim)'}">${q.completed ? '✅' : '⬜'}</span>
+            <span style="flex:1;font-size:12px;${q.completed ? 'color:var(--text-dim);text-decoration:line-through' : ''}">${q.label}</span>
+            <span class="dim" style="font-size:10px">${q.day_index >= 0 ? 'Day ' + (q.day_index + 1) : ''}</span>
+          </div>
+        `).join('');
+      })
+      .catch(() => {});
+  }
+
+  // ── 5. Quick Stats ──
   const stats = [
     { label: 'Total Value', value: `${Math.floor((vs.total_value_buy || 0) / 10000).toLocaleString()}g`, sub: `${vs.priced_item_count || 0} items` },
     { label: 'Wallet', value: `${walletGold.toLocaleString()}g`, sub: 'liquid gold' },
@@ -640,6 +663,20 @@ async function exportReport() {
   } finally {
     btn.disabled = false;
   }
+}
+
+async function toggleQuest(key, completed) {
+  const data = getAccountData();
+  if (!data) return;
+  try {
+    await fetch(`/quests/${encodeURIComponent(data.account_name)}/toggle`, {
+      method: "POST",
+      headers: {"Content-Type": "application/json"},
+      body: JSON.stringify({quest_key: key, completed}),
+    });
+    // Re-render overview if renderOverview available
+    if (typeof renderOverview === 'function') renderOverview(data);
+  } catch(e) {}
 }
 
 async function loadReportHistory() {
