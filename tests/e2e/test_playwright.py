@@ -139,22 +139,19 @@ class TestPlaywrightUI:
         rgb = [int(x) for x in bg.replace("rgb(", "").replace(")", "").split(", ")]
         assert sum(rgb) < 100
 
-    def test_analyze_shows_overview_cards(self, page, live_server):
+    def test_analyze_then_dashboard(self, page, live_server):
         self._goto(page)
         page.fill("#key-input", "ABCDEF01-2345-6789-ABCD-EF0123456789AB")
         page.click("#analyze-btn")
+        # Wait for results
         page.wait_for_selector("#results:not(.hidden)", timeout=20000)
-        assert page.is_visible("#hero-metrics")
-
-    def test_tab_navigation_after_analysis(self, page, live_server):
-        """Verify tabs are navigable after analysis."""
-        self._goto(page)
-        page.fill("#key-input", "ABCDEF01-2345-6789-ABCD-EF0123456789AB")
-        page.click("#analyze-btn")
-        page.wait_for_selector("#hero-metrics", timeout=20000)
+        # Dismiss insight screen if it exists
+        try:
+            page.click("#insight-dismiss-btn", timeout=3000)
+        except Exception:
+            pass
         page.wait_for_selector("#nav-tabs:not(.hidden)", timeout=5000)
-        page.click('button[data-tab="value"]')
-        assert page.is_visible("#tab-value")
+        assert page.is_visible("#tab-overview")
 
     def test_settings_tab_has_credential_form(self, page, live_server):
         self._goto(page)

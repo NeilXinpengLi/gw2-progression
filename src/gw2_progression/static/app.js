@@ -18,6 +18,30 @@ let _valueData = null;
 let _abortController = null;
 let _sessionToken = null;
 
+// ── Cognitive Load Reduction: Hide advanced tabs behind "More Tools" ──
+document.addEventListener('DOMContentLoaded', () => {
+  const advancedTabs = ['wardrobe', 'pvp', 'wvw', 'items', 'planner', 'market', 'advisor', 'crafting', 'builds', 'progression'];
+  const nav = document.getElementById('nav-tabs');
+  if (!nav) return;
+  // Move advanced tabs into a hidden section
+  const moreBtn = document.getElementById('more-tools-btn');
+  if (moreBtn) {
+    moreBtn.addEventListener('click', () => {
+      const hidden = nav.querySelectorAll('.tab-advanced');
+      const isHidden = hidden[0]?.style.display === 'none';
+      hidden.forEach(t => t.style.display = isHidden ? '' : 'none');
+      moreBtn.textContent = isHidden ? '▲ Less' : '▼ More';
+    });
+  }
+  // Mark advanced tabs
+  nav.querySelectorAll('button[data-tab]').forEach(btn => {
+    if (advancedTabs.includes(btn.dataset.tab)) {
+      btn.classList.add('tab-advanced');
+      btn.style.display = 'none'; // hidden by default
+    }
+  });
+});
+
 // ── Tab switching ──
 document.getElementById('nav-tabs').addEventListener('click', e => {
   const btn = e.target.closest('button[data-tab]');
@@ -289,12 +313,67 @@ function ensureTabRendered(tab) {
   if (tabRender[tab]) tabRender[tab]();
 }
 
+function dismissInsight() {
+  document.getElementById('insight-screen').style.display = 'none';
+  document.getElementById('action-center').style.display = 'block';
+}
+window.dismissInsight = dismissInsight;
+
+function showInsightScreen(d) {
+  const screen = document.getElementById('insight-screen');
+  const hero = document.getElementById('insight-hero');
+  const grid = document.getElementById('insight-grid');
+  const vs = _valueData?.summary || {};
+  const totalGold = Math.floor((vs.total_value_buy || 0) / 10000);
+  const walletGold = Math.floor(((d.wallet || []).find(w => w.id === 1)?.value || 0) / 10000);
+  const charCount = (d.characters || []).length;
+  const skinCount = d.unlocked_skins_count || 0;
+  const profs = [...new Set((d.characters || []).map(c => c.profession))].join(', ');
+
+  let legendMsg = 'Start tracking a legendary goal to see your progress!';
+  const goals = window._goals || [];
+  if (goals.length) {
+    const best = goals.sort((a, b) => (b.progress || 0) - (a.progress || 0))[0];
+    if (best) legendMsg = `You are ${Math.round(best.progress || 0)}% toward ${best.name}!`;
+  }
+
+  let buildMsg = 'No build data yet. Add builds permission to your API key.';
+  const builds = window._buildReadiness || [];
+  if (builds.length) {
+    const top = builds[0];
+    buildMsg = `You are ${Math.round((top.readiness_score || 0) * 100)}% ready for ${top.build_name}!`;
+  }
+
+  hero.innerHTML = `
+    <div style="font-size:14px;color:var(--text-dim);margin-bottom:4px">🎉 Your Account Summary</div>
+    <div style="font-size:32px;font-weight:700;color:var(--gold-light)">${totalGold.toLocaleString()}g</div>
+    <div style="font-size:13px;color:var(--text-dim)">total estimated account value</div>
+  `;
+
+  grid.innerHTML = [
+    { icon: '🪙', label: 'Wallet', value: `${walletGold.toLocaleString()}g`, sub: 'liquid gold' },
+    { icon: '👤', label: 'Characters', value: `${charCount}`, sub: `${profs.slice(0, 30)}` },
+    { icon: '🎨', label: 'Skins', value: `${skinCount}`, sub: 'unlocked' },
+    { icon: '⚔', label: 'Best Build', value: builds.length ? `${Math.round((builds[0].readiness_score || 0) * 100)}%` : '—', sub: builds.length ? builds[0].build_name.slice(0, 20) : 'No data' },
+    { icon: '🏆', label: 'Closest Goal', value: goals.length ? `${Math.round(goals.sort((a,b) => (b.progress||0)-(a.progress||0))[0].progress || 0)}%` : '—', sub: 'legendary progress' },
+  ].map(c => `
+    <div style="background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:14px;text-align:center">
+      <div style="font-size:24px">${c.icon}</div>
+      <div style="font-size:11px;color:var(--text-dim);margin-top:2px">${c.label}</div>
+      <div style="font-size:20px;font-weight:600;color:var(--gold-light)">${c.value}</div>
+      <div style="font-size:10px;color:var(--text-dim)">${c.sub}</div>
+    </div>
+  `).join('');
+
+  screen.style.display = 'block';
+  document.getElementById('action-center').style.display = 'none';
+}
+
 function renderAll(d) {
   document.querySelectorAll('.tab-loading').forEach(el => el.remove());
   document.getElementById('results').classList.remove('hidden');
   document.getElementById('nav-tabs').classList.remove('hidden');
   _renderedTabs.clear();
-  // Render overview immediately (it's the active tab)
   renderOverview(d);
   _renderedTabs.add('overview');
   const exportBtn = document.getElementById('export-report-btn');
@@ -303,6 +382,8 @@ function renderAll(d) {
   loadSubscription();
   loadGuild();
   loadScopeExplanations();
+  // Show insight screen first
+  showInsightScreen(d);
 }
 
 // Lazy-render tabs on first click

@@ -37,6 +37,7 @@
   <button data-tab="guild" role="tab" aria-selected="false">Guild</button>
   <button data-tab="products" role="tab" aria-selected="false">Products</button>
   <button data-tab="settings" role="tab" aria-selected="false">Settings</button>
+  <button id="more-tools-btn" style="color:var(--text-dim);font-size:11px">▼ More</button>
 </nav>
 
 <main>
@@ -90,16 +91,25 @@
 
   <div id="results" class="hidden">
 
-    <!-- ── Overview (Action Center) ── -->
+    <!-- ── Overview (Action-first) ── -->
     <div class="tab-panel active" id="tab-overview" role="tabpanel">
       <div class="tab-loading"><span class="spinner"></span> Loading…</div>
 
-      <!-- Hero: Key Metrics -->
-      <div id="hero-metrics" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:16px"></div>
+      <!-- Insight Screen (shown once after analysis) -->
+      <div id="insight-screen" style="display:none;margin-bottom:16px">
+        <div id="insight-hero" style="background:linear-gradient(135deg,#1a2a1a,#2a1a2a);border:1px solid #3a2a3a;border-radius:12px;padding:20px;text-align:center;margin-bottom:12px"></div>
+        <div id="insight-grid" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px"></div>
+        <div style="text-align:center;margin-top:8px">
+          <button id="insight-dismiss-btn" class="btn-sm" onclick="dismissInsight()">Got it — show me my Dashboard →</button>
+        </div>
+      </div>
 
-      <!-- Today You Should Do -->
+      <!-- Action Center (hidden until insight dismissed) -->
+      <div id="action-center">
+
+      <!-- Today You Should Do (dominant — top of page) -->
       <div id="today-section" style="display:none;margin-bottom:16px">
-        <div class="section-title" style="font-size:16px">🎯 Today You Should Do</div>
+        <div class="section-title" style="font-size:18px;font-weight:700;color:var(--gold)">🎯 Today You Should Do</div>
         <div id="today-list" style="display:flex;flex-direction:column;gap:6px"></div>
       </div>
 
@@ -129,6 +139,8 @@
         <summary style="cursor:pointer;color:var(--text-dim);font-size:13px">💡 Recommendations</summary>
         <div id="recommendations-list" style="font-size:13px;margin-top:8px"></div>
       </details>
+
+      </div><!-- /action-center -->
 
       <!-- Export + Report History -->
       <div style="margin:12px 0">
