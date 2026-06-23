@@ -1,3 +1,5 @@
+import { itemName, itemIcon, fmtCoin, colorHex, currencyName } from './app-shared.js';
+
 // ── Characters ──
 const DOLL_ARMOR = [
   { slot:'Helm', col:0, row:0, label:'Helm' }, { slot:'Shoulders', col:1, row:0, label:'Shoulders' },
@@ -13,7 +15,7 @@ const DOLL_WEAPONS = [
 ];
 let _chars = [];
 
-function renderCharacters(chars) {
+export function renderCharacters(chars) {
   _chars = chars;
   const sel = document.getElementById('char-selector');
   sel.innerHTML = chars.map((c,i) => `<button class="char-btn${i===0?' active':''}" data-idx="${i}">${c.name}</button>`).join('');
@@ -26,7 +28,7 @@ function renderCharacters(chars) {
   if (chars.length) showCharacter(0);
 }
 
-function showCharacter(idx) {
+export function showCharacter(idx) {
   const ch = _chars[idx]; if (!ch) return;
   const eqMap = {};
   for (const eq of (ch.equipment||[])) eqMap[eq.slot] = eq;
@@ -42,7 +44,7 @@ function showCharacter(idx) {
   document.getElementById('char-detail').innerHTML = `<div class="char-viewer"><div><div class="paper-doll">${dollSlots}</div><div class="doll-weapons">${weaponSlots}</div></div><div class="char-info"><div class="char-info-header"><div class="char-name">${ch.name}</div><div class="char-meta">${ch.race} · ${ch.profession} · Level ${ch.level} · ${ch.gender}</div>${ch.guild?(()=>{const g=_guildCache[ch.guild]||{}; return `<div style="margin-top:5px"><span style="background:#1e2a1e;border:1px solid #3a5a3a;border-radius:3px;padding:3px 8px;font-size:12px;color:#6bc46b">[${g.tag||'?'}] ${g.name||ch.guild}</span></div>`;})():''}</div><div class="char-stats-grid"><div class="char-stat-box"><div class="cs-label">Playtime</div><div class="cs-val">${Math.round((ch.age||0)/3600)}h</div></div><div class="char-stat-box"><div class="cs-label">Deaths</div><div class="cs-val">${ch.deaths||0}</div></div><div class="char-stat-box"><div class="cs-label">Created</div><div class="cs-val">${(ch.created||'').slice(0,10)}</div></div><div class="char-stat-box"><div class="cs-label">Equipment</div><div class="cs-val">${(ch.equipment||[]).length}</div></div><div class="char-stat-box"><div class="cs-label">Crafting</div><div class="cs-val">${(ch.crafting||[]).map(x=>x.discipline).join(', ')||'—'}</div></div></div><div class="section-title" style="margin-top:0">Equipment</div><div class="equip-list">${equipRows}</div></div></div>`;
 }
 
-function renderDollSlot(slot, label, eq) {
+export function renderDollSlot(slot, label, eq) {
   if (!eq) return `<div class="doll-slot"><span class="slot-empty">·</span><span class="slot-label">${label}</span></div>`;
   const skinId = eq.skin||eq.id; const ic = skinIcon(skinId)||itemIcon(eq.id);
   const name = skinName(skinId)!==`Skin #${skinId}`?skinName(skinId):itemName(eq.id);
@@ -54,7 +56,7 @@ function renderDollSlot(slot, label, eq) {
 let _allSkinIds = []; let _wardrobeLoaded = false; let _wardrobeFiltered = []; let _wardrobeVisible = 200;
 const WARDROBE_PAGE = 200;
 
-function setupWardrobe(skinIds) {
+export function setupWardrobe(skinIds) {
   _allSkinIds = skinIds; _wardrobeLoaded = false; _wardrobeVisible = WARDROBE_PAGE;
   document.querySelectorAll('#nav-tabs button').forEach(btn => {
     if (btn.dataset.tab === 'wardrobe') btn.addEventListener('click', loadWardrobeOnce, { once: false });
@@ -64,15 +66,15 @@ function setupWardrobe(skinIds) {
   document.getElementById('wardrobe-type').addEventListener('change', () => { populateSubtypes(); resetWardrobePagination(); });
   document.getElementById('wardrobe-subtype').addEventListener('change', resetWardrobePagination);
 }
-function resetWardrobePagination() { _wardrobeVisible = WARDROBE_PAGE; filterWardrobe(); }
-async function loadWardrobeOnce() {
+export function resetWardrobePagination() { _wardrobeVisible = WARDROBE_PAGE; filterWardrobe(); }
+export async function loadWardrobeOnce() {
   if (_wardrobeLoaded) return; _wardrobeLoaded = true;
   document.getElementById('wardrobe-loading').classList.remove('hidden');
   await resolveSkins(_allSkinIds);
   document.getElementById('wardrobe-loading').classList.add('hidden');
   populateSubtypes(); filterWardrobe();
 }
-function populateSubtypes() {
+export function populateSubtypes() {
   const tf = document.getElementById('wardrobe-type').value;
   const st = new Set();
   for (const id of _allSkinIds) { const s=_skinCache[id]; if (!s) continue; if (tf&&s.type!==tf) continue; if (s.subtype) st.add(s.subtype); }
@@ -80,15 +82,15 @@ function populateSubtypes() {
   const cur = sel.value;
   sel.innerHTML = '<option value="">All subtypes</option>' + [...st].sort().map(st=>`<option value="${st}"${st===cur?' selected':''}>${st}</option>`).join('');
 }
-function filterWardrobe() {
+export function filterWardrobe() {
   const s = document.getElementById('wardrobe-search').value.toLowerCase();
   const tf = document.getElementById('wardrobe-type').value;
   const sf = document.getElementById('wardrobe-subtype').value;
   _wardrobeFiltered = _allSkinIds.filter(id => { const sk=_skinCache[id]; if(!sk) return false; if(tf&&sk.type!==tf) return false; if(sf&&sk.subtype!==sf) return false; if(s&&!sk.name.toLowerCase().includes(s)) return false; return true; });
   renderWardrobePage();
 }
-function showMoreWardrobe() { _wardrobeVisible += WARDROBE_PAGE; renderWardrobePage(); }
-function renderWardrobePage() {
+export function showMoreWardrobe() { _wardrobeVisible += WARDROBE_PAGE; renderWardrobePage(); }
+export function renderWardrobePage() {
   const total = _wardrobeFiltered.length; const show = Math.min(_wardrobeVisible, total);
   document.getElementById('wardrobe-count').textContent = `Showing ${show.toLocaleString()} of ${total.toLocaleString()} skins`;
   const grid = document.getElementById('skin-grid');
@@ -106,7 +108,7 @@ function renderWardrobePage() {
 }
 
 // ── Wallet ──
-function renderWallet(wallet) {
+export function renderWallet(wallet) {
   const sorted = [...wallet].sort((a,b)=>b.value-a.value);
   document.getElementById('wallet-list').innerHTML = sorted.map(w => {
     const name = currencyName(w.id); const desc = (_currencyCache[w.id]||{}).description||'';
@@ -116,7 +118,7 @@ function renderWallet(wallet) {
 }
 
 // ── Inventory ──
-function renderInventory(d) {
+export function renderInventory(d) {
   const mats = (d.materials||[]).filter(m=>m.count>0).sort((a,b)=>b.count-a.count).slice(0,40);
   document.querySelector('#materials-table tbody').innerHTML = mats.map(m => {
     const ic = itemIcon(m.id); const im = ic?`<img src="${ic}" width="20" height="20" style="vertical-align:middle;margin-right:6px;border-radius:2px">`:'';
@@ -134,7 +136,7 @@ function renderInventory(d) {
 }
 
 // ── Progression ──
-function renderProgression(d) {
+export function renderProgression(d) {
   document.querySelector('#masteries-table tbody').innerHTML = (d.masteries||[]).map(m => `<tr><td class="gold-val">${masteryName(m.id)}</td><td class="dim">${masteryRegion(m.id)}</td><td>${m.level}</td></tr>`).join('')||'<tr><td colspan="3" class="dim">No mastery data</td></tr>';
   const totals = (d.mastery_points?.totals||[]);
   document.getElementById('mastery-point-cards').innerHTML = totals.map(t => `<div class="stat-card"><div class="label">${t.region}</div><div class="value">${t.spent}/${t.earned}</div><div class="sub">spent/earned</div></div>`).join('');
@@ -142,7 +144,7 @@ function renderProgression(d) {
 }
 
 // ── PvP ──
-function renderPvp(d) {
+export function renderPvp(d) {
   const stats = d.pvp_stats||{}; const agg = stats.aggregate||{};
   const wins = agg.wins?.pvp||0; const losses = agg.losses?.pvp||0; const total = wins+losses;
   document.getElementById('pvp-grid').innerHTML = [
@@ -157,7 +159,7 @@ function renderPvp(d) {
 }
 
 // ── Unlocks ──
-function renderUnlocks(d) {
+export function renderUnlocks(d) {
   document.getElementById('unlock-grid').innerHTML = [
     {label:'Skins',val:d.unlocked_skins_count},{label:'Dyes',val:d.unlocked_dyes_count},
     {label:'Minis',val:d.unlocked_minis_count},{label:'Finishers',val:(d.unlocked_finishers||[]).length}
@@ -166,14 +168,14 @@ function renderUnlocks(d) {
 }
 
 // ── WvW ──
-function renderWvw(d) {
+export function renderWvw(d) {
   document.getElementById('wvw-cards').innerHTML = [
     {label:'WvW Rank',value:d.wvw_rank??'—',sub:'account rank'},{label:'WvW Team',value:d.wvw?.wvw_team??'—',sub:'current team'}
   ].map(c => `<div class="stat-card"><div class="label">${c.label}</div><div class="value">${c.value}</div><div class="sub">${c.sub}</div></div>`).join('');
 }
 
 // ── Builds ──
-function renderBuilds(d) {
+export function renderBuilds(d) {
   const raw = d.builds||[]; const storage = Array.isArray(raw)?raw[0]:raw;
   const eqTabs = storage?.equipment_tabs||[]; const buildTabs = storage?.build_tabs||[];
   let html = '';

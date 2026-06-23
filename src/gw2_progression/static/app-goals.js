@@ -1,3 +1,5 @@
+import { itemName, itemIcon, fmtCoin, fmtCoinShort, resolveItems, getAccountData } from './app-shared.js';
+
 // ── Goals ──
 document.getElementById('goals-create-btn').addEventListener('click', createGoal);
 document.getElementById('goals-target').addEventListener('keydown', e => { if (e.key === 'Enter') createGoal(); });
@@ -8,8 +10,8 @@ document.querySelectorAll('#nav-tabs button').forEach(btn => {
   }
 });
 
-async function loadGoals() {
-  const accountName = _accountData?.account_name;
+export async function loadGoals() {
+  const accountName = getAccountData()?.account_name;
   if (!accountName) { document.getElementById('goals-cards').innerHTML = '<div class="dim">Run analysis first.</div>'; return; }
   try {
     const res = await fetch(`/goals?account_name=${encodeURIComponent(accountName)}`);
@@ -48,7 +50,7 @@ async function loadGoals() {
   } catch(e) { document.getElementById('goals-cards').innerHTML = `<div class="dim">Error: ${e.message}</div>`; }
 }
 
-async function createGoal() {
+export async function createGoal() {
   const target = parseInt(document.getElementById('goals-target').value);
   const qty = parseInt(document.getElementById('goals-qty').value) || 1;
   const priority = document.getElementById('goals-priority').value;
@@ -65,7 +67,7 @@ async function createGoal() {
   } catch(e) { setGoalsStatus('error', `Error: ${e.message}`); }
 }
 
-async function refreshGoalUI(goalId) {
+export async function refreshGoalUI(goalId) {
   const key = document.getElementById('key-input').value.trim();
   if (!key) return;
   setGoalsStatus('', '<span class="spinner"></span> Refreshing…');
@@ -76,14 +78,14 @@ async function refreshGoalUI(goalId) {
   } catch(e) { setGoalsStatus('error', `Error: ${e.message}`); }
 }
 
-async function deleteGoalUI(goalId) {
+export async function deleteGoalUI(goalId) {
   try {
     const res = await fetch(`/goals/${goalId}`, { method:'DELETE' });
     if (!res.ok) throw new Error(`HTTP ${res.status}`); loadGoals();
   } catch(e) { setGoalsStatus('error', `Error: ${e.message}`); }
 }
 
-function setGoalsStatus(cls, msg) {
+export function setGoalsStatus(cls, msg) {
   const el = document.getElementById('goals-status');
   el.className = cls === 'error' ? 'error' : ''; el.innerHTML = msg;
 }

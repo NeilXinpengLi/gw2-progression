@@ -1,158 +1,22 @@
-const MAX_CACHE_SIZE = 5000;
+import {
+  MAX_CACHE_SIZE, _itemCache, _currencyCache, _matCatCache, _masteryCache, _mapCache,
+  _skinCache, _colorCache, _guildCache,
+  backendResolve, backendResolveSingle, cappedCacheAdd,
+  resolveItems, resolveCurrencies, resolveMatCategories, resolveMasteries,
+  resolveMaps, resolveSkins, resolveGuilds, resolveColors, resolveSearch,
+  rgbToHex, itemName, itemIcon, currencyName, matCatName, masteryName,
+  masteryRegion, mapName, skinName, skinIcon, colorHex, fmtCoin, fmtCoinShort,
+  getAccountData, setAccountData,
+} from './app-shared.js';
 
-const _itemCache    = {};
-const _currencyCache= {};
-const _matCatCache  = {};
-const _masteryCache = {};
-const _mapCache     = {};
-const _skinCache    = {};
-const _colorCache   = {};
-const _guildCache   = {};
+import { renderValue, renderValueCharts, filterHoldings } from './app-value.js';
+import { renderCharacters, setupWardrobe, renderWallet, renderInventory, renderProgression, renderPvp, renderUnlocks, renderWvw, renderBuilds } from './app-characters.js';
+import { loadGoals, createGoal, refreshGoalUI, deleteGoalUI, setGoalsStatus } from './app-goals.js';
+import { getValueCharts } from './app-shared.js';
 
 let _valueData = null;
-let _valueCharts = {};
-
-async function backendResolve(type, ids) {
-  const res = await fetch('/resolve', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ type, ids: ids.map(String) }),
-  });
-  if (!res.ok) return [];
-  return res.json();
-}
-
-async function backendResolveSingle(type, id) {
-  const res = await fetch('/resolve', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ type, id: String(id) }),
-  });
-  if (!res.ok) return null;
-  return res.json();
-}
-
-function cappedCacheAdd(cache, key, val) {
-  if (Object.keys(cache).length >= MAX_CACHE_SIZE) {
-    const oldest = Object.keys(cache)[0];
-    delete cache[oldest];
-  }
-  cache[key] = val;
-}
-
-async function resolveItems(ids) {
-  const missing = [...new Set(ids)].filter(id => id && !(id in _itemCache));
-  if (!missing.length) return;
-  const data = await backendResolve('items', missing);
-  for (const item of (Array.isArray(data) ? data : [])) {
-    cappedCacheAdd(_itemCache, item.id, { name: item.name, icon: item.icon });
-  }
-}
-
-async function resolveCurrencies(ids) {
-  const missing = [...new Set(ids)].filter(id => !(id in _currencyCache));
-  if (!missing.length) return;
-  const data = await backendResolve('currencies', missing);
-  for (const c of (Array.isArray(data) ? data : [])) {
-    cappedCacheAdd(_currencyCache, c.id, { name: c.name, description: c.description });
-  }
-}
-
-async function resolveMatCategories() {
-  if (Object.keys(_matCatCache).length) return;
-  const data = await backendResolve('materials', []);
-  for (const cat of (Array.isArray(data) ? data : [])) {
-    cappedCacheAdd(_matCatCache, cat.id, cat.name);
-  }
-}
-
-async function resolveMasteries(ids) {
-  const missing = [...new Set(ids)].filter(id => !(id in _masteryCache));
-  if (!missing.length) return;
-  const data = await backendResolve('masteries', missing);
-  for (const m of (Array.isArray(data) ? data : [])) {
-    cappedCacheAdd(_masteryCache, m.id, { name: m.name, region: m.region });
-  }
-}
-
-async function resolveMaps(ids) {
-  const missing = [...new Set(ids)].filter(id => id && !(id in _mapCache));
-  if (!missing.length) return;
-  const data = await backendResolve('maps', missing);
-  for (const m of (Array.isArray(data) ? data : [])) {
-    cappedCacheAdd(_mapCache, m.id, m.name);
-  }
-}
-
-async function resolveSkins(ids) {
-  const missing = [...new Set(ids)].filter(id => id && !(id in _skinCache));
-  if (!missing.length) return;
-  const data = await backendResolve('skins', missing);
-  for (const s of (Array.isArray(data) ? data : [])) {
-    const subtype = s.details?.type || s.details?.weight_class || '';
-    cappedCacheAdd(_skinCache, s.id, { name: s.name, icon: s.icon, type: s.type, subtype });
-  }
-}
-
-async function resolveGuilds(ids) {
-  const missing = [...new Set(ids)].filter(id => id && !(id in _guildCache));
-  await Promise.all(missing.map(async id => {
-    const data = await backendResolveSingle('guild', id);
-    cappedCacheAdd(_guildCache, id, data ? { name: data.name, tag: data.tag } : { name: 'Unknown Guild', tag: '?' });
-  }));
-}
-
-async function resolveColors(ids) {
-  const missing = [...new Set(ids)].filter(id => id != null && !(id in _colorCache));
-  if (!missing.length) return;
-  const data = await backendResolve('colors', missing);
-  for (const c of (Array.isArray(data) ? data : [])) {
-    const rgb = c.cloth?.rgb || c.leather?.rgb || c.metal?.rgb || [128, 128, 128];
-    cappedCacheAdd(_colorCache, c.id, { name: c.name, hex: rgbToHex(rgb) });
-  }
-}
-
-async function resolveSearch(query) {
-  const res = await fetch('/resolve', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ type: 'search_items', query: String(query) }),
-  });
-  if (!res.ok) return [];
-  return res.json();
-}
-
-function rgbToHex([r, g, b]) {
-  return '#' + [r, g, b].map(x => x.toString(16).padStart(2, '0')).join('');
-}
-
-function itemName(id)    { return _itemCache[id]?.name    || `Item #${id}`; }
-function itemIcon(id)    { return _itemCache[id]?.icon    || null; }
-function currencyName(id){ return _currencyCache[id]?.name || `Currency #${id}`; }
-function matCatName(id)  { return _matCatCache[id]        || `Category #${id}`; }
-function masteryName(id) { return _masteryCache[id]?.name || `Mastery #${id}`; }
-function masteryRegion(id){ return _masteryCache[id]?.region || '—'; }
-function mapName(id)     { return _mapCache[id]           || `Map #${id}`; }
-function skinName(id)    { return _skinCache[id]?.name    || `Skin #${id}`; }
-function skinIcon(id)    { return _skinCache[id]?.icon    || null; }
-function colorHex(id)    { return id != null ? (_colorCache[id]?.hex || '#888') : null; }
-
-function fmtCoin(copper) {
-  if (!copper) return '0g 0s 0c';
-  const sign = copper < 0 ? '-' : '';
-  const abs = Math.abs(copper);
-  return `${sign}${Math.floor(abs/10000)}g ${Math.floor((abs%10000)/100)}s ${abs%100}c`;
-}
-
-function fmtCoinShort(copper) {
-  if (!copper) return '0g';
-  const abs = Math.abs(copper);
-  const g = Math.floor(abs / 10000);
-  const s = Math.floor((abs % 10000) / 100);
-  if (g > 0) return `${g}g`;
-  if (s > 0) return `${s}s`;
-  return `${abs}c`;
-}
+let _abortController = null;
+let _sessionToken = null;
 
 // ── Tab switching ──
 document.getElementById('nav-tabs').addEventListener('click', e => {
@@ -168,7 +32,7 @@ document.getElementById('nav-tabs').addEventListener('click', e => {
   document.getElementById('tab-' + btn.dataset.tab).classList.add('active');
 
   // Lazily render charts when value tab is first shown
-  if (btn.dataset.tab === 'value' && _valueData && !_valueCharts._rendered) {
+  if (btn.dataset.tab === 'value' && _valueData && !getValueCharts()._rendered) {
     renderValueCharts(_valueData);
   }
 });
@@ -176,10 +40,6 @@ document.getElementById('nav-tabs').addEventListener('click', e => {
 // ── Analyze ──
 document.getElementById('analyze-btn').addEventListener('click', runAnalyze);
 document.getElementById('key-input').addEventListener('keydown', e => { if (e.key === 'Enter') runAnalyze(); });
-
-let _accountData = null;
-let _abortController = null;
-let _sessionToken = null;
 
 async function runAnalyze() {
   const rawKey = document.getElementById('key-input').value.trim();
@@ -258,7 +118,7 @@ async function runAnalyze() {
     }
 
     const data = await analyzeRes.json();
-    _accountData = data;
+    setAccountData(data);
 
     if (valueRes.ok) {
       _valueData = await valueRes.json();
@@ -474,128 +334,6 @@ function renderOverview(d) {
 document.getElementById('goals-create-btn').addEventListener('click', createGoal);
 document.getElementById('goals-target').addEventListener('keydown', e => { if (e.key === 'Enter') createGoal(); });
 
-async function loadGoals() {
-  const accountName = _accountData?.account_name;
-  if (!accountName) { document.getElementById('goals-cards').innerHTML = '<div class="dim">Run analysis first.</div>'; return; }
-
-  try {
-    const res = await fetch(`/goals?account_name=${encodeURIComponent(accountName)}`);
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    const goals = await res.json();
-    document.getElementById('goals-list').classList.remove('hidden');
-
-    if (!goals.length) {
-      document.getElementById('goals-cards').innerHTML = '<div class="dim">No goals yet. Create one above.</div>';
-      return;
-    }
-
-    // Resolve item names
-    const ids = [...new Set(goals.map(g => g.target_item_id))];
-    await resolveItems(ids);
-
-    document.getElementById('goals-cards').innerHTML = goals.map(g => {
-      const name = itemName(g.target_item_id) || `Item #${g.target_item_id}`;
-      const icon = itemIcon(g.target_item_id);
-      const img = icon ? `<img src="${icon}" width="28" height="28" style="vertical-align:middle;margin-right:8px;border-radius:3px">` : '';
-      const pct = g.completion_percent || 0;
-      const pctColor = pct >= 100 ? '#6bc46b' : pct >= 50 ? '#d0a050' : '#c07070';
-      return `<div style="background:var(--bg2);border:1px solid var(--border);border-radius:4px;padding:14px;margin-bottom:10px">
-        <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
-          ${img}
-          <div style="flex:1">
-            <span style="color:var(--gold-light);font-weight:600">${name}</span>
-            <span class="dim"> ×${g.target_count}</span>
-          </div>
-          <span class="perm-badge ${g.status === 'active' ? 'granted' : 'missing'}">${g.status}</span>
-          <span style="color:var(--text-dim);font-size:11px">${g.priority}</span>
-        </div>
-        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:8px;margin-bottom:8px">
-          <div><span class="dim" style="font-size:11px">Completion</span><br><span style="font-size:18px;font-weight:600;color:${pctColor}">${pct}%</span></div>
-          <div><span class="dim" style="font-size:11px">Owned Value</span><br><span class="gold-val" style="font-size:16px">${fmtCoinShort(g.owned_material_value)}</span></div>
-          <div><span class="dim" style="font-size:11px">Remaining Cost</span><br><span class="gold-val" style="font-size:16px">${fmtCoinShort(g.estimated_remaining_cost)}</span></div>
-          <div><span class="dim" style="font-size:11px">Missing Items</span><br><span style="font-size:16px">${g.missing_item_count}</span></div>
-        </div>
-        <div style="background:var(--bg3);border-radius:3px;height:6px;overflow:hidden;margin-bottom:8px">
-          <div style="width:${Math.min(pct, 100)}%;height:100%;background:${pctColor};border-radius:3px;transition:width .5s"></div>
-        </div>
-        <div style="display:flex;gap:6px">
-          <button class="goal-refresh-btn" data-id="${g.goal_id}" style="background:var(--bg3);border:1px solid var(--border);border-radius:3px;color:var(--text);cursor:pointer;font-size:12px;padding:4px 12px">⟳ Refresh</button>
-          <button class="goal-delete-btn" data-id="${g.goal_id}" style="background:#2a1515;border:1px solid #5a2020;border-radius:3px;color:#c07070;cursor:pointer;font-size:12px;padding:4px 12px">✕ Delete</button>
-        </div>
-      </div>`;
-    }).join('');
-
-    // Attach event listeners
-    document.querySelectorAll('.goal-refresh-btn').forEach(btn => {
-      btn.addEventListener('click', () => refreshGoalUI(btn.dataset.id));
-    });
-    document.querySelectorAll('.goal-delete-btn').forEach(btn => {
-      btn.addEventListener('click', () => deleteGoalUI(btn.dataset.id));
-    });
-  } catch (e) {
-    document.getElementById('goals-cards').innerHTML = `<div class="dim">Error: ${e.message}</div>`;
-  }
-}
-
-async function createGoal() {
-  const target = parseInt(document.getElementById('goals-target').value);
-  const qty = parseInt(document.getElementById('goals-qty').value) || 1;
-  const priority = document.getElementById('goals-priority').value;
-  const key = document.getElementById('key-input').value.trim();
-
-  if (!key) { setGoalsStatus('error', 'Enter API key first.'); return; }
-  if (!target) { setGoalsStatus('error', 'Enter a target item ID.'); return; }
-
-  setGoalsStatus('', '<span class="spinner"></span> Creating goal…');
-  try {
-    const res = await fetch('/goals', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ api_key: key, target_item_id: target, target_count: qty, priority }),
-    });
-    if (!res.ok) throw new Error((await res.json()).detail || `HTTP ${res.status}`);
-    setGoalsStatus('ok', 'Goal created!');
-    document.getElementById('goals-target').value = '';
-    loadGoals();
-  } catch (e) {
-    setGoalsStatus('error', `Error: ${e.message}`);
-  }
-}
-
-async function refreshGoalUI(goalId) {
-  const key = document.getElementById('key-input').value.trim();
-  if (!key) return;
-  setGoalsStatus('', '<span class="spinner"></span> Refreshing…');
-  try {
-    const res = await fetch(`/goals/${goalId}/refresh`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ api_key: key }),
-    });
-    if (!res.ok) throw new Error((await res.json()).detail || `HTTP ${res.status}`);
-    setGoalsStatus('ok', 'Goal refreshed!');
-    loadGoals();
-  } catch (e) {
-    setGoalsStatus('error', `Error: ${e.message}`);
-  }
-}
-
-async function deleteGoalUI(goalId) {
-  try {
-    const res = await fetch(`/goals/${goalId}`, { method: 'DELETE' });
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    loadGoals();
-  } catch (e) {
-    setGoalsStatus('error', `Error: ${e.message}`);
-  }
-}
-
-function setGoalsStatus(cls, msg) {
-  const el = document.getElementById('goals-status');
-  el.className = cls === 'error' ? 'error' : '';
-  el.innerHTML = msg;
-}
-
 // Load goals when tab is clicked
 document.querySelectorAll('#nav-tabs button').forEach(btn => {
   if (btn.dataset.tab === 'goals') {
@@ -609,7 +347,7 @@ async function loadValueDelta() {
   const title = section.previousElementSibling;
   if (section.style.display === 'block') return; // already loaded
 
-  const accountName = _accountData?.account_name;
+  const accountName = getAccountData()?.account_name;
   if (!accountName) {
     document.getElementById('value-delta-summary').innerHTML = '<div class="dim">No account data.</div>';
     return;
@@ -692,104 +430,12 @@ function toggleDelta() {
   if (isHidden) loadValueDelta();
 }
 
-function toggleMaterials() {
-  const section = document.getElementById('materials-section');
-  const title = section.previousElementSibling;
-  const isHidden = section.style.display === 'none';
-  section.style.display = isHidden ? 'block' : 'none';
-  if (title) {
-    const span = title.querySelector('span');
-    if (span) span.innerHTML = (isHidden ? '▼' : '▶') + ' Materials by Category';
-  }
-}
 
-function renderHoldingsPage() {
-  const data = window._allHoldings || [];
-  const page = window._holdingsPage || 0;
-  const pageSize = window._holdingsPageSize || 50;
-  const q = document.getElementById('holdings-search').value.trim().toLowerCase();
-  const loc = document.getElementById('holdings-location').value;
-  const status = document.getElementById('holdings-status').value;
 
-  const filtered = data.filter(h => {
-    if (q) return String(h.item_id).includes(q);
-    return true;
-  }).filter(h => {
-    if (loc) return h.location_type === loc;
-    return true;
-  }).filter(h => {
-    if (status) return h.valuation_status === status;
-    return true;
-  });
-
-  const totalFiltered = filtered.length;
-  const totalPages = Math.max(1, Math.ceil(totalFiltered / pageSize));
-  const currentPage = Math.min(page, totalPages - 1);
-  const start = currentPage * pageSize;
-  const pageItems = filtered.slice(start, start + pageSize);
-
-  const tbody = document.querySelector('#holdings-table tbody');
-  if (!pageItems.length) {
-    tbody.innerHTML = '<tr><td colspan="6" class="dim">No matching items</td></tr>';
-  } else {
-    tbody.innerHTML = pageItems.map(h => {
-      const name = itemName(h.item_id);
-      const icon = itemIcon(h.item_id);
-      const img = icon ? `<img src="${icon}" width="16" height="16" style="vertical-align:middle;margin-right:4px;border-radius:2px">` : '';
-      const locLabels = { material_storage: 'Mat Storage', bank: 'Bank', shared_inventory: 'Shared', tradingpost: 'TP', wallet: 'Wallet' };
-      let locDisplay = locLabels[h.location_type] || h.location_type;
-      // Extract character name from location_ref like "MyChar/bag0/slot0"
-      if (h.location_type === 'character' && h.location_ref) {
-        locDisplay = 'Char: ' + h.location_ref.split('/')[0];
-      }
-      let statusEl = `<span class="perm-badge granted">Priced</span>`;
-      if (h.valuation_status === 'unpriced') statusEl = `<span class="perm-badge missing">Unpriced</span>`;
-      if (h.valuation_status === 'account_bound') statusEl = `<span class="perm-badge missing">Bound</span>`;
-      return `<tr data-item="${h.item_id}" data-loc="${h.location_type}" data-status="${h.valuation_status}">
-        <td>${img}<span class="gold-val">${name}</span></td>
-        <td>${h.count.toLocaleString()}</td>
-        <td class="dim">${locDisplay}</td>
-        <td class="gold-val">${h.value_buy ? fmtCoinShort(h.value_buy) : '—'}</td>
-        <td class="gold-val">${h.value_sell ? fmtCoinShort(h.value_sell) : '—'}</td>
-        <td>${statusEl}</td>
-      </tr>`;
-    }).join('');
-  }
-
-  document.getElementById('holdings-count-display').textContent =
-    `${totalFiltered} items total (page ${currentPage + 1}/${totalPages})`;
-
-  const pagination = document.getElementById('holdings-pagination');
-  if (totalPages <= 1) {
-    pagination.innerHTML = '';
-    return;
-  }
-  let html = '<div style="display:flex;gap:6px;align-items:center;padding:10px 0;flex-wrap:wrap">';
-  if (currentPage > 0) html += `<button class="page-btn" data-page="0">«</button><button class="page-btn" data-page="${currentPage - 1}">‹</button>`;
-  for (let p = Math.max(0, currentPage - 2); p <= Math.min(totalPages - 1, currentPage + 2); p++) {
-    html += `<button class="page-btn${p === currentPage ? ' page-active' : ''}" data-page="${p}">${p + 1}</button>`;
-  }
-  if (currentPage < totalPages - 1) html += `<button class="page-btn" data-page="${currentPage + 1}">›</button><button class="page-btn" data-page="${totalPages - 1}">»</button>`;
-  html += '</div>';
-  pagination.innerHTML = html;
-  pagination.querySelectorAll('.page-btn').forEach(btn => {
-    btn.addEventListener('click', () => {
-      window._holdingsPage = parseInt(btn.dataset.page);
-      renderHoldingsPage();
-    });
-  });
-}
-
-function filterHoldings() {
-  window._holdingsPage = 0;
-  renderHoldingsPage();
-}
-
-// ── Report Export ──
 async function exportReport() {
   const btn = document.getElementById('export-report-btn');
   const status = document.getElementById('export-status');
-  const data = _accountData;
+  const data = getAccountData();
   if (!data) {
     status.textContent = 'Run analysis first.';
     return;
@@ -842,7 +488,7 @@ async function exportReport() {
 }
 
 async function loadReportHistory() {
-  const data = _accountData;
+  const data = getAccountData();
   if (!data) return;
   const container = document.getElementById('report-history');
   const list = document.getElementById('report-list');

@@ -23,8 +23,8 @@ from gw2_progression.services.progression_service import seed_templates
 from .routes.agent import router as agent_router
 from .routes.analyze import router as analyze_router
 from .routes.builds import router as builds_router
-from .routes.credentials import router as credentials_router
 from .routes.crafting import router as crafting_router
+from .routes.credentials import router as credentials_router
 from .routes.goals import router as goals_router
 from .routes.progression import router as progression_router
 from .routes.reports import router as reports_router

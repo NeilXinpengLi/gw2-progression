@@ -1,3 +1,5 @@
+import { itemName, itemIcon, fmtCoin, fmtCoinShort, resolveItems, getAccountData } from './app-shared.js';
+
 // ── Items Tab ──
 document.getElementById('items-search-btn').addEventListener('click', runItemsSearch);
 document.getElementById('items-search-input').addEventListener('keydown', e => { if (e.key === 'Enter') runItemsSearch(); });
@@ -15,25 +17,25 @@ document.querySelectorAll('.quick-filter-btn').forEach(btn => {
   btn.addEventListener('click', () => runItemsFilter(btn.dataset.filter));
 });
 
-async function runItemsSearch() {
+export async function runItemsSearch() {
   const q = document.getElementById('items-search-input').value.trim();
   const loc = document.getElementById('items-location-filter').value;
   const status = document.getElementById('items-status-filter').value;
-  const accountName = _accountData?.account_name;
+  const accountName = getAccountData()?.account_name;
   if (!accountName) { setItemsStatus('error', 'Run analysis first (Overview tab).'); return; }
   if (!q) { setItemsStatus('error', 'Enter an item name or ID.'); return; }
   setItemsStatus('', '<span class="spinner"></span> Searching…');
   await _doItemsFetch(`/value/items/search?account_name=${encodeURIComponent(accountName)}&q=${encodeURIComponent(q)}${loc?'&location='+loc:''}${status?'&status='+status:''}`);
 }
 
-async function runItemsFilter(filter) {
-  const accountName = _accountData?.account_name;
+export async function runItemsFilter(filter) {
+  const accountName = getAccountData()?.account_name;
   if (!accountName) { setItemsStatus('error','Run analysis first.'); return; }
   setItemsStatus('', `<span class="spinner"></span> Loading ${filter} items…`);
   await _doItemsFetch(`/value/items/${filter}?account_name=${encodeURIComponent(accountName)}`);
 }
 
-async function _doItemsFetch(url) {
+export async function _doItemsFetch(url) {
   try {
     const res = await fetch(url);
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -69,8 +71,8 @@ async function _doItemsFetch(url) {
   } catch(e) { setItemsStatus('error', `Error: ${e.message}`); }
 }
 
-async function loadItemDetail(itemId) {
-  const accountName = _accountData?.account_name;
+export async function loadItemDetail(itemId) {
+  const accountName = getAccountData()?.account_name;
   if (!accountName) return;
   document.getElementById('items-detail').classList.remove('hidden');
   document.getElementById('items-results-table').classList.add('hidden');
@@ -120,7 +122,7 @@ async function loadItemDetail(itemId) {
   } catch(e) { document.getElementById('items-detail-grid').innerHTML = `<div class="dim">Failed: ${e.message}</div>`; }
 }
 
-function setItemsStatus(cls, msg) {
+export function setItemsStatus(cls, msg) {
   const el = document.getElementById('items-status');
   el.className = cls === 'error' ? 'error' : '';
   el.innerHTML = msg;

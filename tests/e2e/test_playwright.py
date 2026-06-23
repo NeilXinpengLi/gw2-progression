@@ -1,13 +1,21 @@
 """Playwright E2E browser tests with page.route() API mocking."""
 
 import json
+import socket
 import threading
 import time
 import urllib.request
 
 import pytest
 
-SERVER_PORT = 9885
+
+def _free_port():
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+        s.bind(("127.0.0.1", 0))
+        return s.getsockname()[1]
+
+
+SERVER_PORT = _free_port()
 BASE_URL = f"http://127.0.0.1:{SERVER_PORT}"
 
 MOCK_SESSION = json.dumps({"token": "mock-token", "account_name": "P.Player", "expires_in": 86400})

@@ -1,3 +1,5 @@
+import { itemName, itemIcon, fmtCoin, fmtCoinShort, resolveItems, resolveSearch } from './app-shared.js';
+
 // ── Crafting Calculator ──
 document.getElementById('craft-btn').addEventListener('click', runCrafting);
 document.getElementById('craft-target').addEventListener('keydown', e => { if (e.key === 'Enter') runCrafting(); });
@@ -14,7 +16,7 @@ document.addEventListener('click', e => {
   if (!e.target.closest('#craft-search') && !e.target.closest('.craft-search-dropdown')) dd.classList.add('hidden');
 });
 
-async function doCraftSearch(query) {
+export async function doCraftSearch(query) {
   const dd = document.getElementById('craft-search-results');
   try {
     const ids = await resolveSearch(query);
@@ -35,7 +37,7 @@ async function doCraftSearch(query) {
   } catch(e) { dd.innerHTML = '<div class="craft-search-item dim">Search failed</div>'; dd.classList.remove('hidden'); }
 }
 
-async function runCrafting() {
+export async function runCrafting() {
   const target = parseInt(document.getElementById('craft-target').value);
   const qty = parseInt(document.getElementById('craft-qty').value) || 1;
   const useOwned = document.getElementById('craft-use-owned').checked;
@@ -71,12 +73,12 @@ async function runCrafting() {
   finally { btn.disabled = false; }
 }
 
-function setCraftStatus(cls, msg) {
+export function setCraftStatus(cls, msg) {
   const el = document.getElementById('craft-status');
   el.className = cls === 'error' ? 'error' : ''; el.innerHTML = msg;
 }
 
-function renderCraftingResults(data) {
+export function renderCraftingResults(data) {
   const container = document.getElementById('craft-results');
   container.classList.remove('hidden');
   const targetName = itemName(data.target_item_id) || `Item #${data.target_item_id}`;

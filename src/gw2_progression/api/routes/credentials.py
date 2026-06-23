@@ -2,7 +2,6 @@ from fastapi import APIRouter, Body, HTTPException, Request
 
 from gw2_progression.services.credential_service import (
     delete_credential,
-    get_key_by_provider,
     list_credentials,
     save_credential,
 )

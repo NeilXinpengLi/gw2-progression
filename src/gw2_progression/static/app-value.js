@@ -1,7 +1,15 @@
+import { _itemCache, _matCatCache,
+  getValueCharts, setValueCharts,
+  resolveMatCategories, itemName, itemIcon, fmtCoin, fmtCoinShort, colorHex,
+  getAccountData,
+} from './app-shared.js';
+
+
+
 // ── Value Dashboard ──
-function renderValue(vd) {
-  Object.values(_valueCharts).forEach(c => { try { c.destroy(); } catch(e) {} });
-  _valueCharts = { _rendered: false };
+export function renderValue(vd) {
+  Object.values(getValueCharts()).forEach(c => { try { c.destroy(); } catch(e) {} });
+  setValueCharts({ _rendered: false });
 
   const errEl = document.getElementById('err-value');
   if (!vd) {
@@ -103,14 +111,14 @@ function renderValue(vd) {
     const c = document.getElementById(id);
     if (c) { const e = Chart.getChart(c); if (e) e.destroy(); }
   });
-  _valueCharts._rendered = false;
+  getValueCharts()._rendered = false;
   const vb = document.querySelector('button[data-tab="value"]');
   if (vb && vb.classList.contains('active')) renderValueCharts(vd);
 }
 
-function renderValueCharts(vd) {
+export function renderValueCharts(vd) {
   if (!vd) return;
-  _valueCharts._rendered = true;
+  getValueCharts()._rendered = true;
   const textColor = '#888'; const darkGrid = '#333';
   const COLORS = ['#c8956c','#5a9e5a','#5080a0','#a05050','#b080d0','#d0b050'];
   const COLORS_A = ['rgba(200,149,108,0.8)','rgba(90,158,90,0.8)','rgba(80,128,160,0.8)','rgba(160,80,80,0.8)','rgba(176,128,208,0.8)','rgba(208,176,80,0.8)'];
@@ -141,7 +149,7 @@ function renderValueCharts(vd) {
   }
 }
 
-function renderMaterialsGrid(matByCat) {
+export function renderMaterialsGrid(matByCat) {
   const grid = document.getElementById('materials-grid');
   const entries = Object.entries(matByCat).sort((a,b)=>b[1].total_buy-a[1].total_buy);
   if (!entries.length) { grid.innerHTML = '<div class="dim">No material storage data.</div>'; return; }
@@ -158,7 +166,7 @@ function renderMaterialsGrid(matByCat) {
     }).join('') + '</div>';
 }
 
-function toggleMaterials() {
+export function toggleMaterials() {
   const section = document.getElementById('materials-section');
   const title = section.previousElementSibling;
   const isHidden = section.style.display === 'none';
@@ -210,7 +218,7 @@ function renderHoldingsPage() {
   pagination.querySelectorAll('.page-btn').forEach(btn => { btn.addEventListener('click', () => { window._holdingsPage = parseInt(btn.dataset.page); renderHoldingsPage(); }); });
 }
 
-function filterHoldings() { window._holdingsPage = 0; renderHoldingsPage(); }
+export function filterHoldings() { window._holdingsPage = 0; renderHoldingsPage(); }
 
 function toggleHoldings() {
   const section = document.getElementById('holdings-section');

@@ -1,8 +1,10 @@
+import { itemName, fmtCoin, fmtCoinShort, resolveItems, getAccountData } from './app-shared.js';
+
 // ── Planner Tab ──
 document.getElementById('planner-btn').addEventListener('click', runPlanner);
 loadTemplates();
 
-async function loadTemplates() {
+export async function loadTemplates() {
   try {
     const res = await fetch('/progression/templates');
     if (!res.ok) return;
@@ -12,7 +14,7 @@ async function loadTemplates() {
   } catch(e) { /* ignore */ }
 }
 
-async function runPlanner() {
+export async function runPlanner() {
   const templateId = document.getElementById('planner-template').value;
   const key = document.getElementById('key-input').value.trim();
   if (!key) { setPlannerStatus('error','Enter API key.'); return; }
@@ -34,12 +36,12 @@ async function runPlanner() {
   } catch(e) { setPlannerStatus('error', `Error: ${e.message}`); }
 }
 
-function setPlannerStatus(cls, msg) { const el=document.getElementById('planner-status'); el.className=cls==='error'?'error':''; el.innerHTML=msg; }
+export function setPlannerStatus(cls, msg) { const el=document.getElementById('planner-status'); el.className=cls==='error'?'error':''; el.innerHTML=msg; }
 
 // ── Builds Tab ──
 document.getElementById('builds-btn').addEventListener('click', runBuilds);
 
-async function runBuilds() {
+export async function runBuilds() {
   const key = document.getElementById('key-input').value.trim();
   if (!key) { setBuildsStatus('error','Enter API key.'); return; }
   setBuildsStatus('', '<span class="spinner"></span> Analyzing builds…');
@@ -67,13 +69,13 @@ async function runBuilds() {
   } catch(e) { setBuildsStatus('error', `Error: ${e.message}`); }
 }
 
-function setBuildsStatus(cls, msg) { const el=document.getElementById('builds-status'); el.className=cls==='error'?'error':''; el.innerHTML=msg; }
+export function setBuildsStatus(cls, msg) { const el=document.getElementById('builds-status'); el.className=cls==='error'?'error':''; el.innerHTML=msg; }
 
 // ── Market Tab ──
 document.getElementById('market-btn').addEventListener('click', runMarket);
 
-async function runMarket() {
-  const accountName = _accountData?.account_name;
+export async function runMarket() {
+  const accountName = getAccountData()?.account_name;
   if (!accountName) { setMarketStatus('error','Run analysis first.'); return; }
   setMarketStatus('', '<span class="spinner"></span> Analyzing market signals…');
   try {
@@ -94,12 +96,12 @@ async function runMarket() {
   } catch(e) { setMarketStatus('error', `Error: ${e.message}`); }
 }
 
-function setMarketStatus(cls, msg) { const el=document.getElementById('market-status'); el.className=cls==='error'?'error':''; el.innerHTML=msg; }
+export function setMarketStatus(cls, msg) { const el=document.getElementById('market-status'); el.className=cls==='error'?'error':''; el.innerHTML=msg; }
 
 // ── Advisor Tab ──
 document.getElementById('advisor-btn').addEventListener('click', runAdvisor);
 
-async function runAdvisor() {
+export async function runAdvisor() {
   const key = document.getElementById('key-input').value.trim();
   if (!key) { setAdvisorStatus('error','Enter API key.'); return; }
   setAdvisorStatus('', '<span class="spinner"></span> Generating advice…');
@@ -118,4 +120,4 @@ async function runAdvisor() {
   } catch(e) { setAdvisorStatus('error', `Error: ${e.message}`); }
 }
 
-function setAdvisorStatus(cls, msg) { const el=document.getElementById('advisor-status'); el.className=cls==='error'?'error':''; el.innerHTML=msg; }
+export function setAdvisorStatus(cls, msg) { const el=document.getElementById('advisor-status'); el.className=cls==='error'?'error':''; el.innerHTML=msg; }
