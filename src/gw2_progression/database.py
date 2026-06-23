@@ -1,5 +1,6 @@
 import asyncio
 import logging
+import os
 from contextlib import asynccontextmanager
 from datetime import datetime, timezone
 from pathlib import Path
@@ -13,6 +14,7 @@ logger = logging.getLogger("gw2.db")
 DB_DIR = Path(__file__).resolve().parent.parent.parent / "data"
 DB_PATH = DB_DIR / "gw2_progression.db"
 DB_POOL_SIZE = 5
+_TEST_DB_URL = os.environ.get("TEST_DATABASE_URL", "")  # e.g. "file::memory:?cache=shared"
 
 _pool: asyncio.Queue[aiosqlite.Connection] | None = None
 
@@ -22,9 +24,11 @@ def _ensure_db_dir():
 
 
 async def _create_connection() -> aiosqlite.Connection:
-    conn = await aiosqlite.connect(str(DB_PATH))
+    db_url = _TEST_DB_URL or str(DB_PATH)
+    conn = await aiosqlite.connect(db_url)
     conn.row_factory = aiosqlite.Row
-    await conn.execute("PRAGMA journal_mode=WAL")
+    if not _TEST_DB_URL:
+        await conn.execute("PRAGMA journal_mode=WAL")
     await conn.execute("PRAGMA foreign_keys=ON")
     await conn.execute("PRAGMA synchronous=NORMAL")
     return conn
@@ -434,7 +438,8 @@ CREATE TABLE IF NOT EXISTS workspace_members (
 
 
 async def init_db():
-    _ensure_db_dir()
+    if not _TEST_DB_URL:
+        _ensure_db_dir()
     conn = await _create_connection()
     try:
         for stmt in CREATE_TABLES.split(";"):
