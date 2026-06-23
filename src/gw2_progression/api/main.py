@@ -26,6 +26,7 @@ from .routes.builds import router as builds_router
 from .routes.crafting import router as crafting_router
 from .routes.credentials import router as credentials_router
 from .routes.goals import router as goals_router
+from .routes.guild import router as guild_router
 from .routes.progression import router as progression_router
 from .routes.reports import router as reports_router
 from .routes.resolve import router as resolve_router
@@ -121,6 +122,7 @@ app.include_router(resolve_router)
 app.include_router(valuation_router)
 app.include_router(crafting_router)
 app.include_router(goals_router)
+app.include_router(guild_router)
 app.include_router(progression_router)
 app.include_router(tp_router)
 app.include_router(builds_router)

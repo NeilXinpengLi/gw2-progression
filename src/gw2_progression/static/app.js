@@ -242,6 +242,7 @@ function renderAll(d) {
   if (exportBtn) exportBtn.disabled = false;
   loadReportHistory();
   loadSubscription();
+  loadGuild();
 }
 
 // ── Overview ──
@@ -609,6 +610,67 @@ document.getElementById("sub-btn")?.addEventListener("click", async () => {
     if (res.ok) { statusEl.textContent = "Subscribed!"; btn.textContent = "Cancel"; }
     else { statusEl.textContent = "Failed to subscribe."; }
   } catch (e) { statusEl.textContent = `Error: ${e.message}`; }
+});
+
+// ── Guild Workspace ──
+async function loadGuild() {
+  const data = getAccountData();
+  if (!data) return;
+  const statusEl = document.getElementById("guild-status");
+  const membersEl = document.getElementById("guild-members");
+  const aggEl = document.getElementById("guild-aggregate");
+  try {
+    const res = await fetch(`/guild/by-account/${encodeURIComponent(data.account_name)}`);
+    if (!res.ok) { statusEl.textContent = "Not in a guild."; membersEl.innerHTML = ""; aggEl.innerHTML = ""; return; }
+    const guild = await res.json();
+    if (!guild) { statusEl.textContent = "Not in a guild."; return; }
+    statusEl.innerHTML = `<strong>${guild.name}</strong> — Code: <code>${guild.invite_code}</code> — ${guild.members.length} member(s)`;
+    membersEl.innerHTML = "<div class='section-title'>Members</div>" +
+      guild.members.map(m => `<div style="padding:4px 0;font-size:13px"><span>${m.account_name}</span> <span class="dim">(${m.role})</span></div>`).join("");
+
+    // Load aggregate
+    const aggRes = await fetch(`/guild/${guild.id}/aggregate`);
+    if (aggRes.ok) {
+      const agg = await aggRes.json();
+      aggEl.innerHTML = `<div class="section-title">Combined Stats</div>
+        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px;font-size:13px">
+          <div class="stat-card"><div class="label">Members</div><div class="value">${agg.member_count}</div></div>
+          <div class="stat-card"><div class="label">Total Wallet Gold</div><div class="value">${agg.total_wallet_gold / 10000}g</div></div>
+          <div class="stat-card"><div class="label">Total Characters</div><div class="value">${agg.total_characters}</div></div>
+          <div class="stat-card"><div class="label">Total Skins</div><div class="value">${agg.total_skins}</div></div>
+        </div>`;
+    }
+  } catch (e) { statusEl.textContent = `Error: ${e.message}`; }
+}
+
+document.getElementById("guild-create-btn")?.addEventListener("click", async () => {
+  const data = getAccountData();
+  const key = document.getElementById("key-input").value.trim();
+  const name = document.getElementById("guild-name").value;
+  if (!data || !key || !name) { document.getElementById("guild-status").textContent = "Run analysis and enter guild name."; return; }
+  try {
+    const res = await fetch("/guild/create", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name, account_name: data.account_name, api_key: key }),
+    });
+    if (res.ok) { document.getElementById("guild-status").textContent = "Guild created!"; loadGuild(); }
+    else { document.getElementById("guild-status").textContent = "Failed to create."; }
+  } catch (e) { document.getElementById("guild-status").textContent = `Error: ${e.message}`; }
+});
+
+document.getElementById("guild-join-btn")?.addEventListener("click", async () => {
+  const data = getAccountData();
+  const key = document.getElementById("key-input").value.trim();
+  const code = document.getElementById("guild-invite").value;
+  if (!data || !key || !code) { document.getElementById("guild-status").textContent = "Run analysis and enter invite code."; return; }
+  try {
+    const res = await fetch("/guild/join", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ invite_code: code, account_name: data.account_name, api_key: key }),
+    });
+    if (res.ok) { document.getElementById("guild-status").textContent = "Joined guild!"; loadGuild(); }
+    else { document.getElementById("guild-status").textContent = "Invalid invite code."; }
+  } catch (e) { document.getElementById("guild-status").textContent = `Error: ${e.message}`; }
 });
 
 // Init credentials UI on page load

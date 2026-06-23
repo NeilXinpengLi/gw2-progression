@@ -35,6 +35,7 @@
   <button data-tab="advisor" role="tab" aria-selected="false">Advisor</button>
   <button data-tab="crafting" role="tab" aria-selected="false">Crafting</button>
   <button data-tab="goals" role="tab" aria-selected="false">Goals</button>
+  <button data-tab="guild" role="tab" aria-selected="false">Guild</button>
   <button data-tab="settings" role="tab" aria-selected="false">Settings</button>
 </nav>
 
@@ -493,6 +494,26 @@
       </div>
     </div>
 
+    <div class="tab-panel" id="tab-guild" role="tabpanel">
+      <div class="section-title">Guild Workspace</div>
+      <div id="guild-section">
+        <div id="guild-create-form" style="margin-bottom:12px">
+          <div style="display:flex;gap:8px;align-items:end;flex-wrap:wrap">
+            <input id="guild-name" type="text" placeholder="Guild name" style="background:var(--bg3);color:var(--text);border:1px solid var(--border);padding:4px 8px;border-radius:4px;font-size:13px;width:180px">
+            <button id="guild-create-btn" class="btn-sm">Create Guild</button>
+          </div>
+        </div>
+        <div id="guild-join-form" style="margin-bottom:12px">
+          <div style="display:flex;gap:8px;align-items:end;flex-wrap:wrap">
+            <input id="guild-invite" type="text" placeholder="Invite code" style="background:var(--bg3);color:var(--text);border:1px solid var(--border);padding:4px 8px;border-radius:4px;font-size:13px;width:180px">
+            <button id="guild-join-btn" class="btn-sm">Join Guild</button>
+          </div>
+        </div>
+        <div id="guild-status" class="dim" style="font-size:13px"></div>
+        <div id="guild-members" style="margin-top:12px"></div>
+        <div id="guild-aggregate" style="margin-top:12px"></div>
+      </div>
+    </div>
     <div class="tab-panel" id="tab-settings" role="tabpanel">
       <div class="section-title">Credentials & API Keys</div>
       <div id="credential-list"></div>
