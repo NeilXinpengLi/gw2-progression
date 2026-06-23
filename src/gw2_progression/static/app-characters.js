@@ -194,5 +194,6 @@ export function renderBuilds(d) {
     html += buildTabs.map(t => `<div style="background:var(--bg2);border:1px solid var(--border);border-radius:4px;padding:12px;margin-bottom:8px"><div style="font-weight:600;color:var(--gold)">${t.name||`Tab ${t.tab}`}</div><div class="dim" style="font-size:12px;margin-top:4px;word-break:break-all">Build ID: ${(t.build||'—').slice(0,80)}</div></div>`).join('');
   }
   if (!html) html = '<div class="dim">No saved builds or equipment templates found.</div>';
-  document.getElementById('builds-content').innerHTML = html;
+  const el = document.getElementById('builds-content') || document.getElementById('builds-results');
+  if (el) el.innerHTML = html;
 }
