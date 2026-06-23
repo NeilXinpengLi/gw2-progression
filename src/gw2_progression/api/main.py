@@ -29,6 +29,7 @@ from .routes.goals import router as goals_router
 from .routes.progression import router as progression_router
 from .routes.reports import router as reports_router
 from .routes.resolve import router as resolve_router
+from .routes.subscriptions import router as subscriptions_router
 from .routes.tp_strategy import router as tp_router
 from .routes.valuation import router as valuation_router
 
@@ -125,6 +126,7 @@ app.include_router(tp_router)
 app.include_router(builds_router)
 app.include_router(credentials_router)
 app.include_router(agent_router)
+app.include_router(subscriptions_router)
 app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 
 

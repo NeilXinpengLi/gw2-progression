@@ -272,9 +272,17 @@ async def seed_templates():
                 (template_id, goal_type, name, target_item_id, expansion, category, difficulty_level, estimated_time_class, source_url, patch_version, review_status, deprecated)
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
                 (
-                    t.template_id, t.goal_type, t.name, t.target_item_id,
-                    t.expansion, t.category, t.difficulty_level, t.estimated_time_class,
-                    t.source_url, t.patch_version, t.review_status,
+                    t.template_id,
+                    t.goal_type,
+                    t.name,
+                    t.target_item_id,
+                    t.expansion,
+                    t.category,
+                    t.difficulty_level,
+                    t.estimated_time_class,
+                    t.source_url,
+                    t.patch_version,
+                    t.review_status,
                     1 if t.deprecated else 0,
                 ),
             )

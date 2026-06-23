@@ -241,6 +241,7 @@ function renderAll(d) {
   const exportBtn = document.getElementById('export-report-btn');
   if (exportBtn) exportBtn.disabled = false;
   loadReportHistory();
+  loadSubscription();
 }
 
 // ── Overview ──
@@ -565,6 +566,49 @@ document.getElementById("cred-save-btn")?.addEventListener("click", async () => 
     document.getElementById("cred-label").value = "";
     loadCredentials();
   } catch (e) { status.textContent = `Error: ${e.message}`; }
+});
+
+// ── Subscription Management ──
+async function loadSubscription() {
+  const data = getAccountData();
+  if (!data) return;
+  const statusEl = document.getElementById("sub-status");
+  try {
+    const res = await fetch(`/subscriptions/${encodeURIComponent(data.account_name)}`);
+    const sub = await res.json();
+    if (sub.active) {
+      statusEl.textContent = `Active — ${sub.report_type} report${sub.email ? ' to ' + sub.email : ''}.`;
+      document.getElementById("sub-btn").textContent = "Cancel";
+    } else {
+      statusEl.textContent = "Not subscribed.";
+      document.getElementById("sub-btn").textContent = "Subscribe";
+    }
+  } catch (e) { /* ignore */ }
+}
+
+document.getElementById("sub-btn")?.addEventListener("click", async () => {
+  const data = getAccountData();
+  if (!data) { document.getElementById("sub-status").textContent = "Run analysis first."; return; }
+  const btn = document.getElementById("sub-btn");
+  const statusEl = document.getElementById("sub-status");
+  if (btn.textContent === "Cancel") {
+    try {
+      const res = await fetch(`/subscriptions/${encodeURIComponent(data.account_name)}`, { method: "DELETE" });
+      if (res.ok) { statusEl.textContent = "Cancelled."; btn.textContent = "Subscribe"; }
+    } catch (e) { statusEl.textContent = `Error: ${e.message}`; }
+    return;
+  }
+  const email = document.getElementById("sub-email").value;
+  if (!email) { statusEl.textContent = "Please enter your email."; return; }
+  try {
+    const res = await fetch("/subscriptions", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ account_name: data.account_name, email, report_type: "weekly" }),
+    });
+    if (res.ok) { statusEl.textContent = "Subscribed!"; btn.textContent = "Cancel"; }
+    else { statusEl.textContent = "Failed to subscribe."; }
+  } catch (e) { statusEl.textContent = `Error: ${e.message}`; }
 });
 
 // Init credentials UI on page load
