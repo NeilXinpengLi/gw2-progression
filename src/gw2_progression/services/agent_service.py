@@ -296,3 +296,210 @@ async def generate_advice(api_key: str) -> ProgressionAdvice:
 async def generate_weekly_plan(api_key: str) -> list[dict]:
     advice = await generate_advice(api_key)
     return advice.weekly_plan
+
+
+async def generate_coach_plan(api_key: str) -> dict:
+    """Generate a prioritized, behavior-driven coach plan.
+
+    Returns P0/P1/P2 actions plus a 7-day plan, focused on what the user
+    SHOULD DO rather than just displaying data.
+    """
+    from ..analyzer import fetch_all
+
+    contents = await fetch_all(api_key)
+    account_name = contents.account_name or "unknown"
+
+    wallet_gold = 0
+    for w in contents.wallet or []:
+        if w.get("id") == 1:
+            wallet_gold = w.get("value", 0)
+
+    chars = contents.characters or []
+    char_count = len(chars)
+    lvl80_count = sum(1 for c in chars if c.get("level") == 80)
+    professions = set(c.get("profession") for c in chars if c.get("profession"))
+    skin_count = contents.unlocked_skins_count or 0
+
+    p0_actions = []
+    p1_actions = []
+    p2_actions = []
+
+    # P0: Critical path — what makes the biggest difference
+    if wallet_gold > 0:
+        p0_actions.append(
+            {
+                "action": "assess_liquid_assets",
+                "target": "wallet",
+                "reason": f"You have {wallet_gold // 10000}g liquid gold. Review your TP listings for underpriced items.",
+                "gold_impact": wallet_gold // 10000,
+            }
+        )
+    if lvl80_count < char_count:
+        p0_actions.append(
+            {
+                "action": "level_characters",
+                "target": "characters",
+                "reason": f"Level {char_count - lvl80_count} characters to 80 to unlock full build potential.",
+                "gold_impact": 0,
+            }
+        )
+
+    # P1: Growth path — meaningful progression
+    if skin_count < 200:
+        p1_actions.append(
+            {
+                "action": "unlock_skins",
+                "target": "wardrobe",
+                "reason": f"Only {skin_count} skins unlocked. Map completion and collections add account value.",
+                "gold_impact": skin_count * 10,
+            }
+        )
+    if len(professions) < 5:
+        p1_actions.append(
+            {
+                "action": "try_new_profession",
+                "target": "characters",
+                "reason": f"Only {len(professions)} professions played. Try a new class to experience more content.",
+                "gold_impact": 0,
+            }
+        )
+
+    # Try fastest goal
+    fastest_goal = None
+    try:
+        for t in CURATED_TEMPLATES[:5]:
+            try:
+                plan = await generate_goal_plan(api_key, t.template_id)
+                if fastest_goal is None or (plan.total_completion_percent > fastest_goal.total_completion_percent and t.difficulty_level != "hard"):
+                    fastest_goal = plan
+            except Exception:
+                continue
+    except Exception:
+        pass
+
+    if fastest_goal:
+        pct = fastest_goal.total_completion_percent
+        remaining = fastest_goal.total_missing_cost // 10000
+        if pct > 50:
+            p0_actions.append(
+                {
+                    "action": "complete_goal",
+                    "target": fastest_goal.template_id,
+                    "reason": f"You are {pct:.0f}% done with {fastest_goal.template_id}! Only ~{remaining}g remaining.",
+                    "gold_impact": -remaining,
+                }
+            )
+        else:
+            p1_actions.append(
+                {
+                    "action": "start_goal",
+                    "target": fastest_goal.template_id,
+                    "reason": f"Start working on {fastest_goal.template_id} ({pct:.0f}% complete, ~{remaining}g needed).",
+                    "gold_impact": -remaining,
+                }
+            )
+
+    # Build recommendations
+    try:
+        from .build_service import get_recommendations
+
+        recs = await get_recommendations(api_key)
+        if recs:
+            best = recs[0]
+            score = best.readiness_score
+            if score > 0.7:
+                p0_actions.append(
+                    {
+                        "action": "equip_build",
+                        "target": best.build_id,
+                        "reason": f"You are {score:.0%} ready for {best.build_name}! Missing {best.missing_items_count} items.",
+                        "gold_impact": -best.missing_cost // 10000,
+                    }
+                )
+            elif score > 0.3:
+                p1_actions.append(
+                    {
+                        "action": "build_toward",
+                        "target": best.build_id,
+                        "reason": f"You are {score:.0%} toward {best.build_name}. Prioritize the missing {best.missing_items_count} items.",
+                        "gold_impact": -best.missing_cost // 10000,
+                    }
+                )
+    except Exception:
+        pass
+
+    # TP signals
+    try:
+        from .tp_strategy_service import generate_signals
+
+        signals = await generate_signals(account_name)
+        sell_signals = [s for s in signals if s.signal_type == "sell_candidate"]
+        buy_signals = [s for s in signals if s.signal_type == "buy_candidate"]
+        if sell_signals:
+            p1_actions.append(
+                {
+                    "action": "sell_items",
+                    "target": "tradingpost",
+                    "reason": f"{len(sell_signals)} items are good sell candidates. Review TP signals tab.",
+                    "gold_impact": sell_signals[0].estimated_profit // 10000 if hasattr(sell_signals[0], "estimated_profit") else 0,
+                }
+            )
+        if buy_signals:
+            p2_actions.append(
+                {
+                    "action": "buy_opportunities",
+                    "target": "tradingpost",
+                    "reason": f"{len(buy_signals)} buy opportunities detected. Consider investing.",
+                    "gold_impact": buy_signals[0].estimated_profit // 10000 if hasattr(buy_signals[0], "estimated_profit") else 0,
+                }
+            )
+    except Exception:
+        pass
+
+    # P2: Nice-to-have improvements
+    if wallet_gold < 10000:
+        p2_actions.append(
+            {
+                "action": "earn_gold",
+                "target": "fractals",
+                "reason": "Low liquid gold. Run T4 Fractals + dailies for steady income (~20g/day).",
+                "gold_impact": 140,
+            }
+        )
+    p2_actions.append(
+        {
+            "action": "daily_routine",
+            "target": "activities",
+            "reason": "Complete daily achievements and world boss trains for consistent rewards.",
+            "gold_impact": 10,
+        }
+    )
+
+    # Build daily plan
+    daily_plan = [
+        {"day": "Monday", "focus": "Sell & Liquidate", "tasks": ["Review TP signals", "Sell excess materials", "Consolidate gold"]},
+        {"day": "Tuesday", "focus": "Goal Progress", "tasks": ["Farm goal materials", "Complete time-gated crafts", "Check mystic forge recipes"]},
+        {"day": "Wednesday", "focus": "Build Gear", "tasks": ["Acquire missing build items", "Run fracs for ascended gear", "Check stat selectable rewards"]},
+        {"day": "Thursday", "focus": "Map Completion", "tasks": ["Complete maps for gifts", "Gather volatile magic", "Farm winterberries"]},
+        {"day": "Friday", "focus": "Fractal Push", "tasks": ["Run T4 dailies + recs", "Work on fractal masteries", "Sell fractal junk"]},
+        {"day": "Saturday", "focus": "WvW / PvP", "tasks": ["Complete weekly WvW/PvP rewards", "Earn skirmish tickets", "Gift of Battle progress"]},
+        {"day": "Sunday", "focus": "Review & Plan", "tasks": ["Review week's progress", "Plan next week's goals", "Export weekly report"]},
+    ]
+
+    # Add P0 priority indicators
+    for a in p0_actions:
+        a["priority"] = "P0"
+    for a in p1_actions:
+        a["priority"] = "P1"
+    for a in p2_actions:
+        a["priority"] = "P2"
+
+    return {
+        "account_name": account_name,
+        "summary": f"Coach plan for {account_name}. {len(p0_actions)} critical, {len(p1_actions)} growth, {len(p2_actions)} optional actions.",
+        "priorities": {"P0": p0_actions, "P1": p1_actions, "P2": p2_actions},
+        "daily_plan": daily_plan,
+        "total_p0": len(p0_actions),
+        "total_p1": len(p1_actions),
+        "total_p2": len(p2_actions),
+    }

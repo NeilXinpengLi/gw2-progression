@@ -4,7 +4,7 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, field_validator
 
 from gw2_progression.gw2_client import Gw2ApiError
-from gw2_progression.services.agent_service import generate_advice, generate_weekly_plan
+from gw2_progression.services.agent_service import generate_advice, generate_coach_plan, generate_weekly_plan
 
 router = APIRouter(prefix="/agent", tags=["agent"])
 
@@ -39,5 +39,15 @@ async def post_weekly_plan(request: AgentRequest):
     try:
         plan = await generate_weekly_plan(request.api_key)
         return {"weekly_plan": plan}
+    except Gw2ApiError as e:
+        raise HTTPException(status_code=401, detail=e.message)
+
+
+@router.post("/coach-plan")
+async def post_coach_plan(request: AgentRequest):
+    """Generate a prioritized, behavior-driven coach plan (P0/P1/P2 + daily plan)."""
+    try:
+        plan = await generate_coach_plan(request.api_key)
+        return plan
     except Gw2ApiError as e:
         raise HTTPException(status_code=401, detail=e.message)
