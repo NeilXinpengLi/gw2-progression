@@ -44,10 +44,16 @@ jobs:
     needs: test
     steps:
       - uses: actions/checkout@v4
-      - name: Build Docker image
+      - name: Build Docker production image
         run: docker build --target production -t gw2-progression .
-      - name: Test Docker image starts
+      - name: Test production image starts
         run: |
           docker run -d -p 8000:8000 --name gw2-test gw2-progression
           sleep 10
           curl -f http://localhost:8000/health || (docker logs gw2-test && exit 1)
+      - name: Test production API responds
+        run: |
+          curl -f http://localhost:8000/metrics || exit 1
+          docker stop gw2-test && docker rm gw2-test
+      - name: Build Docker compose stack
+        run: docker compose -f docker-compose.prod.yml build
