@@ -1,6 +1,6 @@
 """Tests for Phase 3 modules: optimizer, TP strategy, builds, agent."""
 
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
@@ -119,6 +119,129 @@ class TestAgent:
             advice = await generate_advice("fake-key")
 
         assert len(advice.recommended_actions) > 0
+        assert len(advice.weekly_plan) == 7
+
+    @pytest.mark.asyncio
+    async def test_llm_call_success(self):
+        from gw2_progression.services.agent_service import _call_llm
+
+        with patch("gw2_progression.services.agent_service.LLM_API_KEY", "sk-test"):
+            with patch("gw2_progression.services.agent_service.LLM_PROVIDER", "openai"):
+                with patch("httpx.AsyncClient") as mock_client:
+                    mock_resp = MagicMock()
+                    mock_resp.status_code = 200
+                    mock_resp.json.return_value = {
+                        "choices": [{"message": {"content": '{"summary": "Test", "recommended_actions": []}'}}]
+                    }
+                    mock_client.return_value.__aenter__.return_value.post = AsyncMock(return_value=mock_resp)
+                    result = await _call_llm("test prompt")
+        assert result is not None
+        assert result["summary"] == "Test"
+
+    @pytest.mark.asyncio
+    async def test_llm_call_no_key(self):
+        from gw2_progression.services.agent_service import _call_llm
+
+        with patch("gw2_progression.services.agent_service.LLM_API_KEY", None):
+            result = await _call_llm("test prompt")
+        assert result is None
+
+    @pytest.mark.asyncio
+    async def test_llm_call_api_error(self):
+        from gw2_progression.services.agent_service import _call_llm
+
+        with patch("gw2_progression.services.agent_service.LLM_API_KEY", "sk-test"):
+            with patch("gw2_progression.services.agent_service.LLM_PROVIDER", "openai"):
+                with patch("httpx.AsyncClient") as mock_client:
+                    mock_resp = MagicMock()
+                    mock_resp.status_code = 500
+                    mock_client.return_value.__aenter__.return_value.post = AsyncMock(return_value=mock_resp)
+                    result = await _call_llm("test prompt")
+        assert result is None
+
+    def test_parse_llm_response_plain_json(self):
+        from gw2_progression.services.agent_service import _parse_llm_response
+
+        content = '{"summary": "Hello", "recommended_actions": []}'
+        result = _parse_llm_response(content)
+        assert result["summary"] == "Hello"
+
+    def test_parse_llm_response_code_fence(self):
+        from gw2_progression.services.agent_service import _parse_llm_response
+
+        content = "```json\n{\"summary\": \"Wrapped\", \"recommended_actions\": []}\n```"
+        result = _parse_llm_response(content)
+        assert result["summary"] == "Wrapped"
+
+    def test_parse_llm_response_code_fence_no_lang(self):
+        from gw2_progression.services.agent_service import _parse_llm_response
+
+        content = "```\n{\"summary\": \"No lang\", \"recommended_actions\": []}\n```"
+        result = _parse_llm_response(content)
+        assert result["summary"] == "No lang"
+
+    def test_parse_llm_response_invalid_json(self):
+        from gw2_progression.services.agent_service import _parse_llm_response
+
+        result = _parse_llm_response("not json")
+        assert result is None
+
+    @pytest.mark.asyncio
+    async def test_llm_call_anthropic(self):
+        from gw2_progression.services.agent_service import _call_llm
+
+        with patch("gw2_progression.services.agent_service.LLM_API_KEY", "sk-ant-test"):
+            with patch("gw2_progression.services.agent_service.LLM_PROVIDER", "anthropic"):
+                with patch("httpx.AsyncClient") as mock_client:
+                    mock_resp = MagicMock()
+                    mock_resp.status_code = 200
+                    mock_resp.json.return_value = {
+                        "content": [{"text": '{"summary": "Claude", "recommended_actions": []}'}]
+                    }
+                    mock_client.return_value.__aenter__.return_value.post = AsyncMock(return_value=mock_resp)
+                    result = await _call_llm("test prompt")
+        assert result["summary"] == "Claude"
+
+    @pytest.mark.asyncio
+    async def test_advice_with_llm_enhancement(self):
+        from gw2_progression.services.agent_service import generate_advice
+
+        llm_result = {
+            "summary": "LLM powered summary",
+            "recommended_actions": [
+                {"action": "test_action", "target": "test", "reason": "LLM reason", "cost": 1000}
+            ],
+            "weekly_plan": [
+                {"day": "Monday", "tasks": ["Task 1"]},
+                {"day": "Tuesday", "tasks": ["Task 2"]},
+                {"day": "Wednesday", "tasks": []},
+                {"day": "Thursday", "tasks": []},
+                {"day": "Friday", "tasks": []},
+                {"day": "Saturday", "tasks": []},
+                {"day": "Sunday", "tasks": []},
+            ],
+        }
+
+        with (
+            patch("gw2_progression.analyzer.fetch_all", AsyncMock()) as mock_fetch,
+            patch("gw2_progression.services.agent_service.generate_goal_plan", AsyncMock()),
+            patch("gw2_progression.services.agent_service.generate_signals", AsyncMock(return_value=[])),
+            patch("gw2_progression.services.agent_service.get_recommendations", AsyncMock(return_value=[])),
+            patch("gw2_progression.services.agent_service._call_llm", AsyncMock(return_value=llm_result)),
+        ):
+            mock_fetch.return_value.account_name = "Player.LLM"
+            mock_fetch.return_value.wallet = [{"id": 1, "value": 500000}]
+            mock_fetch.return_value.characters = []
+            mock_fetch.return_value.materials = []
+            mock_fetch.return_value.bank = []
+            mock_fetch.return_value.shared_inventory = []
+            mock_fetch.return_value.errors = {}
+
+            advice = await generate_advice("fake-key")
+
+        assert advice.summary == "LLM powered summary"
+        assert len(advice.recommended_actions) == 1
+        assert advice.recommended_actions[0]["action"] == "test_action"
         assert len(advice.weekly_plan) == 7
 
 

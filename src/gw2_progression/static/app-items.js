@@ -1,6 +1,4 @@
 // ── Items Tab ──
-let _itemsSearchTimer = null;
-
 document.getElementById('items-search-btn').addEventListener('click', runItemsSearch);
 document.getElementById('items-search-input').addEventListener('keydown', e => { if (e.key === 'Enter') runItemsSearch(); });
 document.getElementById('items-search-input').addEventListener('input', () => {

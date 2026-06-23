@@ -51,7 +51,7 @@ async def close_pool():
     if _pool is not None:
         while not _pool.empty():
             try:
-                conn = await _pool.get_nowait()
+                conn = _pool.get_nowait()
                 await conn.close()
             except asyncio.QueueEmpty:
                 break

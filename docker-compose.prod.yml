@@ -1,25 +1,43 @@
 services:
-  gw2-progression:
-    build:
-      context: .
-      target: development
-    ports:
-      - "${PORT:-8000}:8000"
+  app:
+    build: .
+    expose:
+      - "8000"
     restart: unless-stopped
     volumes:
-      - ./src:/app/src
       - gw2-data:/app/data
     environment:
       - RATE_LIMIT_REQUESTS=${RATE_LIMIT_REQUESTS:-30}
       - RATE_LIMIT_WINDOW=${RATE_LIMIT_WINDOW:-60}
       - GW2_API_BASE=${GW2_API_BASE:-https://api.guildwars2.com}
       - LOG_LEVEL=${LOG_LEVEL:-INFO}
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
     healthcheck:
       test: ["CMD", "python", "-c", "import http.client; conn=http.client.HTTPConnection('localhost:8000'); conn.request('GET','/health'); resp=conn.getresponse(); exit(0 if resp.status==200 else 1)"]
       interval: 30s
       timeout: 5s
       retries: 3
       start_period: 15s
+    networks:
+      - gw2-net
+
+  nginx:
+    image: nginx:alpine
+    ports:
+      - "80:80"
+    restart: unless-stopped
+    volumes:
+      - ./docker/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+    depends_on:
+      app:
+        condition: service_healthy
+    networks:
+      - gw2-net
 
 volumes:
   gw2-data:
+
+networks:
+  gw2-net:
+    driver: bridge
