@@ -15,8 +15,8 @@ from .build_service import get_recommendations
 from .progression_service import CURATED_TEMPLATES, generate_goal_plan
 from .tp_strategy_service import generate_signals
 
-LLM_API_KEY = os.environ.get("OPENAI_API_KEY") or os.environ.get("ANTHROPIC_API_KEY")
-LLM_PROVIDER = "openai" if os.environ.get("OPENAI_API_KEY") else ("anthropic" if os.environ.get("ANTHROPIC_API_KEY") else None)
+LLM_API_KEY = os.environ.get("OPENAI_API_KEY") or os.environ.get("ANTHROPIC_API_KEY") or os.environ.get("LLM_API_KEY")
+LLM_PROVIDER = os.environ.get("LLM_PROVIDER") or ("openai" if os.environ.get("OPENAI_API_KEY") else ("anthropic" if os.environ.get("ANTHROPIC_API_KEY") else None))
 
 logger = logging.getLogger("gw2.agent")
 
@@ -47,19 +47,21 @@ Keep recommendations practical. Prioritize goals with highest completion percent
 """
 
 
-async def _call_llm(prompt: str) -> dict | None:
-    """Call the configured LLM provider with the prompt. Returns parsed JSON or None."""
-    if not LLM_API_KEY:
-        logger.info("No LLM API key configured, skipping LLM call")
+async def _call_llm(prompt: str, credential_key: str | None = None, credential_provider: str | None = None) -> dict | None:
+    """Call the configured LLM provider with the prompt. Falls back to env vars if no credential."""
+    api_key = credential_key or LLM_API_KEY
+    provider = credential_provider or LLM_PROVIDER
+    if not api_key or not provider:
+        logger.info("No LLM credentials available, skipping LLM call")
         return None
 
     try:
         async with httpx.AsyncClient(timeout=30) as client:
-            if LLM_PROVIDER == "openai":
+            if provider == "openai":
                 resp = await client.post(
                     "https://api.openai.com/v1/chat/completions",
                     headers={
-                        "Authorization": f"Bearer {LLM_API_KEY}",
+                        "Authorization": f"Bearer {api_key}",
                         "Content-Type": "application/json",
                     },
                     json={
@@ -73,11 +75,11 @@ async def _call_llm(prompt: str) -> dict | None:
                     logger.warning("OpenAI API error %d: %s", resp.status_code, resp.text[:200])
                     return None
                 content = resp.json()["choices"][0]["message"]["content"]
-            elif LLM_PROVIDER == "anthropic":
+            elif provider == "anthropic":
                 resp = await client.post(
                     "https://api.anthropic.com/v1/messages",
                     headers={
-                        "x-api-key": LLM_API_KEY,
+                        "x-api-key": api_key,
                         "anthropic-version": "2023-06-01",
                         "Content-Type": "application/json",
                     },
@@ -193,7 +195,22 @@ async def generate_advice(api_key: str) -> ProgressionAdvice:
         builds_summary=builds_summary or "No builds analyzed",
     )
 
-    llm_result = await _call_llm(prompt)
+    # Check for user-saved LLM credentials before calling LLM
+    cred_key = None
+    cred_provider = None
+    try:
+        from .credential_service import get_key_by_provider
+
+        for p in ("openai", "anthropic"):
+            k = await get_key_by_provider(p)
+            if k:
+                cred_key = k
+                cred_provider = p
+                break
+    except Exception:
+        pass
+
+    llm_result = await _call_llm(prompt, cred_key, cred_provider)
 
     if llm_result and "recommended_actions" in llm_result:
         advice.summary = llm_result.get("summary", advice.summary)
