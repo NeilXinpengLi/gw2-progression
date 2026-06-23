@@ -32,6 +32,7 @@ from .routes.builds import router as builds_router
 from .routes.commerce import router as commerce_router
 from .routes.crafting import router as crafting_router
 from .routes.credentials import router as credentials_router
+from .routes.engine import router as engine_router
 from .routes.goals import router as goals_router
 from .routes.guild import router as guild_router
 from .routes.payment import router as payment_router
@@ -171,6 +172,7 @@ app.include_router(builds_router)
 app.include_router(commerce_router)
 app.include_router(credentials_router)
 app.include_router(affiliates_router)
+app.include_router(engine_router)
 app.include_router(audit_router)
 app.include_router(workspaces_router)
 app.include_router(payment_router)

@@ -48,10 +48,14 @@ document.getElementById('nav-tabs').addEventListener('click', e => {
   if (!btn) return;
   document.querySelectorAll('#nav-tabs button').forEach(b => {
     b.classList.remove('active');
+    b.style.color = 'var(--text-dim)';
+    b.style.borderTop = 'none';
     b.setAttribute('aria-selected', 'false');
   });
   document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
   btn.classList.add('active');
+  btn.style.color = 'var(--gold)';
+  btn.style.borderTop = '2px solid var(--gold)';
   btn.setAttribute('aria-selected', 'true');
   document.getElementById('tab-' + btn.dataset.tab).classList.add('active');
 
@@ -375,22 +379,31 @@ function showInsightScreen(d) {
   const skinCount = d.unlocked_skins_count || 0;
   const profs = [...new Set((d.characters || []).map(c => c.profession))].join(', ');
 
-  let legendMsg = 'Start tracking a legendary goal to see your progress!';
   const goals = window._goals || [];
+  let legendPct = 0, legendName = '';
   if (goals.length) {
     const best = goals.sort((a, b) => (b.progress || 0) - (a.progress || 0))[0];
-    if (best) legendMsg = `You are ${Math.round(best.progress || 0)}% toward ${best.name}!`;
+    if (best) { legendPct = Math.round(best.progress || 0); legendName = best.name; }
   }
-
-  let buildMsg = 'No build data yet. Add builds permission to your API key.';
   const builds = window._buildReadiness || [];
+  let buildPct = 0, buildName = '';
   if (builds.length) {
     const top = builds[0];
-    buildMsg = `You are ${Math.round((top.readiness_score || 0) * 100)}% ready for ${top.build_name}!`;
+    buildPct = Math.round((top.readiness_score || 0) * 100);
+    buildName = top.build_name || '';
   }
 
+  // Generate key insight
+  let keyInsight = '';
+  if (buildPct > 80) keyInsight = `You are ${buildPct}% ready for ${buildName}. Acquire the missing ${builds[0]?.missing_items_count || 0} items to unlock this build.`;
+  else if (legendPct > 50) keyInsight = `You are ${legendPct}% toward ${legendName}. Focus on the remaining materials to complete this legendary.`;
+  else if (totalGold > 0) keyInsight = `Your account holds ${totalGold.toLocaleString()}g in assets. Review your Top Items to find high-value opportunities.`;
+  else keyInsight = 'Complete an analysis to discover your account value and growth opportunities.';
+  const keyEl = document.getElementById('insight-key-text');
+  if (keyEl) keyEl.textContent = keyInsight;
+
   hero.innerHTML = `
-    <div style="font-size:14px;color:var(--text-dim);margin-bottom:4px">🎉 Your Account Summary</div>
+    <div style="font-size:14px;color:var(--text-dim);margin-bottom:4px">🎉 Your GW2 Snapshot</div>
     <div style="font-size:32px;font-weight:700;color:var(--gold-light)">${totalGold.toLocaleString()}g</div>
     <div style="font-size:13px;color:var(--text-dim)">total estimated account value</div>
   `;
@@ -428,6 +441,12 @@ function renderAll(d) {
   loadGuild();
   loadScopeExplanations();
   // Show insight screen first
+  // Highlight active nav tab
+  const activeBtn = document.querySelector('#nav-tabs button.active');
+  if (activeBtn) {
+    activeBtn.style.color = 'var(--gold)';
+    activeBtn.style.borderTop = '2px solid var(--gold)';
+  }
   showInsightScreen(d);
 }
 
@@ -544,6 +563,7 @@ document.getElementById('nav-tabs').addEventListener('click', e => {
 
 // ── Overview: Action Center ──
 function renderOverview(d) {
+  const key = document.getElementById('key-input')?.value?.trim() || '';
   // ── 1. Hero Metrics ──
   const vs = _valueData?.summary || {};
   const totalGold = Math.floor((vs.total_value_buy || 0) / 10000);
@@ -562,48 +582,37 @@ function renderOverview(d) {
     <div style="font-size:11px;color:var(--text-dim)">${h.sub}</div>
   </div>`).join('');
 
-  // ── 2. Today You Should Do ──
+  // ── 2. Today You Should Do (from /engine/decide) ──
   const todayActions = [];
-  if (totalGold > 0) {
-    todayActions.push({ icon: '💰', priority: 'P0', text: `你的账号总资产价值 ${totalGold.toLocaleString()}g。查看 Top Items 了解最值钱的资产。`, action: 'Value', tab: 'value' });
-  }
-  const chars = d.characters || [];
-  if (chars.length) {
-    const maxLevel = chars.filter(c => c.level === 80).length;
-    if (maxLevel < chars.length) {
-      todayActions.push({ icon: '⬆', priority: 'P1', text: `你有 ${chars.length - maxLevel} 个角色未满级。提升到 80 级以解锁 Build 推荐。`, action: 'Level Up', tab: 'characters' });
-    }
-    const profs = new Set(chars.map(c => c.profession));
-    if (profs.size < 3) {
-      todayActions.push({ icon: '🎭', priority: 'P1', text: `只有 ${profs.size} 个职业。创建新角色体验不同玩法。`, action: 'New Character', tab: 'characters' });
-    }
-  }
-  if (skinCount > 0 && skinCount < 200) {
-    todayActions.push({ icon: '🎨', priority: 'P2', text: `${skinCount} 皮肤已解锁。通过地图完成和收藏获取更多皮肤。`, action: 'Wardrobe', tab: 'wardrobe' });
-  }
-  if (_valueData?.summary?.unpriced_item_count > 0) {
-    todayActions.push({ icon: '❓', priority: 'P1', text: `${_valueData.summary.unpriced_item_count} 件物品缺少价格数据。添加 tradingpost 权限以自动定价。`, action: 'Fix Permissions', tab: 'value' });
-  }
-
-  const todaySection = document.getElementById('today-section');
-  const todayList = document.getElementById('today-list');
-  if (todayActions.length) {
-    todaySection.style.display = 'block';
-    todayList.innerHTML = todayActions.map(a => `
-      <div style="display:flex;align-items:center;gap:10px;background:var(--bg2);border:1px solid var(--border);border-radius:6px;padding:10px 14px;cursor:pointer"
-           onclick="document.querySelector('[data-tab=${a.tab}]')?.click()">
-        <span style="font-size:18px">${a.icon}</span>
-        <span style="font-size:11px;background:${a.priority === 'P0' ? '#5a3a1a' : a.priority === 'P1' ? '#2a3a2a' : '#1a2a3a'};color:${a.priority === 'P0' ? '#d0a050' : a.priority === 'P1' ? '#6bc46b' : '#5a9ece'};padding:1px 6px;border-radius:3px;font-weight:600">${a.priority}</span>
-        <span style="flex:1;font-size:13px">${a.text}</span>
-        <span style="font-size:12px;color:var(--gold)">${a.action} →</span>
-      </div>
-    `).join('');
+  if (key) {
+    fetch('/engine/decide', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({api_key: key}) })
+      .then(r => r.json())
+      .then(data => {
+        const allActions = [...(data.p0 || []), ...(data.p1 || []), ...(data.p2 || [])];
+        const list = document.getElementById('today-list');
+        const section = document.getElementById('today-section');
+        if (list && section && allActions.length) {
+          section.style.display = 'block';
+          list.innerHTML = allActions.map((a, i) => {
+            const pri = i < (data.p0?.length || 0) ? 'P0' : i < (data.p0?.length || 0) + (data.p1?.length || 0) ? 'P1' : 'P2';
+            const bg = pri === 'P0' ? '#5a3a1a' : pri === 'P1' ? '#2a3a2a' : '#1a2a3a';
+            const fg = pri === 'P0' ? '#d0a050' : pri === 'P1' ? '#6bc46b' : '#5a9ece';
+            return `<div style="display:flex;align-items:center;gap:10px;background:var(--bg2);border:1px solid var(--border);border-radius:6px;padding:10px 14px;cursor:pointer"
+                     onclick="document.querySelector('[data-tab=${a.tab}]')?.click()">
+              <span style="font-size:11px;background:${bg};color:${fg};padding:1px 6px;border-radius:3px;font-weight:600">${pri}</span>
+              <span style="flex:1;font-size:12px"><strong>${a.action}</strong>: ${a.reason}</span>
+              <span style="font-size:11px;color:var(--gold)">${a.reward || ''}</span>
+            </div>`;
+          }).join('');
+        }
+      }).catch(() => {});
   }
 
   // ── 3. Progression Timeline ──
+  const _chars = d.characters || [];
   const days = ['Day 1','Day 2','Day 3','Day 4','Day 5','Day 6','Day 7'];
   const timelineTasks = [];
-  if (chars.length) timelineTasks.push('Level remaining characters to 80');
+  if (_chars.length) timelineTasks.push('Level remaining characters to 80');
   if (walletGold > 0) timelineTasks.push('Sell high-value materials from storage');
   if (skinCount < 100) timelineTasks.push('Complete map completion for skins');
   timelineTasks.push('Check crafting dailies for time-gated materials');
