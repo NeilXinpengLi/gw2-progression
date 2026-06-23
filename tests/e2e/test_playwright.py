@@ -1,4 +1,4 @@
-"""Playwright E2E browser tests with page.route() API mocking."""
+"""Playwright E2E tests for the new 4-page behavior-driven UX."""
 
 import json
 import os
@@ -7,9 +7,9 @@ import threading
 import time
 import urllib.request
 
-os.environ["RATE_LIMIT_REQUESTS"] = "9999"
-
 import pytest
+
+os.environ["RATE_LIMIT_REQUESTS"] = "9999"
 
 
 def _free_port():
@@ -22,37 +22,23 @@ SERVER_PORT = _free_port()
 BASE_URL = f"http://127.0.0.1:{SERVER_PORT}"
 
 MOCK_SESSION = json.dumps({"token": "mock-token", "account_name": "P.Player", "expires_in": 86400})
-MOCK_EMPTY = json.dumps({})
 MOCK_ANALYZE = json.dumps(
     {
         "account_name": "Playwright.Player",
         "account_world": 1001,
-        "characters": [{"name": "TestChar", "profession": "Guardian", "level": 80, "equipment": [], "bags": [], "crafting": [], "deaths": 0, "age": 1000}],
+        "characters": [{"name": "TestChar", "profession": "Guardian", "level": 80}],
         "wallet": [{"id": 1, "value": 500000}],
         "bank": [],
         "materials": [],
-        "inventory": [],
-        "unlocked_skins": [],
-        "unlocked_dyes": [],
-        "unlocked_minis": [],
-        "unlocked_finishers": [],
-        "masteries": [],
-        "mastery_points": {},
-        "pvp_stats": {},
-        "pvp_games": [],
-        "pvp_standings": [],
-        "builds": [],
-        "guilds": [],
-        "wvw_stats": {},
         "errors": {},
     }
 )
 MOCK_VALUE = json.dumps(
     {
-        "summary": {"total_value_buy": 2000000, "wallet_value": 500000, "reliable_value": 1500000, "priced_item_count": 10},
+        "summary": {"total_value_buy": 2000000, "wallet_value": 500000, "priced_item_count": 10},
         "top_items": [],
         "holdings": [],
-        "breakdown": {"by_location": []},
+        "breakdown": {},
         "history": [],
         "warnings": [],
     }
@@ -82,7 +68,6 @@ def live_server():
 
 def _mock_route(route, request):
     url, method = request.url, request.method
-
     if url.endswith("/auth/session") and method == "POST":
         route.fulfill(status=200, content_type="application/json", body=MOCK_SESSION)
     elif url.endswith("/auth/sessions") and method == "GET":
@@ -93,20 +78,16 @@ def _mock_route(route, request):
         route.fulfill(status=200, content_type="application/json", body=MOCK_ANALYZE)
     elif "/resolve" in url and method == "POST":
         route.fulfill(status=200, content_type="application/json", body="[]")
-    elif "/progression/templates" in url or "/templates" in url:
-        route.fulfill(status=200, content_type="application/json", body='[{"template_id":"test","name":"Test","goal_type":"legendary_weapon"}]')
-    elif url.endswith("/credentials/providers") and method == "GET":
-        route.fulfill(
-            status=200,
-            content_type="application/json",
-            body='{"providers":[],"scope_explanations":{"account":"Account info","characters":"Character data","wallet":"Gold wallet","inventories":"Bank/materials"}}',
-        )
-    elif url.endswith("/reports") and method == "GET":
+    elif "/credentials/providers" in url:
+        route.fulfill(status=200, content_type="application/json", body='{"providers":[],"scope_explanations":{"account":"info"}}')
+    elif "/reports" in url:
         route.fulfill(status=200, content_type="application/json", body="[]")
-    elif "/subscriptions/" in url and method == "GET":
+    elif "/subscriptions/" in url:
         route.fulfill(status=200, content_type="application/json", body='{"active":false}')
-    elif "/guild/by-account/" in url and method == "GET":
+    elif "/guild/by-account/" in url:
         route.fulfill(status=200, content_type="application/json", body="null")
+    elif "/quests/" in url:
+        route.fulfill(status=200, content_type="application/json", body='{"total":7,"completed":0,"progress_pct":0,"quests":[]}')
     else:
         route.continue_()
 
@@ -139,57 +120,40 @@ class TestPlaywrightUI:
         rgb = [int(x) for x in bg.replace("rgb(", "").replace(")", "").split(", ")]
         assert sum(rgb) < 100
 
-    def test_analyze_then_dashboard(self, page, live_server):
+    def test_nav_has_4_tabs(self, page, live_server):
         self._goto(page)
         page.fill("#key-input", "ABCDEF01-2345-6789-ABCD-EF0123456789AB")
         page.click("#analyze-btn")
-        # Wait for results
-        page.wait_for_selector("#results:not(.hidden)", timeout=20000)
-        # Dismiss insight screen if it exists
-        try:
-            page.click("#insight-dismiss-btn", timeout=3000)
-        except Exception:
-            pass
-        page.wait_for_selector("#nav-tabs:not(.hidden)", timeout=5000)
-        assert page.is_visible("#tab-overview")
+        page.wait_for_selector("#nav-tabs:not(.hidden)", timeout=20000)
+        tabs = page.locator("#nav-tabs button[data-tab]")
+        assert tabs.count() == 4
 
-    def test_coach_tab_exists(self, page, live_server):
+    def test_insight_screen_appears(self, page, live_server):
+        self._goto(page)
+        page.fill("#key-input", "ABCDEF01-2345-6789-ABCD-EF0123456789AB")
+        page.click("#analyze-btn")
+        page.wait_for_selector("#insight-screen", timeout=20000)
+
+    def test_coach_tab(self, page, live_server):
         self._goto(page)
         page.fill("#key-input", "ABCDEF01-2345-6789-ABCD-EF0123456789AB")
         page.click("#analyze-btn")
         page.wait_for_selector("#results:not(.hidden)", timeout=20000)
         page.click('button[data-tab="coach"]')
-        assert page.is_visible("#coach-content")
+        assert page.is_visible("#tab-coach")
 
-    def test_timeline_tab_exists(self, page, live_server):
+    def test_timeline_tab(self, page, live_server):
         self._goto(page)
         page.fill("#key-input", "ABCDEF01-2345-6789-ABCD-EF0123456789AB")
         page.click("#analyze-btn")
         page.wait_for_selector("#results:not(.hidden)", timeout=20000)
         page.click('button[data-tab="timeline"]')
-        assert page.is_visible("#timeline-grid")
+        assert page.is_visible("#tab-timeline")
 
-    def test_advanced_tab_has_tools(self, page, live_server):
+    def test_advanced_tab(self, page, live_server):
         self._goto(page)
         page.fill("#key-input", "ABCDEF01-2345-6789-ABCD-EF0123456789AB")
         page.click("#analyze-btn")
         page.wait_for_selector("#results:not(.hidden)", timeout=20000)
         page.click('button[data-tab="advanced"]')
-        assert page.is_visible("#advanced-tools")
-
-    def test_export_report_button_exists(self, page, live_server):
-        self._goto(page)
-        page.fill("#key-input", "ABCDEF01-2345-6789-ABCD-EF0123456789AB")
-        page.click("#analyze-btn")
-        page.wait_for_selector("#results:not(.hidden)", timeout=20000)
-        export_btn = page.locator("#export-report-btn")
-        assert export_btn.is_visible()
-
-    def test_all_main_tabs_clickable(self, page, live_server):
-        self._goto(page)
-        page.fill("#key-input", "ABCDEF01-2345-6789-ABCD-EF0123456789AB")
-        page.click("#analyze-btn")
-        page.wait_for_selector("#results:not(.hidden)", timeout=20000)
-        for tab in ["overview", "coach", "timeline", "advanced"]:
-            page.click(f'button[data-tab="{tab}"]', timeout=5000)
-            assert page.is_visible(f"#tab-{tab}")
+        assert page.is_visible("#tab-advanced")
