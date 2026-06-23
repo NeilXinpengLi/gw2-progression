@@ -507,4 +507,66 @@ async function loadReportHistory() {
   } catch (e) { /* ignore */ }
 }
 
+// ── Credential Management ──
+async function loadProviders() {
+  try {
+    const res = await fetch("/credentials/providers");
+    if (!res.ok) return;
+    const providers = await res.json();
+    const sel = document.getElementById("cred-provider");
+    sel.innerHTML = '<option value="">Select provider…</option>' +
+      providers.map(p => `<option value="${p.id}">${p.name}</option>`).join("");
+  } catch (e) { /* ignore */ }
+}
+
+async function loadCredentials() {
+  const list = document.getElementById("credential-list");
+  try {
+    const res = await fetch("/credentials");
+    if (!res.ok) { list.innerHTML = '<div class="dim">Failed to load credentials.</div>'; return; }
+    const creds = await res.json();
+    if (!creds.length) {
+      list.innerHTML = '<div class="dim">No saved API keys. Add one below.</div>';
+      return;
+    }
+    list.innerHTML = '<div style="display:flex;flex-direction:column;gap:6px">' +
+      creds.map(c => `<div style="display:flex;justify-content:space-between;align-items:center;background:var(--bg2);border:1px solid var(--border);padding:8px 12px;border-radius:4px;font-size:13px">
+        <span><strong>${c.provider}</strong> ${c.label ? '— ' + c.label : ''} <span class="dim">${c.fingerprint}</span></span>
+        <span class="dim">${c.last_used_at ? 'Last used: ' + c.last_used_at.slice(0, 10) : ''}</span>
+        <button class="btn-sm" style="color:#c07070" data-cred-id="${c.id}">Delete</button>
+      </div>`).join("") + '</div>';
+    list.querySelectorAll("[data-cred-id]").forEach(btn => {
+      btn.addEventListener("click", async () => {
+        const id = btn.dataset.credId;
+        try {
+          await fetch(`/credentials/${id}`, { method: "DELETE" });
+          loadCredentials();
+        } catch (e) { /* ignore */ }
+      });
+    });
+  } catch (e) { /* ignore */ }
+}
+
+document.getElementById("cred-save-btn")?.addEventListener("click", async () => {
+  const provider = document.getElementById("cred-provider").value;
+  const label = document.getElementById("cred-label").value;
+  const apiKey = document.getElementById("cred-key").value;
+  const status = document.getElementById("cred-status");
+  if (!provider || !apiKey) { status.textContent = "Provider and API key are required."; return; }
+  try {
+    const res = await fetch("/credentials", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ provider, api_key: apiKey, label }),
+    });
+    if (!res.ok) { status.textContent = "Failed to save."; return; }
+    status.textContent = "Credential saved.";
+    document.getElementById("cred-key").value = "";
+    document.getElementById("cred-label").value = "";
+    loadCredentials();
+  } catch (e) { status.textContent = `Error: ${e.message}`; }
+});
+
+// Init credentials UI on page load
+loadProviders();
 

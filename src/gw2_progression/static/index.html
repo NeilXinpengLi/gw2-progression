@@ -35,6 +35,7 @@
   <button data-tab="advisor" role="tab" aria-selected="false">Advisor</button>
   <button data-tab="crafting" role="tab" aria-selected="false">Crafting</button>
   <button data-tab="goals" role="tab" aria-selected="false">Goals</button>
+  <button data-tab="settings" role="tab" aria-selected="false">Settings</button>
 </nav>
 
 <main>
@@ -492,6 +493,22 @@
       </div>
     </div>
 
+    <div class="tab-panel" id="tab-settings" role="tabpanel">
+      <div class="section-title">Credentials & API Keys</div>
+      <div id="credential-list"></div>
+      <div id="credential-form" style="margin-top:12px">
+        <div class="section-title">Add Credential</div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:end">
+          <select id="cred-provider" style="background:var(--bg3);color:var(--text);border:1px solid var(--border);padding:4px 8px;border-radius:4px;font-size:13px">
+            <option value="">Select provider…</option>
+          </select>
+          <input id="cred-label" type="text" placeholder="Label (optional)" style="background:var(--bg3);color:var(--text);border:1px solid var(--border);padding:4px 8px;border-radius:4px;font-size:13px;width:160px">
+          <input id="cred-key" type="password" placeholder="API Key" style="background:var(--bg3);color:var(--text);border:1px solid var(--border);padding:4px 8px;border-radius:4px;font-size:13px;flex:1;min-width:200px">
+          <button id="cred-save-btn" class="btn-sm">Save</button>
+        </div>
+        <div id="cred-status" class="dim" style="margin-top:6px;font-size:12px"></div>
+      </div>
+    </div>
   </div>
 </main>
 
