@@ -147,3 +147,51 @@ class TestPlaywrightUI:
         page.click("#analyze-btn")
         page.wait_for_selector("#results:not(.hidden)", timeout=20000)
         assert page.is_visible("#overview-cards")
+
+    def test_settings_tab_has_credential_form(self, page, live_server):
+        self._goto(page)
+        page.fill("#key-input", "ABCDEF01-2345-6789-ABCD-EF0123456789AB")
+        page.click("#analyze-btn")
+        page.wait_for_selector("#results:not(.hidden)", timeout=20000)
+        page.click('button[data-tab="settings"]')
+        assert page.is_visible("#cred-provider")
+        assert page.is_visible("#cred-key")
+        assert page.is_visible("#cred-save-btn")
+
+    def test_products_tab_exists(self, page, live_server):
+        self._goto(page)
+        page.fill("#key-input", "ABCDEF01-2345-6789-ABCD-EF0123456789AB")
+        page.click("#analyze-btn")
+        page.wait_for_selector("#results:not(.hidden)", timeout=20000)
+        page.click('button[data-tab="products"]')
+        assert page.is_visible("#tab-products")
+
+    def test_guild_tab_has_forms(self, page, live_server):
+        self._goto(page)
+        page.fill("#key-input", "ABCDEF01-2345-6789-ABCD-EF0123456789AB")
+        page.click("#analyze-btn")
+        page.wait_for_selector("#results:not(.hidden)", timeout=20000)
+        page.click('button[data-tab="guild"]')
+        assert page.is_visible("#guild-name")
+        assert page.is_visible("#guild-invite")
+        assert page.is_visible("#guild-create-btn")
+        assert page.is_visible("#guild-join-btn")
+
+    def test_export_report_button_exists(self, page, live_server):
+        self._goto(page)
+        page.fill("#key-input", "ABCDEF01-2345-6789-ABCD-EF0123456789AB")
+        page.click("#analyze-btn")
+        page.wait_for_selector("#results:not(.hidden)", timeout=20000)
+        export_btn = page.locator("#export-report-btn")
+        assert export_btn.is_visible()
+
+    def test_all_tabs_clickable_after_analysis(self, page, live_server):
+        """Verify all major tabs can be clicked without error."""
+        self._goto(page)
+        page.fill("#key-input", "ABCDEF01-2345-6789-ABCD-EF0123456789AB")
+        page.click("#analyze-btn")
+        page.wait_for_selector("#results:not(.hidden)", timeout=20000)
+        tabs = ["overview", "value", "characters", "wallet", "inventory", "goals", "settings"]
+        for tab in tabs:
+            page.click(f'button[data-tab="{tab}"]')
+            assert page.is_visible(f"#tab-{tab}")

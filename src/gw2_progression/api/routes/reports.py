@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 
 from fastapi import APIRouter, HTTPException, Query
 
@@ -39,7 +39,7 @@ async def post_generate_report(
         goal_count=goal_count,
         goal_progress_pct=goal_progress_pct,
         build_readiness_pct=build_readiness_pct,
-        snapshot_time=datetime.utcnow().isoformat(),
+        snapshot_time=datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S"),
     )
     return report
 

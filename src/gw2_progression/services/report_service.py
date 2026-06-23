@@ -1,6 +1,6 @@
 import json
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 
 from gw2_progression.database import using_db
 from gw2_progression.models import AccountReport
@@ -53,7 +53,7 @@ async def generate_report(
     goal_details_json = json.dumps(goal_details or [], ensure_ascii=False)
     build_details_json = json.dumps(build_details or [], ensure_ascii=False)
     recommendations_json = json.dumps(recommendations or [], ensure_ascii=False)
-    now = datetime.utcnow().isoformat()
+    now = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S")
 
     async with using_db() as conn:
         cursor = await conn.execute(

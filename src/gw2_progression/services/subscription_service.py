@@ -1,7 +1,7 @@
 """Subscription service — manage weekly report delivery."""
 
 import logging
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 from gw2_progression.database import using_db
 
@@ -9,7 +9,7 @@ logger = logging.getLogger("gw2.subscription")
 
 
 async def create_subscription(account_name: str, email: str, report_type: str = "weekly") -> dict:
-    next_delivery = (datetime.utcnow() + timedelta(days=7)).isoformat()
+    next_delivery = (datetime.now(timezone.utc) + timedelta(days=7)).isoformat()
     async with using_db() as conn:
         cursor = await conn.execute(
             """INSERT INTO subscriptions (account_name, email, report_type, next_delivery_at)
@@ -85,8 +85,8 @@ async def get_active_subscriptions() -> list[dict]:
 
 
 async def mark_delivered(subscription_id: int) -> None:
-    now = datetime.utcnow().isoformat()
-    next_delivery = (datetime.utcnow() + timedelta(days=7)).isoformat()
+    now = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S")
+    next_delivery = (datetime.now(timezone.utc) + timedelta(days=7)).isoformat()
     async with using_db() as conn:
         await conn.execute(
             "UPDATE subscriptions SET last_delivered_at = ?, next_delivery_at = ? WHERE id = ?",

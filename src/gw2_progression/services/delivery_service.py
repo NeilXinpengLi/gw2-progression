@@ -3,7 +3,7 @@
 import logging
 import os
 import smtplib
-from datetime import datetime
+from datetime import datetime, timezone
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 
@@ -42,8 +42,8 @@ async def deliver_single_report(sub: dict):
         account_name=account_name,
         report_type="weekly",
         title=f"Weekly Report — {account_name}",
-        summary=f"Weekly progression report for {account_name} generated on {datetime.utcnow().isoformat()[:10]}",
-        snapshot_time=datetime.utcnow().isoformat(),
+        summary=f"Weekly progression report for {account_name} generated on {datetime.now(timezone.utc).strftime('%Y-%m-%dT%H:%M:%S')[:10]}",
+        snapshot_time=datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S"),
     )
 
     if email and SMTP_HOST:

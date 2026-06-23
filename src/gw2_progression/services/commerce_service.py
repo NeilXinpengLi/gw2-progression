@@ -3,7 +3,7 @@
 import json
 import logging
 import secrets
-from datetime import datetime
+from datetime import datetime, timezone
 
 from gw2_progression.database import using_db
 from gw2_progression.services.product_service import get_product
@@ -21,7 +21,7 @@ async def create_order(product_id: int, customer_email: str, customer_name: str 
         raise ValueError(f"Product {product_id} not found")
 
     license_key = _generate_license_key()
-    now = datetime.utcnow().isoformat()
+    now = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S")
 
     async with using_db() as conn:
         cursor = await conn.execute(
@@ -87,7 +87,7 @@ async def use_license(license_key: str) -> bool:
         return False
     if lic["max_uses"] > 0 and lic["used_count"] >= lic["max_uses"]:
         return False
-    if lic["expires_at"] and lic["expires_at"] < datetime.utcnow().isoformat():
+    if lic["expires_at"] and lic["expires_at"] < datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S"):
         return False
     async with using_db() as conn:
         await conn.execute(

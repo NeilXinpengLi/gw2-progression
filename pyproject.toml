@@ -39,7 +39,7 @@ quote-style = "double"
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 testpaths = ["tests"]
-addopts = ["--ignore=tests/e2e"]
+addopts = ["--ignore=tests/e2e", "--ignore=tests/debug_e2e.py", "--ignore=tests/fix_deprecation.py"]
 
 [tool.coverage.run]
 source = ["src"]

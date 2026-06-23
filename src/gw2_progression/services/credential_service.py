@@ -100,22 +100,22 @@ async def delete_credential(credential_id: int) -> bool:
 
 
 async def touch_credential(credential_id: int) -> None:
-    from datetime import datetime
+    from datetime import datetime, timezone
 
     async with using_db() as conn:
         await conn.execute(
             "UPDATE credentials SET last_used_at = ? WHERE id = ?",
-            (datetime.utcnow().isoformat(), credential_id),
+            (datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S"), credential_id),
         )
 
 
 async def update_credential_status(credential_id: int, status: str, scopes: str = "") -> None:
-    from datetime import datetime
+    from datetime import datetime, timezone
 
     async with using_db() as conn:
         await conn.execute(
             "UPDATE credentials SET status = ?, scopes = ?, last_validated_at = ? WHERE id = ?",
-            (status, scopes, datetime.utcnow().isoformat(), credential_id),
+            (status, scopes, datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S"), credential_id),
         )
 
 
