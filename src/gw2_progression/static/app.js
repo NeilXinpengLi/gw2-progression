@@ -252,21 +252,36 @@ async function loadAccountSelector() {
   } catch(e) {}
 })();
 
+const _renderedTabs = new Set();
+
+function ensureTabRendered(tab) {
+  if (_renderedTabs.has(tab)) return;
+  _renderedTabs.add(tab);
+  const d = getAccountData();
+  if (!d) return;
+  const tabRender = {
+    value: () => renderValue && renderValue(_valueData),
+    characters: () => renderCharacters && renderCharacters(d.characters || []),
+    wardrobe: () => setupWardrobe && setupWardrobe(d.unlocked_skins || []),
+    wallet: () => renderWallet && renderWallet(d.wallet || []),
+    inventory: () => renderInventory && renderInventory(d),
+    progression: () => renderProgression && renderProgression(d),
+    pvp: () => renderPvp && renderPvp(d),
+    unlocks: () => renderUnlocks && renderUnlocks(d),
+    wvw: () => renderWvw && renderWvw(d),
+    builds: () => renderBuilds && renderBuilds(d),
+  };
+  if (tabRender[tab]) tabRender[tab]();
+}
+
 function renderAll(d) {
   document.querySelectorAll('.tab-loading').forEach(el => el.remove());
   document.getElementById('results').classList.remove('hidden');
   document.getElementById('nav-tabs').classList.remove('hidden');
+  _renderedTabs.clear();
+  // Render overview immediately (it's the active tab)
   renderOverview(d);
-  renderValue(_valueData);
-  renderCharacters(d.characters || []);
-  renderWallet(d.wallet || []);
-  renderInventory(d);
-  renderProgression(d);
-  renderPvp(d);
-  renderUnlocks(d);
-  renderWvw(d);
-  renderBuilds(d);
-  setupWardrobe(d.unlocked_skins || []);
+  _renderedTabs.add('overview');
   const exportBtn = document.getElementById('export-report-btn');
   if (exportBtn) exportBtn.disabled = false;
   loadReportHistory();
@@ -274,6 +289,12 @@ function renderAll(d) {
   loadGuild();
   loadScopeExplanations();
 }
+
+// Lazy-render tabs on first click
+document.getElementById('nav-tabs').addEventListener('click', e => {
+  const btn = e.target.closest('button[data-tab]');
+  if (btn) ensureTabRendered(btn.dataset.tab);
+});
 
 // ── Overview ──
 function renderOverview(d) {
