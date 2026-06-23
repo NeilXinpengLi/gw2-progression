@@ -18,7 +18,7 @@ class TestSystemEndpoints:
         assert resp.status_code == 200
         data = resp.json()
         assert "uptime_seconds" in data
-        assert "requests" in data
+        assert "requests_total" in data
 
     def test_root_serves_html(self):
         resp = client.get("/")

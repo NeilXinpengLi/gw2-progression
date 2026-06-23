@@ -125,7 +125,7 @@ class TestE2EPipeline:
         assert resp.status_code == 200
         data = resp.json()
         assert "uptime_seconds" in data
-        assert "requests" in data
+        assert "requests_total" in data
 
     def test_resolve_items_empty(self):
         resp = client.post("/resolve", json={"type": "items", "ids": []})

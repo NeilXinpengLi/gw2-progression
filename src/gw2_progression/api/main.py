@@ -15,6 +15,8 @@ from fastapi.staticfiles import StaticFiles
 from gw2_progression.database import close_pool, init_db
 from gw2_progression.gw2_client import Gw2ApiError
 from gw2_progression.gw2_client import _close_client as close_gw2_client
+from gw2_progression.logging_config import setup_logging
+from gw2_progression.metrics import metrics
 from gw2_progression.services.auth_service import SESSION_TTL, create_session, delete_session, get_api_key, list_sessions
 from gw2_progression.services.price_service import close_client as close_price_client
 from gw2_progression.services.price_service import warmup_price_cache
@@ -40,10 +42,7 @@ from .routes.valuation import router as valuation_router
 
 STATIC_DIR = Path(__file__).parent.parent / "static"
 
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s [%(name)s] %(levelname)s %(message)s",
-)
+setup_logging()
 logger = logging.getLogger("gw2")
 
 RATE_LIMIT_REQUESTS = int(os.environ.get("RATE_LIMIT_REQUESTS", "30"))
@@ -102,28 +101,38 @@ async def security_headers_middleware(request: Request, call_next):
 async def logging_middleware(request: Request, call_next):
     req_id = uuid.uuid4().hex[:8]
     start = time.monotonic()
-    _metrics["requests"] += 1
+    metrics.requests_active += 1
+    metrics.requests_total += 1
     if request.url.path == "/analyze":
-        _metrics["analyses"] += 1
-    logger.info("[%s] %s %s", req_id, request.method, request.url.path)
+        metrics.analyses_total += 1
+
     try:
         response = await call_next(request)
-        elapsed = time.monotonic() - start
-        logger.info("[%s] %s %s -> %d (%.2fs)", req_id, request.method, request.url.path, response.status_code, elapsed)
+        elapsed_ms = (time.monotonic() - start) * 1000
+        is_error = response.status_code >= 500
+        metrics.record_request(request.url.path, elapsed_ms, is_error)
+        logger.info(
+            "%s %s -> %d (%.0fms)",
+            request.method,
+            request.url.path,
+            response.status_code,
+            elapsed_ms,
+            extra={"request_id": req_id, "duration_ms": round(elapsed_ms, 1), "path": request.url.path, "status_code": response.status_code},
+        )
         response.headers["X-Request-ID"] = req_id
-        if response.status_code >= 500:
-            _metrics["errors"] += 1
         return response
     except Gw2ApiError as e:
-        _metrics["errors"] += 1
-        elapsed = time.monotonic() - start
-        logger.warning("[%s] Gw2ApiError %d: %.60s (%.2fs)", req_id, e.status_code, e.message, elapsed)
+        metrics.errors_total += 1
+        elapsed_ms = (time.monotonic() - start) * 1000
+        logger.warning("Gw2ApiError %d: %.60s (%.0fms)", e.status_code, e.message, elapsed_ms, extra={"request_id": req_id, "duration_ms": round(elapsed_ms, 1)})
         return JSONResponse(status_code=e.status_code, content={"detail": e.message})
     except Exception as e:
-        _metrics["errors"] += 1
-        elapsed = time.monotonic() - start
-        logger.error("[%s] Unhandled: %s (%.2fs)", req_id, str(e), elapsed)
+        metrics.errors_total += 1
+        elapsed_ms = (time.monotonic() - start) * 1000
+        logger.exception("Unhandled: %s (%.0fms)", str(e), elapsed_ms, extra={"request_id": req_id, "duration_ms": round(elapsed_ms, 1)})
         return JSONResponse(status_code=500, content={"detail": "Internal server error"})
+    finally:
+        metrics.requests_active -= 1
 
 
 @app.middleware("http")
@@ -205,8 +214,22 @@ async def session_middleware(request: Request, call_next):
 
 
 @app.get("/health")
-def health() -> dict:
-    return {"status": "ok"}
+async def health():
+    db_ok = False
+    try:
+        from gw2_progression.database import get_db, release_db
+
+        conn = await get_db()
+        await conn.execute("SELECT 1")
+        await release_db(conn)
+        db_ok = True
+    except Exception:
+        pass
+    return {
+        "status": "ok" if db_ok else "degraded",
+        "db": "ok" if db_ok else "error",
+        "uptime": int(time.time() - metrics.started_at),
+    }
 
 
 @app.get("/")
@@ -214,19 +237,9 @@ async def index() -> FileResponse:
     return FileResponse(STATIC_DIR / "index.html")
 
 
-_metrics = {"requests": 0, "analyses": 0, "errors": 0, "started_at": time.time()}
-
-
 @app.get("/metrics")
-async def metrics():
-    elapsed = int(time.time() - _metrics["started_at"])
-    return {
-        "uptime_seconds": elapsed,
-        "requests": _metrics["requests"],
-        "analyses": _metrics["analyses"],
-        "errors": _metrics["errors"],
-        "status": "ok",
-    }
+async def get_metrics():
+    return metrics.snapshot()
 
 
 _ws_clients: set = set()
