@@ -15,7 +15,8 @@ meta = MetaData()
 
 # Core tables
 price_snapshots = Table(
-    "price_snapshots", meta,
+    "price_snapshots",
+    meta,
     Column("id", Integer, primary_key=True),
     Column("item_id", Integer, nullable=False),
     Column("buy_unit_price", Integer, nullable=False),
@@ -26,7 +27,8 @@ price_snapshots = Table(
 )
 
 account_snapshots = Table(
-    "account_snapshots", meta,
+    "account_snapshots",
+    meta,
     Column("id", Integer, primary_key=True),
     Column("account_name", String, nullable=False),
     Column("api_key_hash", String),
@@ -49,10 +51,12 @@ except Exception:
     pass
 target_metadata = _meta
 
+
 def run_migrations_offline() -> None:
     context.configure(url=config.get_main_option("sqlalchemy.url"), target_metadata=target_metadata, literal_binds=True)
     with context.begin_transaction():
         context.run_migrations()
+
 
 def run_migrations_online() -> None:
     connectable = _engine
@@ -60,6 +64,7 @@ def run_migrations_online() -> None:
         context.configure(connection=connection, target_metadata=target_metadata)
         with context.begin_transaction():
             context.run_migrations()
+
 
 if context.is_offline_mode():
     run_migrations_offline()

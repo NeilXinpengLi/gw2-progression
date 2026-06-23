@@ -328,7 +328,81 @@ function renderOverview(d) {
       <div style="background:#1a1a2a;border:1px solid #334;border-radius:4px;padding:12px 16px;margin-top:8px;color:var(--text-dim);font-size:13px">
         <strong style="color:var(--gold)">ℹ ${k}</strong> — ${KNOWN_LIMITATIONS[k]}
       </div>`;
-  });
+   });
+
+  // ── Quick Actions ──
+  const quickGrid = document.getElementById('quick-actions-grid');
+  const quickSection = document.getElementById('quick-actions');
+  const recList = document.getElementById('recommendations-list');
+  const recSection = document.getElementById('top-recommendations');
+  if (!quickGrid) return;
+
+  const valueData = _valueData;
+  const actions = [];
+  const recs = [];
+
+  // Build quick actions based on data
+  if (valueData?.summary) {
+    const s = valueData.summary;
+    if (s.unpriced_item_count > 0) {
+      actions.push({ icon: '💰', label: 'Unpriced Items', desc: `${s.unpriced_item_count} items need price data. Add TP permissions or check item IDs.`, tab: 'value' });
+      recs.push(`Open the Items tab to review ${s.unpriced_item_count} unpriced items. Add 'tradingpost' permission for automatic pricing.`);
+    }
+    if (s.priced_item_count > 0) {
+      actions.push({ icon: '📊', label: 'Export Report', desc: 'Generate a downloadable JSON report of your account value.', tab: 'overview', id: 'export-report-btn' });
+    }
+  }
+
+  const walletGold = (d.wallet || []).find(w => w.id === 1)?.value || 0;
+  const chars = d.characters || [];
+  const professions = new Set(chars.map(c => c.profession));
+  const maxChars = chars.length;
+
+  if (walletGold > 0) {
+    const goldDisplay = (walletGold / 10000).toFixed(1);
+    actions.push({ icon: '🪙', label: 'Wallet', desc: `${goldDisplay}g total gold across account.`, tab: 'wallet' });
+  }
+  if (maxChars > 0) {
+    actions.push({ icon: '👤', label: 'Characters', desc: `${maxChars} characters, ${professions.size} professions: ${[...professions].slice(0, 5).join(', ')}${professions.size > 5 ? '...' : ''}`, tab: 'characters' });
+  }
+  if (d.unlocked_skins_count > 0) {
+    actions.push({ icon: '🎨', label: 'Wardrobe', desc: `${d.unlocked_skins_count} skins unlocked.`, tab: 'wardrobe' });
+    if (d.unlocked_skins_count < 100) recs.push('Consider unlocking more skins through map completion and collections to increase account value.');
+  }
+
+  // Goal recommendations
+  if (window._goals && window._goals.length > 0) {
+    const incomplete = window._goals.filter(g => (g.progress || 0) < 100);
+    if (incomplete.length > 0) {
+      const nearest = incomplete.sort((a, b) => (b.progress || 0) - (a.progress || 0))[0];
+      recs.push(`Your closest goal is "${nearest.name}" (${Math.round(nearest.progress || 0)}% complete). Focus on missing requirements.`);
+    }
+  }
+
+  // Build recommendations
+  if (window._buildReadiness && window._buildReadiness.length > 0) {
+    const best = window._buildReadiness[0];
+    if (best.readiness_score > 0) recs.push(`Best build match: ${best.build_name} (${Math.round(best.readiness_score * 100)}% ready, ${best.missing_items_count} items missing).`);
+  }
+
+  if (actions.length) {
+    quickSection.style.display = 'block';
+    quickGrid.innerHTML = actions.map(a => {
+      const clickHandler = a.tab === 'overview' && a.id
+        ? `onclick="document.getElementById('${a.id}').click()"`
+        : a.tab ? `onclick="document.querySelector('[data-tab=${a.tab}]')?.click()"` : '';
+      return `<div style="background:var(--bg2);border:1px solid var(--border);border-radius:6px;padding:12px;cursor:pointer" ${clickHandler}>
+        <div style="font-size:20px;margin-bottom:4px">${a.icon}</div>
+        <div style="font-size:13px;font-weight:600;color:var(--gold)">${a.label}</div>
+        <div style="font-size:11px;color:var(--text-dim);margin-top:4px">${a.desc}</div>
+      </div>`;
+    }).join('');
+  }
+
+  if (recs.length) {
+    recSection.style.display = 'block';
+    recList.innerHTML = recs.map(r => `<div style="padding:6px 0;border-bottom:1px solid var(--border);font-size:13px">💡 ${r}</div>`).join('');
+  }
 }
 
 // Characters, Wardrobe, Wallet, Inventory, Progression, PvP, Unlocks, WvW, Builds moved to app-characters.js
