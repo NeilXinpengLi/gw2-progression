@@ -596,10 +596,10 @@ function renderOverview(d) {
   let activeStrategy = localStorage.getItem('gw2_strategy') || 'hybrid';
   const strategyNames = {'gold':'Gold','build':'Build','legendary':'Legendary','hybrid':'Balanced'};
 
-  // ── 2. Today You Should Do (from v4 explainable engine) ──
+  // ── 2. Today You Should Do (from unified decision engine) ──
   const todayActions = [];
   if (key) {
-    fetch('/v4/decide', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({api_key: key, strategy: activeStrategy}) })
+    fetch('/api/v1/decide', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({api_key: key, strategy: activeStrategy}) })
       .then(r => r.json())
       .then(data => {
         const allActions = [...(data.p0 || []), ...(data.p1 || []), ...(data.p2 || [])];

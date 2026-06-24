@@ -36,6 +36,7 @@ from .routes.engine import router as engine_router
 from .routes.goals import router as goals_router
 from .routes.guild import router as guild_router
 from .routes.payment import router as payment_router
+from .routes.production import router as production_router
 from .routes.progression import router as progression_router
 from .routes.quests import router as quests_router
 from .routes.reports import router as reports_router
@@ -179,6 +180,7 @@ app.include_router(audit_router)
 app.include_router(workspaces_router)
 app.include_router(v4_router)
 app.include_router(v5_router)
+app.include_router(production_router)
 app.include_router(payment_router)
 app.include_router(agent_router)
 app.include_router(subscriptions_router)
