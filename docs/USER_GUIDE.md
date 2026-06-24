@@ -31,26 +31,57 @@
 1. 在首页粘贴你的 API Key
 2. 点击 **Analyze**
 3. 观察进度条——系统会依次请求 16 个 GW2 API 端点
-4. 分析完成后自动跳转到行动中心
+4. 分析完成后先进入 **Insight Screen**（惊喜结果页）
+5. 点击 "Continue to Action Center" 进入主界面
 
 > 💡 **首次使用？** 页面上方有欢迎引导，告诉你系统能做什么以及隐私保护说明。
 
 ---
 
-## 🎯 行动中心 (首页)
+## 🧭 页面导航
 
-分析完成后，你会看到以下内容：
+系统底部有 4 个导航按钮：
 
-### Hero Metrics（核心指标）
+| 页面 | 位置 | 功能 |
+|------|------|------|
+| 🏠 **Home** | 默认首页 | Action Center + Insight |
+| 🤖 **Coach** | 导航栏 | 统一决策与规划 |
+| 📆 **Timeline** | 导航栏 | 7 天成长路径 + 周常任务 |
+| 🧰 **Tools** | 导航栏 | 高级功能入口 |
+
+---
+
+## 🎯 Page 1: Home（行动中心）
+
+### Insight Screen（首次进入）
+
+分析完成后，首先看到惊喜结果页：
+
+- **💰 Total Value** — 你的总资产价值
+- **🪙 Wallet** — 流动资金
+- **🎨 Skins** — 皮肤解锁数
+- **⚔ Best Build** — 当前最匹配的 Build
+- **🏆 Closest Goal** — 最接近完成的传奇
+
+下方显示 **KEY INSIGHT**（关键洞察），根据你的数据动态生成：
+- Build 就绪度 > 80% → 建议补齐缺失装备
+- 传奇进度 > 50% → 建议专注收集材料
+- 否则 → 建议检查高价值物品
+
+点击 **"Continue to Action Center"** 进入主界面。
+
+### Action Center（主界面）
+
+#### Hero Metrics
 
 顶部三个大卡片：
 - **💰 Total Value**：你账号的总资产价值
 - **🪙 Wallet**：你的流动资金
 - **👤 Characters**：角色数量和皮肤总数
 
-### 🎯 Today You Should Do
+#### 🎯 Today You Should Do（核心功能）
 
-按优先级排列的行动建议：
+由决策引擎 `/engine/decide` 实时生成，按优先级排列：
 
 | 优先级 | 颜色 | 含义 |
 |--------|------|------|
@@ -58,49 +89,95 @@
 | **P1** | 🟢 绿色 | 成长路径——有意义的前进 |
 | **P2** | 🔵 蓝色 | 可选优化——锦上添花 |
 
-每条建议都包含具体行动说明，点击即可跳转到相关功能 Tab。
+每条建议包含：
+- 行动名称和原因
+- 预期收益（金币/Build 进度/传奇解锁）
+- 点击直接跳转到相关功能页面
 
-### 📈 7-Day Growth Path
-
-7 天成长时间线，每天一个建议行动，附带完成进度条：
-- Day 1 → Sell & Liquidate
-- Day 2 → Goal Progress
-- Day 3 → Build Gear
-- 以此类推，直到 Day 7 回顾计划
-
-### 🎯 Weekly Quests
-
-7 个周常任务，点击即可勾选完成状态：
-
-| 任务 | 说明 |
-|------|------|
-| Sell & Liquidate | 检查 TP，卖多余材料，整合金币 |
-| Goal Progress | 收集传奇材料，完成时间限制制作 |
-| Build Gear | 获取缺失装备，打碎层 |
-| Map Completion | 收集地图货币和烈性魔法 |
-| Fractal Push | 完成 T4 日常和推荐 |
-| WvW / PvP | 完成周常奖励，赚取兑换券 |
-| Review & Plan | 评估本周进展，规划下周目标 |
-
-所有完成状态会自动保存，跨会话持久化。
-
-### 📊 Quick Stats
+#### 📊 Quick Stats
 
 快速统计面板：总价值、钱包、材料、银行、角色数、皮肤数
 
-### 📋 Account Details（折叠）
+#### 📋 Account Details（折叠）
 
 账号详情：创建时间、游戏时长、碎层等级、成就点数等
 
-### 💡 Recommendations（折叠）
+---
 
-基于账号数据的个性化建议
+## 🤖 Page 2: Coach（统一决策）
+
+替代旧的 Advisor / Planner / Goals 多 Tab 结构，所有建议统一入口。
+
+### P0 — Critical（关键路径）
+
+基于账号数据生成的关键行动：
+- 总资产价值和 Top Items 审查
+- 角色等级提升建议
+
+### P1 — Growth（成长路径）
+
+- 流动资金不足时的赚钱建议
+- Build 和传奇进度推进
+
+### P2 — Optional（可选优化）
+
+- 日常成就和世界 boss 收益
 
 ---
 
-## 💰 账号估值
+## 📆 Page 3: Timeline（7 天成长路径）
 
-**入口：Value 标签**
+### 7 天计划
+
+每天一个明确的行动方向：
+
+| 天 | 主题 | 任务 |
+|----|------|------|
+| Day 1 | Sell & Liquidate | 检查 TP，卖多余材料，整合金币 |
+| Day 2 | Goal Progress | 收集传奇材料，使用 mystic forge |
+| Day 3 | Build Gear | 获取缺失装备，打 T4 碎层 |
+| Day 4 | Map Completion | 收集烈性魔法和地图货币 |
+| Day 5 | Fractal Push | 完成日常 + 推荐 |
+| Day 6 | WvW / PvP | 赚取兑换券和 pips |
+| Day 7 | Review & Plan | 评估本周进展，规划下周 |
+
+### ✅ Weekly Quests
+
+7 个周常任务，点击即可勾选完成状态，跨会话持久化保存。
+
+| 任务 | 说明 |
+|------|------|
+| Sell & Liquidate | 检查 TP，卖多余材料 |
+| Goal Progress | 收集时间限制材料 |
+| Build Gear | 获取缺失装备 |
+| Map Completion | 收集地图货币 |
+| Fractal Push | 完成 T4 日常 |
+| WvW / PvP | 完成周常奖励 |
+| Review & Plan | 评估本周进展 |
+
+---
+
+## 🧰 Page 4: Tools（高级功能）
+
+所有高级功能收纳在此，点击卡片展开对应面板：
+
+| 工具 | 说明 |
+|------|------|
+| **💰 Value Engine** | 完整资产估值 + 图表 + Top Items |
+| **⚒ Crafting Calculator** | 配方树 + 已有材料抵扣 + 5 种优化策略 |
+| **🔍 Item Search** | 按名称/ID 搜索 + 位置钻取 + 市场深度 |
+| **⚔ Build Explorer** | 20 个 curated Build + Readiness Score |
+| **🏆 Goals & Legendaries** | 13 个模板 + 进度追踪 + Planner |
+| **👤 Characters** | 角色装备 + 背包 + 衣柜 |
+| **🪙 Wallet** | 金币、 karma 和货币 |
+| **👥 Guild Workspace** | 多账号聚合 + 角色覆盖矩阵 |
+| **⚙ Settings** | 凭证管理 + 订阅 + Affiliate |
+
+---
+
+## 💰 Value Engine（估值引擎）
+
+**入口：Tools → Value Engine**
 
 ### 三个估值口径
 
@@ -116,37 +193,11 @@
 - **柱图**：各位置价值对比
 - **折线图**：历史价值趋势（需要多次快照）
 
-### Top Items
-
-按价值排序的前 20 件物品，显示名称、数量、买价/卖价、定价状态。
-
-### 价格质量
-
-| 状态 | 含义 |
-|------|------|
-| ✅ Priced | 有完整买卖价格 |
-| ❓ Unpriced | 缺少 TP 数据 |
-| 🔒 Bound | 账号绑定 |
-| 📊 Wide Spread | 买卖价差 > 20% |
-
 ---
 
-## 🔍 物品搜索
+## ⚒ Crafting Calculator（制作计算器）
 
-**入口：Items 标签**
-
-支持按名称或 ID 搜索，可筛选位置（银行/材料/角色/共享/TP）和状态。
-
-点击搜索结果查看详情：
-- **基本信息**：总数量、总买价/卖价、状态
-- **市场深度**：最佳买价/卖价、价差、买/卖深度
-- **位置分布**：每个位置的持有数量和估值
-
----
-
-## ⚒ 制作计算器
-
-**入口：Crafting 标签**
+**入口：Tools → Crafting Calculator**
 
 1. 输入目标物品 ID（支持名称搜索）
 2. 设置数量
@@ -162,43 +213,9 @@
 
 ---
 
-## 🎯 目标追踪与传奇规划
+## ⚔ Build Explorer（Build 推荐）
 
-**入口：Goals 标签 + Planner 标签**
-
-### 13 个内置模板
-
-| 模板 | 类型 | 难度 |
-|------|------|------|
-| Bolt / Twilight / Sunrise | 传奇大剑 | 中等 |
-| The Bifrost | 传奇法杖 | 中等 |
-| Frostfang | 传奇斧 | 中等 |
-| Incinerator | 传奇匕首 | 中等 |
-| Nevermore / Astralaria | 传奇武器 | 困难 |
-| Ad Infinitum | 传奇背部 | 困难 |
-| Vision / Aurora | 传奇饰品 | 困难 |
-| Zojja's Greatsword | 升华大剑 | 简单 |
-| Berserker Armor Set | 升华护甲 | 中等 |
-
-### 使用方式
-
-1. 在 Goals 标签点击 **Create Goal**
-2. 选择模板或自定义
-3. 系统自动计算已完成材料百分比
-4. 每次分析自动刷新进度
-
-### Planner 标签
-
-- 模板选择下拉
-- 目标成本估算
-- 材料清单
-- 阻塞项检测
-
----
-
-## ⚔ Build 推荐
-
-**入口：Builds 标签**
+**入口：Tools → Build Explorer**
 
 ### 分析流程
 
@@ -215,39 +232,31 @@
 | Missing Cost | 补齐缺口的大致成本 |
 | Profession Match | 你是否有该 Build 的职业 |
 
-### 覆盖 9 职业 20 Build
+---
 
-Guardian (3), Warrior (2), Revenant (2), Ranger (2), Thief (2), Engineer (2), Necromancer (2), Elementalist (2), Mesmer (2) + Heal Scourge
+## 🏆 Goals & Legendaries（目标追踪）
+
+**入口：Tools → Goals & Legendaries**
+
+### 13 个内置模板
+
+| 模板 | 类型 | 难度 |
+|------|------|------|
+| Bolt / Twilight / Sunrise | 传奇大剑 | 中等 |
+| The Bifrost | 传奇法杖 | 中等 |
+| Frostfang | 传奇斧 | 中等 |
+| Incinerator | 传奇匕首 | 中等 |
+| Nevermore / Astralaria | 传奇武器 | 困难 |
+| Ad Infinitum | 传奇背部 | 困难 |
+| Vision / Aurora | 传奇饰品 | 困难 |
+| Zojja's Greatsword | 升华大剑 | 简单 |
+| Berserker Armor Set | 升华护甲 | 中等 |
 
 ---
 
-## 🤖 成长教练
+## 👥 Guild Workspace（公会空间）
 
-**入口：Advisor 标签**
-
-### Coach Plan（教练计划）
-
-点击 **Generate Advice** 获取：
-- **P0 关键路径**：最高优先级行动（资产变现、角色升级、接近完成的传奇）
-- **P1 成长路径**：有意义的前进方向（皮肤解锁、新职业尝试、Build 准备）
-- **P2 可选优化**：锦上添花的建议（日常收入、投资机会）
-
-### 7 天日计划
-
-每天一个明确的行动方向：
-- Monday → Sell & Liquidate
-- Tuesday → Goal Progress
-- Wednesday → Build Gear
-- Thursday → Map Completion
-- Friday → Fractal Push
-- Saturday → WvW / PvP
-- Sunday → Review & Plan
-
----
-
-## 👥 公会空间
-
-**入口：Guild 标签**
+**入口：Tools → Guild Workspace**
 
 > 适合开荒队、WvW 小队、公会管理团队。
 
@@ -260,65 +269,18 @@ Guardian (3), Warrior (2), Revenant (2), Ranger (2), Thief (2), Engineer (2), Ne
 | 📈 资产追踪 | 跟踪组合资产增长 |
 | 🏆 Build 就绪 | 识别谁最接近关键 Build |
 
-### 创建公会
-
-1. 输入公会名称
-2. 点击 **Create Guild**
-3. 系统生成邀请码，分享给成员
-
-### 加入公会
-
-1. 获取邀请码
-2. 输入并点击 **Join Guild**
-3. 你的数据会自动加入公会聚合视图
-
 ---
 
-## 📄 报告与导出
+## ⚙ Settings（设置）
 
-**入口：Overview → Export Report**
+**入口：Tools → Settings**
 
-点击 **Export Report** 下载 JSON 格式的完整账号报告，包含：
-- 账号基本信息
-- 总价值和分类价值
-- Top 10 最有价值物品
-- 报告生成时间
-
-历史报告列表显示在 Overview 页面。
-
----
-
-## ⚙ 设置
-
-**入口：Settings 标签**
-
-### Credentials（凭证管理）
-
-| Provider | 用途 |
-|---------|------|
-| OpenAI | 报告生成、Advisor 建议 |
-| Anthropic | 报告生成、Advisor 建议 |
-| DeepSeek | 报告生成、Advisor 建议 |
-| Ollama | 本地运行，无需 API Key |
-
-所有 API Key 使用 Fernet 加密存储，只显示最后 4 位，支持随时删除。
-
-### 周报订阅
-
-输入邮箱，每周自动收到账号价值变化、目标进度、Build 更新。
-
-### Affiliate 推荐
-
-创建你的 Referral Code，分享给其他玩家，他人购买时你获得佣金。
-
-### Seller 产品
-
-可购买的报告产品：
-- Account Value Report
-- Legendary Gap Report
-- Build Readiness Report
-- Weekly Progression Subscription
-- Guild Account Audit
+| 功能 | 说明 |
+|------|------|
+| **Credentials** | OpenAI/Anthropic/DeepSeek/Ollama API Key 管理 |
+| **Weekly Subscription** | 输入邮箱，每周自动收到账号更新 |
+| **Affiliate** | 创建 Referral Code，分享获得佣金 |
+| **Products** | 可购买的报告产品 (Value/Legendary/Build Report) |
 
 ---
 
@@ -327,12 +289,18 @@ Guardian (3), Warrior (2), Revenant (2), Ranger (2), Thief (2), Engineer (2), Ne
 ### 我的 API Key 安全吗？
 ✅ 只在内存中使用，不记录日志，加密存储可选，支持随时删除或撤销。
 
+### 为什么系统只有 4 个页面？
+2024 年重构后从 18 个功能 Tab 精简为 4 个主页面：
+- Home（行动入口）
+- Coach（决策入口）
+- Timeline（执行节奏）
+- Tools（高级功能）
+
+所有复杂功能收纳至 Tools 页面。
+
 ### 哪些权限是必须的？
 最小：`account` + `inventories` + `characters` + `wallet`  
 完整：加上 `tradingpost` + `progression` + `builds` + `unlocks`
-
-### 为什么有些物品显示 ❓ Unpriced？
-这些物品在交易所没有活跃订单。常见原因：极稀有、账号绑定、缺少 `tradingpost` 权限。
 
 ### Build 推荐没有结果？
 确认 API Key 包含 `characters` 权限，且至少有一个 80 级角色。
@@ -343,8 +311,10 @@ Guardian (3), Warrior (2), Revenant (2), Ranger (2), Thief (2), Engineer (2), Ne
 
 | 项目 | 数值 |
 |------|------|
-| 测试 | 280 passed（269 单元 + 11 E2E） |
-| 路由 | 103 API endpoints |
-| CI | GitHub Actions（lint → test → docker） |
+| 测试 | 276 passed（+7 engine tests） |
+| 路由 | 105 API endpoints |
+| 页面 | 4（Home/Coach/Timeline/Tools） |
+| 闭环 | API Key → `/engine/decide` → Action Center |
 | 数据 | SQLite WAL |
 | 安全 | Fernet 加密 + CORS + 安全头 + 审计日志 |
+| CI | GitHub Actions（lint → test → docker） |
