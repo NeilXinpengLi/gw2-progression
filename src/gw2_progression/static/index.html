@@ -25,15 +25,23 @@
 
 <main>
       <div id="key-section">
-      <div style="text-align:center;margin-bottom:16px">
-        <div style="font-size:24px;font-weight:700;color:var(--gold);margin-bottom:4px">GW2 Progression</div>
-        <div style="font-size:13px;color:var(--text-dim)">Your personal GW2 growth coach. Enter your API Key to get started.</div>
+      <div style="text-align:center;margin-bottom:12px">
+        <div style="font-size:26px;font-weight:700;color:var(--gold);margin-bottom:4px">GW2 Progression</div>
+        <div style="font-size:13px;color:var(--text-dim)">Turn your GW2 account into a progression plan</div>
       </div>
       <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:8px;margin-bottom:16px">
         <div style="text-align:center;padding:10px;background:var(--bg2);border:1px solid var(--border);border-radius:6px"><div style="font-size:20px">💰</div><div style="font-size:11px;color:var(--text-dim)">Total Value</div></div>
         <div style="text-align:center;padding:10px;background:var(--bg2);border:1px solid var(--border);border-radius:6px"><div style="font-size:20px">🎯</div><div style="font-size:11px;color:var(--text-dim)">Action Plan</div></div>
         <div style="text-align:center;padding:10px;background:var(--bg2);border:1px solid var(--border);border-radius:6px"><div style="font-size:20px">🤖</div><div style="font-size:11px;color:var(--text-dim)">AI Coach</div></div>
         <div style="text-align:center;padding:10px;background:var(--bg2);border:1px solid var(--border);border-radius:6px"><div style="font-size:20px">📆</div><div style="font-size:11px;color:var(--text-dim)">Weekly Plan</div></div>
+      </div>
+      <div id="pricing-banner" style="display:none;background:linear-gradient(135deg,#1a2a1a,#2a1a2a);border:1px solid #3a2a3a;border-radius:8px;padding:12px;margin-bottom:12px;text-align:center">
+        <div style="font-size:14px;font-weight:600;color:var(--gold);margin-bottom:4px">Unlock Full Progression System</div>
+        <div style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap;font-size:12px">
+          <span style="background:var(--bg3);padding:4px 8px;border-radius:4px">Report — $5</span>
+          <span style="background:var(--bg3);padding:4px 8px;border-radius:4px">Weekly — $5/mo</span>
+          <span style="background:var(--bg3);padding:4px 8px;border-radius:4px">Coach — $9/mo</span>
+        </div>
       </div>
       <h2>Connect Your Account</h2>
       <div style="font-size:12px;color:var(--text-dim);margin-bottom:12px;line-height:1.5">
@@ -99,7 +107,8 @@
           <div class="stat-cards" id="overview-cards" style="margin-top:8px"></div>
         </details>
         <div style="margin:12px 0">
-          <button id="export-report-btn" class="btn btn-sm" onclick="exportReport()" disabled>📄 Export Report</button>
+          <button id="share-report-btn" class="btn btn-sm" onclick="shareReport()" style="display:none">🔗 Share</button>
+        <button id="export-report-btn" class="btn btn-sm" onclick="exportReport()" disabled>📄 Export Report</button>
         </div>
         <div id="report-history" style="display:none;margin-bottom:12px"><div class="section-title">Recent Reports</div><div id="report-list" style="font-size:13px"></div></div>
         <div class="section-title">Permissions</div>

@@ -541,11 +541,13 @@ function renderAll(d) {
   _renderedTabs.add('overview');
   const exportBtn = document.getElementById('export-report-btn');
   if (exportBtn) exportBtn.disabled = false;
+  document.getElementById('pricing-banner').style.display = 'block';
+  const shareBtn = document.getElementById('share-report-btn');
+  if (shareBtn) shareBtn.style.display = 'inline-block';
   loadReportHistory();
   loadSubscription();
   loadGuild();
   loadScopeExplanations();
-  // Show insight screen first
   // Highlight active nav tab
   const activeBtn = document.querySelector('#nav-tabs button.active');
   if (activeBtn) {
@@ -1052,6 +1054,23 @@ async function toggleQuest(key, completed) {
     if (typeof renderOverview === 'function') renderOverview(data);
   } catch(e) {}
 }
+
+function shareReport() {
+  const data = getAccountData();
+  if (!data) return;
+  const vs = _valueData?.summary || {};
+  const totalGold = Math.floor((vs.total_value_buy || 0) / 10000);
+  const text = `GW2 Progression Report\n\n💰 My Value: ${totalGold.toLocaleString()}g\n⚔ Best Build Ready\n🎯 Legendary Progress\n\nCheck yours: gw2-progression.app`;
+  if (navigator.share) {
+    navigator.share({ title: 'GW2 Progression', text }).catch(() => {});
+  } else {
+    navigator.clipboard.writeText(text).then(() => {
+      const el = document.getElementById('export-status');
+      if (el) { el.textContent = 'Copied!'; setTimeout(() => el.textContent = '', 2000); }
+    }).catch(() => {});
+  }
+}
+window.shareReport = shareReport;
 
 async function loadReportHistory() {
   const data = getAccountData();
