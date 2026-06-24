@@ -85,6 +85,16 @@
         </div>
       </div>
       <div id="action-center">
+        <div id="strategy-bar" style="display:none;margin-bottom:12px;padding:8px 12px;background:var(--bg2);border:1px solid var(--border);border-radius:6px;font-size:12px">
+          <span class="dim">Strategy:</span>
+          <select id="strategy-select" style="background:var(--bg3);color:var(--text);border:1px solid var(--border);padding:2px 6px;border-radius:4px;font-size:12px;cursor:pointer" onchange="switchStrategy(this.value)">
+            <option value="hybrid">Balanced</option>
+            <option value="gold">Gold Farming</option>
+            <option value="build">Build Completion</option>
+            <option value="legendary">Legendary Rush</option>
+          </select>
+          <span id="strategy-desc" class="dim" style="margin-left:8px"></span>
+        </div>
         <div id="today-section" style="display:none;margin-bottom:16px">
           <div style="font-size:13px;color:var(--text-dim);margin-bottom:8px">YOUR NEXT BEST MOVE</div>
           <div id="today-list" style="display:flex;flex-direction:column;gap:6px"></div>

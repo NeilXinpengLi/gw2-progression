@@ -365,8 +365,18 @@ function ensureTabRendered(tab) {
 function dismissInsight() {
   document.getElementById('insight-screen').style.display = 'none';
   document.getElementById('action-center').style.display = 'block';
+  // Show strategy selector
+  const sb = document.getElementById('strategy-bar');
+  if (sb) sb.style.display = 'block';
 }
 window.dismissInsight = dismissInsight;
+
+function switchStrategy(strategy) {
+  localStorage.setItem('gw2_strategy', strategy);
+  const d = getAccountData();
+  if (d) renderOverview(d);
+}
+window.switchStrategy = switchStrategy;
 
 function showInsightScreen(d) {
   const screen = document.getElementById('insight-screen');
@@ -582,10 +592,14 @@ function renderOverview(d) {
     <div style="font-size:11px;color:var(--text-dim)">${h.sub}</div>
   </div>`).join('');
 
-  // ── 2. Today You Should Do (from /engine/decide) ──
+  // Strategy selector
+  let activeStrategy = localStorage.getItem('gw2_strategy') || 'hybrid';
+  const strategyNames = {'gold':'Gold','build':'Build','legendary':'Legendary','hybrid':'Balanced'};
+
+  // ── 2. Today You Should Do (from v4 explainable engine) ──
   const todayActions = [];
   if (key) {
-    fetch('/engine/decide', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({api_key: key}) })
+    fetch('/v4/decide', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({api_key: key, strategy: activeStrategy}) })
       .then(r => r.json())
       .then(data => {
         const allActions = [...(data.p0 || []), ...(data.p1 || []), ...(data.p2 || [])];
@@ -593,15 +607,25 @@ function renderOverview(d) {
         const section = document.getElementById('today-section');
         if (list && section && allActions.length) {
           section.style.display = 'block';
-          list.innerHTML = allActions.map((a, i) => {
+            // Set strategy description
+            const sd = document.getElementById('strategy-desc');
+            if (sd && data.strategy_name) sd.textContent = data.strategy_name;
+
+            list.innerHTML = allActions.map((a, i) => {
             const pri = i < (data.p0?.length || 0) ? 'P0' : i < (data.p0?.length || 0) + (data.p1?.length || 0) ? 'P1' : 'P2';
             const bg = pri === 'P0' ? '#5a3a1a' : pri === 'P1' ? '#2a3a2a' : '#1a2a3a';
             const fg = pri === 'P0' ? '#d0a050' : pri === 'P1' ? '#6bc46b' : '#5a9ece';
-            return `<div style="display:flex;align-items:center;gap:10px;background:var(--bg2);border:1px solid var(--border);border-radius:6px;padding:10px 14px;cursor:pointer"
+            const scoreColor = a.final_score > 0.7 ? '#6bc46b' : a.final_score > 0.4 ? '#d0a050' : '#5a9ece';
+            const breakdown = a.breakdown || {};
+            const bdHtml = Object.entries(breakdown).map(([k,v]) => `<span style="font-size:10px;color:var(--text-dim);margin-right:6px">${k.replace('_',' ')}: ${v}</span>`).join('');
+            return `<div style="display:flex;flex-direction:column;background:var(--bg2);border:1px solid var(--border);border-radius:6px;cursor:pointer"
                      onclick="document.querySelector('[data-tab=${a.tab}]')?.click()">
-              <span style="font-size:11px;background:${bg};color:${fg};padding:1px 6px;border-radius:3px;font-weight:600">${pri}</span>
-              <span style="flex:1;font-size:12px"><strong>${a.action}</strong>: ${a.reason}</span>
-              <span style="font-size:11px;color:var(--gold)">${a.reward || ''}</span>
+              <div style="display:flex;align-items:center;gap:10px;padding:10px 14px">
+                <span style="font-size:11px;background:${bg};color:${fg};padding:1px 6px;border-radius:3px;font-weight:600">${pri}</span>
+                <span style="flex:1;font-size:12px"><strong>${a.action}</strong>: ${a.reason}</span>
+                <span style="font-size:12px;color:${scoreColor};font-weight:600">${(a.final_score * 100).toFixed(0)}</span>
+              </div>
+              <div style="padding:0 14px 6px 14px;font-size:10px;color:var(--text-dim);display:flex;flex-wrap:wrap;gap:2px">${bdHtml}</div>
             </div>`;
           }).join('');
         }
