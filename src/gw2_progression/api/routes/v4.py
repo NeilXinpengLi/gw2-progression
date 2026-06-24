@@ -3,7 +3,7 @@
 from fastapi import APIRouter, Body, HTTPException
 
 from gw2_progression.services.v4_economic_model import STRATEGIES
-from gw2_progression.services.v4_optimizer import generate_explainable_actions
+from gw2_progression.services.v4_optimizer import generate_explainable_actions, optimize_paths
 
 router = APIRouter(prefix="/v4", tags=["v4"])
 
@@ -83,3 +83,23 @@ async def v4_explain(body: dict = Body(...)):
         "strategy": strategy,
         "strategy_name": STRATEGIES.get(strategy, {}).get("name", "Unknown"),
     }
+
+
+@router.post("/optimize")
+async def v4_optimize(body: dict = Body(...)):
+    """Generate multiple optimized paths to a goal."""
+    api_key = body.get("api_key", "")
+    if not api_key:
+        raise HTTPException(status_code=422, detail="api_key required")
+
+    try:
+        from gw2_progression.services.build_service import get_recommendations
+
+        builds_raw = await get_recommendations(api_key)
+        builds = [{"build_id": b.build_id, "build_name": b.build_name, "readiness_score": b.readiness_score} for b in builds_raw] if builds_raw else []
+
+        goals = [{"name": b.get("build_name", "Build"), "progress": b.get("readiness_score", 0) * 100} for b in builds[:3]]
+
+        return optimize_paths(goals=goals)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))

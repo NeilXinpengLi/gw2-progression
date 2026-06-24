@@ -43,6 +43,7 @@ from .routes.resolve import router as resolve_router
 from .routes.subscriptions import router as subscriptions_router
 from .routes.tp_strategy import router as tp_router
 from .routes.v4 import router as v4_router
+from .routes.v5 import router as v5_router
 from .routes.valuation import router as valuation_router
 from .routes.workspaces import router as workspaces_router
 
@@ -177,6 +178,7 @@ app.include_router(engine_router)
 app.include_router(audit_router)
 app.include_router(workspaces_router)
 app.include_router(v4_router)
+app.include_router(v5_router)
 app.include_router(payment_router)
 app.include_router(agent_router)
 app.include_router(subscriptions_router)

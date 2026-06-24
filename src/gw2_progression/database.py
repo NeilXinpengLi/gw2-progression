@@ -435,6 +435,36 @@ CREATE TABLE IF NOT EXISTS workspace_members (
     UNIQUE(workspace_id, account_name)
 );
 
+CREATE TABLE IF NOT EXISTS experiences (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    account_name TEXT NOT NULL,
+    action_key TEXT NOT NULL,
+    action_label TEXT NOT NULL DEFAULT '',
+    strategy TEXT NOT NULL DEFAULT 'hybrid',
+    reward REAL NOT NULL DEFAULT 0.0,
+    outcome TEXT NOT NULL DEFAULT 'unknown',
+    gold_impact INTEGER NOT NULL DEFAULT 0,
+    build_impact REAL NOT NULL DEFAULT 0.0,
+    legendary_impact REAL NOT NULL DEFAULT 0.0,
+    time_spent_minutes INTEGER NOT NULL DEFAULT 0,
+    success INTEGER NOT NULL DEFAULT 1,
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE TABLE IF NOT EXISTS user_models (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    account_name TEXT NOT NULL UNIQUE,
+    preferred_strategy TEXT NOT NULL DEFAULT 'hybrid',
+    gold_weight REAL NOT NULL DEFAULT 0.3,
+    build_weight REAL NOT NULL DEFAULT 0.3,
+    legendary_weight REAL NOT NULL DEFAULT 0.3,
+    time_weight REAL NOT NULL DEFAULT -0.2,
+    risk_weight REAL NOT NULL DEFAULT -0.05,
+    total_experiences INTEGER NOT NULL DEFAULT 0,
+    avg_reward REAL NOT NULL DEFAULT 0.0,
+    updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
 CREATE TABLE IF NOT EXISTS quest_progress (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     account_name TEXT NOT NULL,
@@ -459,7 +489,6 @@ async def init_db():
             if s:
                 await conn.execute(s)
         for migration_sql in [
-            "ALTER TABLE credentials ADD COLUMN status TEXT NOT NULL DEFAULT 'unknown'",
             "ALTER TABLE credentials ADD COLUMN scopes TEXT DEFAULT ''",
             "ALTER TABLE credentials ADD COLUMN last_validated_at TEXT",
             "ALTER TABLE credentials ADD COLUMN workspace_id INTEGER DEFAULT NULL",
