@@ -149,6 +149,21 @@
       <div id="tab-products"></div>
     </div></main>
 
+<div id="guide-overlay" class="hidden" style="position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.85);z-index:1000;display:flex;align-items:center;justify-content:center">
+  <div id="guide-card" style="background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:24px;max-width:480px;width:90%;max-height:80vh;overflow-y:auto">
+    <div id="guide-header" style="font-size:18px;font-weight:700;color:var(--gold);margin-bottom:8px"></div>
+    <div id="guide-body" style="font-size:14px;color:var(--text);line-height:1.6;margin-bottom:16px"></div>
+    <div id="guide-footer" style="display:flex;justify-content:space-between;align-items:center;border-top:1px solid var(--border);padding-top:12px">
+      <span id="guide-step" class="dim" style="font-size:12px"></span>
+      <div style="display:flex;gap:8px">
+        <button id="guide-prev" class="btn-sm" style="display:none">← Back</button>
+        <button id="guide-next" class="btn-sm">Next →</button>
+        <button id="guide-close" class="btn-sm" style="display:none">Got it!</button>
+      </div>
+    </div>
+  </div>
+</div>
+<button id="guide-btn" class="btn-sm" style="position:fixed;bottom:60px;right:12px;z-index:100;font-size:11px;padding:4px 10px;background:var(--bg3);border:1px solid var(--border);color:var(--text-dim);border-radius:20px;cursor:pointer">Guide</button>
 <script type="module" src="/static/app.js"></script>
 </body>
 </html>

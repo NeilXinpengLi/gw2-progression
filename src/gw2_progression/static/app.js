@@ -265,6 +265,116 @@ async function loadAccountSelector() {
   } catch(e) { /* ignore */ }
 }
 
+// ── Interactive Onboarding Guide ──
+const GUIDE_STEPS = [
+  {
+    title: "Welcome to GW2 Progression",
+    body: `<p>Your personal GW2 decision engine. We analyze your account and tell you <strong>exactly what to do next</strong>.</p>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:12px 0">
+        <div style="background:var(--bg3);padding:10px;border-radius:6px;text-align:center"><div style="font-size:20px">💰</div><div style="font-size:11px">Account Value</div></div>
+        <div style="background:var(--bg3);padding:10px;border-radius:6px;text-align:center"><div style="font-size:20px">⚔</div><div style="font-size:11px">Build Analysis</div></div>
+        <div style="background:var(--bg3);padding:10px;border-radius:6px;text-align:center"><div style="font-size:20px">🎯</div><div style="font-size:11px">Legendary Plan</div></div>
+        <div style="background:var(--bg3);padding:10px;border-radius:6px;text-align:center"><div style="font-size:20px">📆</div><div style="font-size:11px">7-Day Plan</div></div>
+      </div>`,
+    cta: "Get Started",
+  },
+  {
+    title: "Step 1: Get Your API Key",
+    body: `<p>Visit <a href="https://account.arena.net/applications" target="_blank" style="color:var(--gold)">ArenaNet Applications</a> and create a new key with these permissions:</p>
+      <div style="background:var(--bg3);padding:12px;border-radius:6px;margin:12px 0;font-size:13px">
+        <div>✅ <strong>account</strong> <span class="dim">— your account name</span></div>
+        <div>✅ <strong>characters</strong> <span class="dim">— equipment analysis</span></div>
+        <div>✅ <strong>inventories</strong> <span class="dim">— bank & materials</span></div>
+        <div>✅ <strong>wallet</strong> <span class="dim">— gold & currencies</span></div>
+        <div style="margin-top:8px;color:var(--text-dim)">⭐ Recommended: tradingpost, builds, progression, unlocks</div>
+      </div>
+      <p class="dim" style="font-size:12px">🔒 Your key is used only in memory. Never stored without permission.</p>`,
+    cta: "I have my key",
+  },
+  {
+    title: "Step 2: Analyze Your Account",
+    body: `<p>Paste your API Key and click <strong>"Analyze"</strong>. The system will query 16 GW2 API endpoints.</p>
+      <p>After analysis, you'll see:</p>
+      <div style="background:var(--bg3);padding:12px;border-radius:6px;margin:12px 0">
+        <div>📊 <strong>Insight Screen</strong> — your account snapshot</div>
+        <div>🎯 <strong>Action Center</strong> — what to do next</div>
+        <div>🤖 <strong>Coach</strong> — personalized planning</div>
+        <div>📆 <strong>Timeline</strong> — 7-day growth path</div>
+      </div>`,
+    cta: "Show me the system",
+  },
+  {
+    title: "The 4-Page System",
+    body: `<p>GW2 Progression has <strong>4 core pages</strong>, each with a specific purpose:</p>
+      <div style="display:flex;flex-direction:column;gap:8px;margin:12px 0">
+        <div style="background:var(--bg3);padding:10px;border-radius:6px"><strong>🏠 Home</strong> — Your decision center. See what to do now.</div>
+        <div style="background:var(--bg3);padding:10px;border-radius:6px"><strong>🤖 Coach</strong> — AI-powered planning (P0/P1/P2 priorities).</div>
+        <div style="background:var(--bg3);padding:10px;border-radius:6px"><strong>📆 Timeline</strong> — 7-day execution path with quests.</div>
+        <div style="background:var(--bg3);padding:10px;border-radius:6px"><strong>🧰 Tools</strong> — Advanced features (value/crafting/builds).</div>
+      </div>`,
+    cta: "Got it",
+  },
+  {
+    title: "Understanding Actions",
+    body: `<p>Each action in your <strong>Action Center</strong> has:</p>
+      <div style="background:var(--bg3);padding:12px;border-radius:6px;margin:12px 0">
+        <div>🟠 <strong>P0</strong> — Critical. Do these first.</div>
+        <div>🟢 <strong>P1</strong> — Growth. Important progression.</div>
+        <div>🔵 <strong>P2</strong> — Optional. Nice-to-have improvements.</div>
+      </div>
+      <p>You can switch strategies using the dropdown:</p>
+      <div style="display:flex;gap:6px;flex-wrap:wrap;margin:8px 0">
+        <span style="background:var(--bg3);padding:4px 8px;border-radius:4px;font-size:11px">Balanced</span>
+        <span style="background:var(--bg3);padding:4px 8px;border-radius:4px;font-size:11px">Gold Farming</span>
+        <span style="background:var(--bg3);padding:4px 8px;border-radius:4px;font-size:11px">Build Completion</span>
+        <span style="background:var(--bg3);padding:4px 8px;border-radius:4px;font-size:11px">Legendary Rush</span>
+      </div>`,
+    cta: "Start using GW2 Progression",
+  },
+];
+
+function showGuide() {
+  const overlay = document.getElementById('guide-overlay');
+  if (overlay) overlay.classList.remove('hidden');
+}
+window.showGuide = showGuide;
+
+(function() {
+  const visited = localStorage.getItem('gw2_guide_visited');
+  if (visited) return;
+  const overlay = document.getElementById('guide-overlay');
+  const header = document.getElementById('guide-header');
+  const body = document.getElementById('guide-body');
+  const stepEl = document.getElementById('guide-step');
+  const prevBtn = document.getElementById('guide-prev');
+  const nextBtn = document.getElementById('guide-next');
+  const closeBtn = document.getElementById('guide-close');
+  let step = 0;
+
+  function renderStep() {
+    const s = GUIDE_STEPS[step];
+    header.innerHTML = s.title;
+    body.innerHTML = s.body;
+    stepEl.textContent = `Step ${step + 1} of ${GUIDE_STEPS.length}`;
+    prevBtn.style.display = step > 0 ? '' : 'none';
+    nextBtn.style.display = step < GUIDE_STEPS.length - 1 ? '' : 'none';
+    closeBtn.style.display = step === GUIDE_STEPS.length - 1 ? '' : 'none';
+    if (step < GUIDE_STEPS.length - 1) nextBtn.textContent = s.cta ? s.cta + ' →' : 'Next →';
+    else closeBtn.textContent = s.cta || 'Got it!';
+  }
+
+  if (!overlay || !header || !body) return;
+  localStorage.setItem('gw2_guide_visited', 'true');
+  overlay.classList.remove('hidden');
+  renderStep();
+
+  prevBtn.addEventListener('click', () => { if (step > 0) { step--; renderStep(); } });
+  nextBtn.addEventListener('click', () => { if (step < GUIDE_STEPS.length - 1) { step++; renderStep(); } });
+  closeBtn.addEventListener('click', () => { overlay.classList.add('hidden'); });
+})();
+
+document.getElementById('guide-btn')?.addEventListener('click', showGuide);
+
 // Restore session on page load and auto-analyze
 (function() {
   try {
