@@ -30,6 +30,7 @@ from .routes.analyze import router as analyze_router
 from .routes.audit import router as audit_router
 from .routes.builds import router as builds_router
 from .routes.commerce import router as commerce_router
+from .routes.commercial import router as commercial_router
 from .routes.crafting import router as crafting_router
 from .routes.credentials import router as credentials_router
 from .routes.goals import router as goals_router
@@ -179,6 +180,7 @@ app.include_router(workspaces_router)
 app.include_router(v4_router)
 app.include_router(v5_router)
 app.include_router(production_router)
+app.include_router(commercial_router)
 app.include_router(payment_router)
 app.include_router(agent_router)
 app.include_router(subscriptions_router)
