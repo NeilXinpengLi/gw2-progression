@@ -11,14 +11,14 @@ let _progressiveResults = [];
 
 // ── Init ──
 export function initGoalDriven(apiKey) {
-  _sessionApiKey = apiKey;
+  _sessionApiKey = apiKey || '';
 
   const promptInput = document.getElementById('goal-prompt-input');
   const promptBtn = document.getElementById('goal-prompt-btn');
   if (promptInput && promptBtn) {
     promptBtn.onclick = () => submitGoal(promptInput.value);
     promptInput.onkeydown = (e) => { if (e.key === 'Enter') submitGoal(promptInput.value); };
-    promptInput.focus();
+    if (apiKey) promptInput.focus();
   }
 
   document.querySelectorAll('.quick-goal-card').forEach(card => {
@@ -29,9 +29,116 @@ export function initGoalDriven(apiKey) {
     btn.onclick = () => switchPage(btn.dataset.nav);
   });
 
+  // Try Demo button
+  const demoBtn = document.getElementById('try-demo-btn');
+  if (demoBtn) {
+    demoBtn.onclick = runDemo;
+  }
+
+  // Show pricing banner after analysis
+  if (apiKey) {
+    const banner = document.getElementById('pricing-banner');
+    if (banner) banner.style.display = 'block';
+  }
+
   wirePricingCards();
   wireFreeReportButton();
   showTrustPanel();
+}
+
+// ── Demo Mode (no API key required) ──
+async function runDemo() {
+  showPage('plan');
+  showProgressiveLoading();
+  updateProgressiveStage('🎮', 'Loading demo account…');
+
+  // Simulate progressive stages with delays
+  setTimeout(() => {
+    showProgressiveResults([
+      { stage: 1, account_name: 'DemoPlayer.1234', wallet_gold: 452000, wallet_gold_display: '45g 20s', character_count: 8, ready: true },
+    ]);
+  }, 500);
+
+  setTimeout(() => {
+    showProgressiveResults([
+      { stage: 1, account_name: 'DemoPlayer.1234', wallet_gold: 452000, wallet_gold_display: '45g 20s', character_count: 8, ready: true },
+      { stage: 2, total_value_display: '12,450g', hidden_wealth_display: '890g', ready: true },
+    ]);
+  }, 1500);
+
+  setTimeout(() => {
+    showProgressiveResults([
+      { stage: 1, account_name: 'DemoPlayer.1234', wallet_gold: 452000, wallet_gold_display: '45g 20s', character_count: 8, ready: true },
+      { stage: 2, total_value_display: '12,450g', hidden_wealth_display: '890g', ready: true },
+      { stage: 3, closest_goal_name: 'Bolt (Legendary Greatsword)', best_build_name: 'Power Virtuoso', first_action: 'Continue Bolt — 67% complete, ~830g remaining', ready: true },
+    ]);
+  }, 3000);
+
+  setTimeout(() => {
+    showProgressiveResults([
+      { stage: 1, account_name: 'DemoPlayer.1234', wallet_gold: 452000, wallet_gold_display: '45g 20s', character_count: 8, ready: true },
+      { stage: 2, total_value_display: '12,450g', hidden_wealth_display: '890g', ready: true },
+      { stage: 3, closest_goal_name: 'Bolt (Legendary Greatsword)', best_build_name: 'Power Virtuoso', first_action: 'Continue Bolt — 67% complete, ~830g remaining', ready: true },
+      { stage: 4, insight: 'Demo plan ready! 7-day schedule generated.', estimated_days: 21, ready: true },
+    ]);
+    renderDemoPlan();
+    showStatus('goal-status', '✅ Demo plan generated! No API key needed.', 'success');
+  }, 4500);
+}
+
+function renderDemoPlan() {
+  const container = document.getElementById('plan-content');
+  if (!container) return;
+
+  const patch = document.getElementById('progressive-container');
+  if (patch) patch.style.display = 'none';
+
+  const insight = 'You are 67% toward Bolt. Most efficient route needs ~830g and 21 days.';
+
+  container.innerHTML = `
+    <div class="insight-card">
+      <div style="font-size:13px;color:var(--text-dim);margin-bottom:6px">📊 DEMO INSIGHT</div>
+      <div style="font-size:18px;color:var(--gold);font-weight:600">${insight}</div>
+      <div style="display:flex;gap:12px;margin-top:10px;flex-wrap:wrap;font-size:12px">
+        <span style="background:var(--bg3);padding:4px 10px;border-radius:4px">📅 21 day plan</span>
+        <span style="background:var(--bg3);padding:4px 10px;border-radius:4px">💰 ~830g remaining</span>
+        <span style="background:var(--bg3);padding:4px 10px;border-radius:4px">🎯 67% completion</span>
+        <span style="background:var(--bg3);padding:4px 10px;border-radius:4px">⚡ cheapest strategy</span>
+      </div>
+    </div>
+
+    <div class="section-title" style="font-size:13px">🎯 YOUR TOP ACTIONS</div>
+    <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:20px">
+      <div style="background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:12px;display:flex;align-items:center;gap:12px">
+        <div style="font-size:24px">💰</div>
+        <div style="flex:1;min-width:0">
+          <div style="font-size:14px;color:var(--text-bright);font-weight:600">1. Sell 3 high-value materials</div>
+          <div style="font-size:12px;color:var(--text-dim)">Mystic Coins, Crystalline Ore, and excess T6 materials</div>
+        </div>
+        <div style="text-align:right;font-size:12px"><div style="color:var(--green)">+180g</div><div style="color:var(--text-dim)">15m</div></div>
+      </div>
+      <div style="background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:12px;display:flex;align-items:center;gap:12px">
+        <div style="font-size:24px">⚔️</div>
+        <div style="flex:1;min-width:0">
+          <div style="font-size:14px;color:var(--text-bright);font-weight:600">2. Run T4 Fractals dailies + recs</div>
+          <div style="font-size:12px;color:var(--text-dim)">Best consistent gold income for legendary funding</div>
+        </div>
+        <div style="text-align:right;font-size:12px"><div style="color:var(--green)">+45g/day</div><div style="color:var(--text-dim)">60m</div></div>
+      </div>
+      <div style="background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:12px;display:flex;align-items:center;gap:12px">
+        <div style="font-size:24px">🔨</div>
+        <div style="flex:1;min-width:0">
+          <div style="font-size:14px;color:var(--text-bright);font-weight:600">3. Start Gift of Might preparation</div>
+          <div style="font-size:12px;color:var(--text-dim)">Gather T6 materials: 250 each of Vicious Claws, Fangs, Scales, etc.</div>
+        </div>
+        <div style="text-align:right;font-size:12px"><div style="color:var(--red)">~250g</div><div style="color:var(--text-dim)">7 days</div></div>
+      </div>
+    </div>
+
+    <div style="margin-bottom:16px;background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:16px;text-align:center">
+      <div style="font-size:14px;color:var(--text-dim);margin-bottom:8px">🎮 This is a demo with sample data.</div>
+      <button onclick="document.getElementById('key-input')?.focus()" style="background:var(--gold);border:none;border-radius:4px;color:#111;padding:10px 24px;font-size:13px;font-weight:600;cursor:pointer">Connect your account →</button>
+    </div>`;
 }
 
 function switchPage(page) {
@@ -49,8 +156,20 @@ function switchPage(page) {
   }
 }
 
-// Export for inline onclick handlers
+// Exports for inline onclick handlers
 window.switchPage = switchPage;
+window.shareReport = shareReport;
+window.scrollToPricing = scrollToPricing;
+
+// API Key Guide overlay
+window.showApiKeyGuide = () => {
+  const el = document.getElementById('apikey-guide-overlay');
+  if (el) el.classList.remove('hidden');
+};
+window.closeApiKeyGuide = () => {
+  const el = document.getElementById('apikey-guide-overlay');
+  if (el) el.classList.add('hidden');
+};
 
 function showTrustPanel() {
   // Trust panel is already in HTML, but we can add dynamic tips
@@ -320,6 +439,7 @@ function renderPlan(result) {
     <div style="display:flex;gap:8px;flex-wrap:wrap">
       <button id="generate-report-btn" style="background:var(--gold);border:none;border-radius:4px;color:#111;padding:10px 24px;font-size:13px;font-weight:600;cursor:pointer">📄 Generate Report</button>
       <button onclick="exportPlanText()" style="background:var(--bg3);border:1px solid var(--border);border-radius:4px;color:var(--text);padding:10px 24px;font-size:13px;cursor:pointer">📋 Copy Plan</button>
+      <button onclick="shareReport()" style="background:var(--bg3);border:1px solid var(--border);border-radius:4px;color:var(--text);padding:10px 24px;font-size:13px;cursor:pointer">🔗 Share</button>
       <button onclick="navigateToReport()" style="background:var(--bg3);border:1px solid var(--border);border-radius:4px;color:var(--text);padding:10px 24px;font-size:13px;cursor:pointer">📊 View Report →</button>
     </div>
     <div id="report-preview" style="margin-top:12px"></div>`;
@@ -592,7 +712,7 @@ async function getWalletGold() {
   return 0;
 }
 
-// ── Pricing Card Checkout Wiring ──
+// ── Pricing Card Checkout Wiring (Stripe → direct fallback) ──
 function wirePricingCards() {
   document.querySelectorAll('.pricing-card button').forEach(btn => {
     btn.onclick = async () => {
@@ -601,20 +721,44 @@ function wirePricingCards() {
       const productSlug = isFeatured ? 'goal-driven-report' : 'goal-driven-weekly';
 
       try {
-        // Get products to find the ID
         const prodRes = await fetch('/commercial/products');
         if (!prodRes.ok) throw new Error('Failed to load products');
         const prodData = await prodRes.json();
         const product = prodData.products.find(p => p.slug === productSlug);
         if (!product) throw new Error(`Product ${productSlug} not found`);
 
-        const email = prompt('Enter your email for the report:', '');
+        const email = prompt('Enter your email:', '');
         if (!email) return;
 
         btn.disabled = true;
         btn.textContent = 'Processing…';
 
-        const checkoutRes = await fetch('/commercial/checkout', {
+        // Try Stripe first, fall back to direct checkout
+        let checkoutUrl = '';
+        try {
+          const stripeRes = await fetch('/payment/checkout', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              product_id: product.id,
+              customer_email: email,
+              success_url: window.location.origin + '/?payment=success',
+              cancel_url: window.location.origin + '/?payment=cancelled',
+            }),
+          });
+          if (stripeRes.ok) {
+            const stripeData = await stripeRes.json();
+            checkoutUrl = stripeData.checkout_url || '';
+          }
+        } catch (e) { /* Stripe not available, fall through */ }
+
+        if (checkoutUrl) {
+          window.location.href = checkoutUrl;
+          return;
+        }
+
+        // Fallback: direct checkout with license key
+        const directRes = await fetch('/commercial/checkout', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -623,24 +767,60 @@ function wirePricingCards() {
             account_name: _currentPlan?.account_name || '',
           }),
         });
-        if (!checkoutRes.ok) throw new Error('Checkout failed');
-        const checkoutData = await checkoutRes.json();
-        const order = checkoutData.order;
+        if (!directRes.ok) throw new Error('Checkout failed');
+        const orderData = await directRes.json();
+        const order = orderData.order;
 
-        alert(`✅ Order complete!\n\nLicense Key: ${order.license_key}\n\nUse this key to access your report.`);
+        alert(`✅ Order complete!\n\nLicense Key: ${order.license_key}\n\nUse this key to access your full report.`);
 
-        // If we have a plan, auto-generate the report
         if (_currentPlan) {
-          generateReport();
+          generateReport(true);
         }
+
+        // Show locked section as unlocked
+        const lockedSection = document.getElementById('locked-section');
+        const lockedOverlay = document.getElementById('locked-overlay');
+        if (lockedSection) { lockedSection.style.display = 'block'; lockedSection.style.opacity = '1'; lockedSection.style.filter = 'none'; lockedSection.style.pointerEvents = 'auto'; }
+        if (lockedOverlay) lockedOverlay.style.display = 'none';
       } catch (err) {
         alert(`Error: ${err.message}`);
       } finally {
         btn.disabled = false;
-        btn.textContent = isFeatured ? 'Purchase Report' : 'Subscribe';
+        btn.textContent = isFeatured ? 'Purchase Report — $5' : 'Subscribe — $5/mo';
       }
     };
   });
+}
+
+// ── Share Link ──
+function shareReport() {
+  if (!_currentPlanId) {
+    alert('Generate a plan first!');
+    return;
+  }
+  const shareData = {
+    title: 'GW2 Progression OS',
+    text: `Check out my GW2 progression plan! ${_currentPlan?.insight || ''}`,
+    url: `${window.location.origin}/?plan=${_currentPlanId}`,
+  };
+  if (navigator.share) {
+    navigator.share(shareData).catch(() => {});
+  } else {
+    navigator.clipboard?.writeText(shareData.url).then(() => {
+      alert('Link copied to clipboard!');
+    }).catch(() => {
+      prompt('Share this link:', shareData.url);
+    });
+  }
+}
+
+// ── Scroll to pricing cards on Report page ──
+function scrollToPricing() {
+  switchPage('report');
+  setTimeout(() => {
+    const cards = document.querySelector('.pricing-card');
+    if (cards) cards.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }, 100);
 }
 
 function wireFreeReportButton() {

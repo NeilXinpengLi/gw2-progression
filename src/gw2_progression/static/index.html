@@ -129,6 +129,10 @@
         <input id="goal-prompt-input" type="text" placeholder='e.g. "I want to finish Bolt cheaply" or "Make 500g this week"' autocomplete="off" />
         <button id="goal-prompt-btn">Generate My Plan</button>
       </div>
+      <div style="margin-top:12px;display:flex;gap:12px;justify-content:center;font-size:13px">
+        <button id="try-demo-btn" style="background:transparent;border:1px solid var(--gold);color:var(--gold);padding:8px 20px;border-radius:6px;cursor:pointer;font-size:13px">🎮 Try Demo</button>
+        <a id="how-api-key-works" href="#" style="color:var(--text-dim);padding:8px 0;text-decoration:none;border-bottom:1px dotted var(--text-dim)" onclick="showApiKeyGuide();return false">🔑 How API Key Works</a>
+      </div>
     </div>
 
     <div class="quick-goal-grid">
@@ -161,10 +165,47 @@
 
     <div id="goal-status" style="text-align:center;font-size:13px;color:var(--text-dim);margin-bottom:12px"></div>
 
+    <!-- Pricing Banner -->
+    <div id="pricing-banner" style="display:none;background:linear-gradient(135deg,#1a2a1a,#2a1a2a);border:1px solid #3a2a3a;border-radius:8px;padding:12px;margin-bottom:16px;text-align:center">
+      <div style="font-size:14px;font-weight:600;color:var(--gold);margin-bottom:4px">Unlock Full Progression System</div>
+      <div style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap;font-size:12px">
+        <span style="background:var(--bg3);padding:4px 8px;border-radius:4px">Report — $5</span>
+        <span style="background:var(--bg3);padding:4px 8px;border-radius:4px">Weekly — $5/mo</span>
+        <button onclick="switchPage('report')" style="background:transparent;border:1px solid var(--gold);color:var(--gold);padding:3px 10px;border-radius:4px;cursor:pointer;font-size:11px">See Plans →</button>
+      </div>
+    </div>
+
     <div class="trust-banner">
       <span>🔒 Your ArenaNet password is never required</span>
       <span>🔑 Session-only mode stores nothing</span>
       <span>🔄 Revoke your key anytime from ArenaNet</span>
+      <span>📋 <a href="https://account.arena.net/applications" target="_blank" style="color:var(--gold)">Create API Key</a></span>
+    </div>
+
+    <!-- API Key Guide Overlay -->
+    <div id="apikey-guide-overlay" class="hidden" style="position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.85);z-index:999;display:flex;align-items:center;justify-content:center">
+      <div style="background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:24px;max-width:480px;width:90%;max-height:80vh;overflow-y:auto">
+        <div style="font-size:18px;font-weight:700;color:var(--gold);margin-bottom:12px">🔑 How GW2 API Keys Work</div>
+        <div style="font-size:14px;color:var(--text);line-height:1.6">
+          <p><strong>What is an API Key?</strong><br>
+          An API key is a token from ArenaNet that grants read-only access to your GW2 account data.</p>
+          <p><strong>Is it safe?</strong><br>
+          ✅ Read-only — cannot trade, delete items, or change your account<br>
+          ✅ Session-only — your key is never stored on our servers by default<br>
+          ✅ Revocable — delete the key anytime from ArenaNet</p>
+          <p><strong>How to get one:</strong></p>
+          <ol style="padding-left:20px">
+            <li>Visit <a href="https://account.arena.net/applications" target="_blank" style="color:var(--gold)">account.arena.net/applications</a></li>
+            <li>Click "Create New Key"</li>
+            <li>Select permissions (recommended: account, characters, inventories, wallet, tradingpost, builds, progression, unlocks)</li>
+            <li>Copy the key and paste it above</li>
+          </ol>
+          <p style="color:var(--text-dim);font-size:12px;margin-top:12px">🔒 Your ArenaNet password is NEVER requested. Only the API key.</p>
+        </div>
+        <div style="margin-top:16px;text-align:right">
+          <button onclick="closeApiKeyGuide()" class="btn-sm" style="background:var(--gold);border:none;color:#111;padding:8px 24px;font-weight:600;cursor:pointer">Got it</button>
+        </div>
+      </div>
     </div>
   </div>
 
@@ -237,6 +278,27 @@
       </div>
 
       <div id="report-preview-area"></div>
+
+      <!-- Locked Section: Full Action Plan (Premium) -->
+      <div id="locked-section" style="display:none;margin-top:16px;position:relative;border:2px dashed #3a3a2a;border-radius:12px;padding:24px;background:var(--bg2);opacity:0.7;filter:blur(3px);pointer-events:none;user-select:none">
+        <div style="font-size:16px;color:var(--gold);font-weight:600;margin-bottom:8px">📋 Full Action Plan</div>
+        <div style="display:flex;flex-direction:column;gap:8px">
+          <div style="background:var(--bg3);padding:12px;border-radius:6px">💰 Sell excess materials — estimate gold value</div>
+          <div style="background:var(--bg3);padding:12px;border-radius:6px">⚔️ Farm T4 Fractals — daily gold income path</div>
+          <div style="background:var(--bg3);padding:12px;border-radius:6px">🔨 Craft missing components — step-by-step guide</div>
+        </div>
+        <div style="font-size:13px;color:var(--text-dim);margin-top:8px">📊 Build analysis with gear gap detection</div>
+        <div style="font-size:13px;color:var(--text-dim)">📆 7-day schedule with daily tasks</div>
+      </div>
+      <!-- Unlock overlay -->
+      <div id="locked-overlay" style="display:none;text-align:center;margin-top:-40px;position:relative;z-index:10">
+        <div style="background:var(--bg2);border:1px solid var(--gold);border-radius:10px;padding:20px;display:inline-block;max-width:360px">
+          <div style="font-size:24px;margin-bottom:4px">🔒</div>
+          <div style="font-size:15px;font-weight:600;color:var(--gold);margin-bottom:4px">Unlock Full Action Plan</div>
+          <div style="font-size:12px;color:var(--text-dim);margin-bottom:12px">Get the complete plan with crafting path, build analysis, and PDF export.</div>
+          <button onclick="switchPage('report');scrollToPricing()" style="background:var(--gold);border:none;border-radius:6px;color:#111;padding:10px 28px;font-size:14px;font-weight:600;cursor:pointer">See Plans →</button>
+        </div>
+      </div>
     </div>
   </div>
 
