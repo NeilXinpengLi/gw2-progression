@@ -476,6 +476,76 @@ CREATE TABLE IF NOT EXISTS quest_progress (
     created_at TEXT NOT NULL DEFAULT (datetime('now')),
     UNIQUE(account_name, quest_key, week_start)
 );
+
+CREATE TABLE IF NOT EXISTS user_goals (
+    goal_id TEXT PRIMARY KEY,
+    account_name TEXT NOT NULL,
+    raw_text TEXT NOT NULL DEFAULT '',
+    goal_type TEXT NOT NULL DEFAULT 'GENERIC',
+    target_item_id INTEGER NOT NULL DEFAULT 0,
+    target_item_name TEXT NOT NULL DEFAULT '',
+    strategy TEXT NOT NULL DEFAULT 'balanced',
+    time_budget_minutes INTEGER NOT NULL DEFAULT 0,
+    gold_budget_copper INTEGER NOT NULL DEFAULT 0,
+    game_mode TEXT NOT NULL DEFAULT '',
+    constraints TEXT NOT NULL DEFAULT '[]',
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE TABLE IF NOT EXISTS progression_plans (
+    plan_id TEXT PRIMARY KEY,
+    goal_id TEXT NOT NULL DEFAULT '',
+    account_name TEXT NOT NULL,
+    strategy TEXT NOT NULL DEFAULT 'balanced',
+    total_cost_copper INTEGER NOT NULL DEFAULT 0,
+    estimated_days INTEGER NOT NULL DEFAULT 0,
+    completion_percent REAL NOT NULL DEFAULT 0.0,
+    status TEXT NOT NULL DEFAULT 'active',
+    insight TEXT NOT NULL DEFAULT '',
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE TABLE IF NOT EXISTS plan_actions (
+    action_id TEXT PRIMARY KEY,
+    plan_id TEXT NOT NULL,
+    action_type TEXT NOT NULL DEFAULT '',
+    title TEXT NOT NULL DEFAULT '',
+    reason TEXT NOT NULL DEFAULT '',
+    reward_gold INTEGER NOT NULL DEFAULT 0,
+    cost_gold INTEGER NOT NULL DEFAULT 0,
+    time_cost_minutes INTEGER NOT NULL DEFAULT 0,
+    score REAL NOT NULL DEFAULT 0.0,
+    priority INTEGER NOT NULL DEFAULT 0,
+    status TEXT NOT NULL DEFAULT 'pending',
+    tab TEXT NOT NULL DEFAULT '',
+    item_id INTEGER NOT NULL DEFAULT 0,
+    day_index INTEGER NOT NULL DEFAULT -1,
+    FOREIGN KEY (plan_id) REFERENCES progression_plans(plan_id)
+);
+
+CREATE TABLE IF NOT EXISTS plan_revisions (
+    revision_id TEXT PRIMARY KEY,
+    plan_id TEXT NOT NULL,
+    user_request TEXT NOT NULL DEFAULT '',
+    previous_strategy TEXT NOT NULL DEFAULT '',
+    new_strategy TEXT NOT NULL DEFAULT '',
+    delta_summary TEXT NOT NULL DEFAULT '',
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    FOREIGN KEY (plan_id) REFERENCES progression_plans(plan_id)
+);
+
+CREATE TABLE IF NOT EXISTS report_artifacts (
+    report_id TEXT PRIMARY KEY,
+    plan_id TEXT NOT NULL,
+    account_name TEXT NOT NULL,
+    report_type TEXT NOT NULL DEFAULT 'free',
+    file_url TEXT NOT NULL DEFAULT '',
+    access_level TEXT NOT NULL DEFAULT 'free',
+    price_copper INTEGER NOT NULL DEFAULT 0,
+    preview_html TEXT NOT NULL DEFAULT '',
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    FOREIGN KEY (plan_id) REFERENCES progression_plans(plan_id)
+);
 """
 
 

@@ -4,6 +4,7 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, field_validator
 
 from gw2_progression.gw2_client import Gw2ApiError
+from gw2_progression.models import AccountBuildReadiness, BuildTemplate
 from gw2_progression.services.build_service import (
     calculate_readiness,
     get_all_builds,
@@ -30,13 +31,13 @@ class ReadinessRequest(BaseModel):
         return stripped
 
 
-@router.get("/templates")
+@router.get("/templates", response_model=list[BuildTemplate])
 async def get_builds():
     builds = get_all_builds()
     return [b.model_dump() for b in builds]
 
 
-@router.get("/templates/{build_id}")
+@router.get("/templates/{build_id}", response_model=BuildTemplate)
 async def get_build_by_id(build_id: str):
     build = get_build(build_id)
     if not build:
@@ -44,7 +45,7 @@ async def get_build_by_id(build_id: str):
     return build.model_dump()
 
 
-@router.post("/recommendations")
+@router.post("/recommendations", response_model=list[AccountBuildReadiness])
 async def post_recommendations(request: ReadinessRequest):
     try:
         recommendations = await get_recommendations(request.api_key)
@@ -53,7 +54,7 @@ async def post_recommendations(request: ReadinessRequest):
         raise HTTPException(status_code=401, detail=e.message)
 
 
-@router.post("/readiness/{build_id}")
+@router.post("/readiness/{build_id}", response_model=AccountBuildReadiness)
 async def post_readiness(build_id: str, request: ReadinessRequest):
     try:
         readiness = await calculate_readiness(request.api_key, build_id)

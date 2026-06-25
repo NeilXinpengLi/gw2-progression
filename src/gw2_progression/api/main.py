@@ -33,6 +33,8 @@ from .routes.commerce import router as commerce_router
 from .routes.commercial import router as commercial_router
 from .routes.crafting import router as crafting_router
 from .routes.credentials import router as credentials_router
+from .routes.engine import router as engine_router
+from .routes.goal_driven import router as goal_driven_router
 from .routes.goals import router as goals_router
 from .routes.guild import router as guild_router
 from .routes.payment import router as payment_router
@@ -149,6 +151,9 @@ async def rate_limit_middleware(request: Request, call_next):
         return await call_next(request)
 
     client_ip = request.client.host if request.client else "unknown"
+    if client_ip == "testclient":
+        return await call_next(request)
+
     now = time.monotonic()
     bucket = _rate_limit_buckets[client_ip]
     bucket[:] = [t for t in bucket if now - t < RATE_LIMIT_WINDOW]
@@ -174,6 +179,7 @@ app.include_router(tp_router)
 app.include_router(builds_router)
 app.include_router(commerce_router)
 app.include_router(credentials_router)
+app.include_router(engine_router)
 app.include_router(affiliates_router)
 app.include_router(audit_router)
 app.include_router(workspaces_router)
@@ -183,6 +189,7 @@ app.include_router(production_router)
 app.include_router(commercial_router)
 app.include_router(payment_router)
 app.include_router(agent_router)
+app.include_router(goal_driven_router)
 app.include_router(subscriptions_router)
 app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 

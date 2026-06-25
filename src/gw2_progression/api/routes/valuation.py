@@ -6,9 +6,13 @@ from pydantic import BaseModel, field_validator
 from gw2_progression.database import cleanup_old_data, get_db, search_latest_holdings
 from gw2_progression.gw2_client import Gw2ApiError
 from gw2_progression.models import (
+    ItemDetailResponse,
     ItemHolding,
     ItemLocationResponse,
     ItemSearchResult,
+    ItemValueDelta,
+    ListingDepthResponse,
+    ListingUnavailableResponse,
     ValueAnalyzeResponse,
 )
 from gw2_progression.services.delta_service import compare_snapshots, get_latest_snapshots
@@ -78,7 +82,7 @@ async def get_items_search(
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@router.get("/items/locations")
+@router.get("/items/locations", response_model=ItemLocationResponse)
 async def get_item_locations(
     account_name: str = Query(..., description="Account name from /analyze response"),
     item_id: int = Query(..., description="Item ID to locate"),
@@ -100,7 +104,7 @@ async def get_item_locations(
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@router.get("/items/{item_id}/detail")
+@router.get("/items/{item_id}/detail", response_model=ItemDetailResponse)
 async def get_item_detail_endpoint(
     account_name: str = Query(..., description="Account name from /analyze response"),
     item_id: int = Path(..., description="Item ID"),
@@ -111,7 +115,7 @@ async def get_item_detail_endpoint(
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@router.get("/items/high-value")
+@router.get("/items/high-value", response_model=list[ItemSearchResult])
 async def get_high_value_items(
     account_name: str = Query(..., description="Account name from /analyze response"),
     limit: int = Query(100, description="Max results"),
@@ -123,7 +127,7 @@ async def get_high_value_items(
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@router.get("/items/unpriced")
+@router.get("/items/unpriced", response_model=list[ItemSearchResult])
 async def get_unpriced_items(
     account_name: str = Query(..., description="Account name from /analyze response"),
     limit: int = Query(100, description="Max results"),
@@ -135,7 +139,7 @@ async def get_unpriced_items(
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@router.get("/items/account-bound")
+@router.get("/items/account-bound", response_model=list[ItemSearchResult])
 async def get_account_bound_items(
     account_name: str = Query(..., description="Account name from /analyze response"),
     limit: int = Query(100, description="Max results"),
@@ -171,7 +175,7 @@ async def get_value_delta(
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@router.get("/top-gainers")
+@router.get("/top-gainers", response_model=list[ItemValueDelta])
 async def get_top_gainers(
     account_name: str = Query(..., description="Account name from /analyze response"),
     limit: int = Query(20, description="Max results"),
@@ -196,7 +200,7 @@ async def post_cleanup(account_name: str | None = None):
     return result
 
 
-@router.get("/listings/{item_id}")
+@router.get("/listings/{item_id}", response_model=ListingDepthResponse | ListingUnavailableResponse)
 async def get_listing_depth(item_id: int):
     try:
         listings = await fetch_listings([item_id])
@@ -208,7 +212,7 @@ async def get_listing_depth(item_id: int):
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@router.post("/listings/batch")
+@router.post("/listings/batch", response_model=dict[str, ListingDepthResponse])
 async def get_listings_batch(item_ids: list[int]):
     try:
         listings = await fetch_listings(item_ids)
@@ -217,7 +221,7 @@ async def get_listings_batch(item_ids: list[int]):
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@router.get("/top-decliners")
+@router.get("/top-decliners", response_model=list[ItemValueDelta])
 async def get_top_decliners(
     account_name: str = Query(..., description="Account name from /analyze response"),
     limit: int = Query(20, description="Max results"),

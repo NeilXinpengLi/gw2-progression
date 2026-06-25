@@ -1,3 +1,5 @@
+import enum
+
 from pydantic import BaseModel
 
 
@@ -144,6 +146,48 @@ class ItemLocationResponse(BaseModel):
     item_id: int
     total_count: int
     locations: list[ItemSearchResult]
+
+
+class ItemDetailLocationEntry(BaseModel):
+    count: int = 0
+    location_ref: str | None = None
+    binding_status: str | None = None
+    tradable: bool = True
+    price_buy: int = 0
+    price_sell: int = 0
+    value_buy: int = 0
+    value_sell: int = 0
+    valuation_status: str = "pending"
+
+
+class ItemDetailResponse(BaseModel):
+    item_id: int
+    total_count: int = 0
+    total_value_buy: int = 0
+    total_value_sell: int = 0
+    locations: dict[str, list[ItemDetailLocationEntry]] = {}
+    valuation_status: str = "unknown"
+    tradable: bool = False
+
+
+class ListingDepthResponse(BaseModel):
+    best_buy: int = 0
+    best_sell: int = 0
+    spread: int = 0
+    spread_ratio: float = 0.0
+    buy_depth_5: int = 0
+    sell_depth_5: int = 0
+    buy_depth_all: int = 0
+    sell_depth_all: int = 0
+    gross_profit: int = 0
+    net_profit: int = 0
+    profit_margin: float = 0.0
+    arbitrage_viable: bool = False
+
+
+class ListingUnavailableResponse(BaseModel):
+    error: str
+    item_id: int
 
 
 class CraftIngredient(BaseModel):
@@ -380,6 +424,36 @@ class ProgressionAdvice(BaseModel):
     weekly_plan: list[dict] = []
 
 
+class CoachAction(BaseModel):
+    action: str = ""
+    target: str = ""
+    reason: str = ""
+    gold_impact: int = 0
+    priority: str = ""
+
+
+class CoachDailyPlan(BaseModel):
+    day: str = ""
+    focus: str = ""
+    tasks: list[str] = []
+
+
+class CoachPriorities(BaseModel):
+    P0: list[CoachAction] = []
+    P1: list[CoachAction] = []
+    P2: list[CoachAction] = []
+
+
+class CoachPlanResponse(BaseModel):
+    account_name: str = ""
+    summary: str = ""
+    priorities: CoachPriorities
+    daily_plan: list[CoachDailyPlan] = []
+    total_p0: int = 0
+    total_p1: int = 0
+    total_p2: int = 0
+
+
 class CraftingPlanLine(BaseModel):
     item_id: int
     required_count: int
@@ -438,3 +512,130 @@ class AccountReport(BaseModel):
     recommendations: list[str] = []
     snapshot_time: str = ""
     created_at: str = ""
+
+
+# ── Goal-Driven OS Models ──────────────────────────────────────────
+
+class GoalType(str, enum.Enum):
+    MAKE_GOLD = "MAKE_GOLD"
+    FINISH_LEGENDARY = "FINISH_LEGENDARY"
+    PREPARE_BUILD = "PREPARE_BUILD"
+    OPTIMIZE_INVENTORY = "OPTIMIZE_INVENTORY"
+    CRAFT_ITEM = "CRAFT_ITEM"
+    WEEKLY_PLAN = "WEEKLY_PLAN"
+    GUILD_PREPARATION = "GUILD_PREPARATION"
+    GENERIC = "GENERIC"
+
+
+class ParsedGoal(BaseModel):
+    raw_text: str
+    goal_type: GoalType = GoalType.GENERIC
+    target_item_name: str = ""
+    target_item_id: int = 0
+    strategy: str = "balanced"
+    time_budget_minutes: int = 0
+    gold_budget_copper: int = 0
+    game_mode: str = ""
+    excluded_content: list[str] = []
+    confidence: float = 0.0
+
+
+class UserGoal(BaseModel):
+    goal_id: str = ""
+    account_name: str = ""
+    raw_text: str = ""
+    goal_type: GoalType = GoalType.GENERIC
+    target_item_id: int = 0
+    target_item_name: str = ""
+    strategy: str = "balanced"
+    time_budget_minutes: int = 0
+    gold_budget_copper: int = 0
+    game_mode: str = ""
+    constraints: list[str] = []
+    created_at: str = ""
+
+
+class PlanAction(BaseModel):
+    action_id: str = ""
+    plan_id: str = ""
+    action_type: str = ""  # SELL_ITEM | BUY_ITEM | CRAFT_ITEM | FARM_ACTIVITY | COMPLETE_ACHIEVEMENT | IMPROVE_BUILD | CLEAN_INVENTORY
+    title: str = ""
+    reason: str = ""
+    reward_gold: int = 0
+    cost_gold: int = 0
+    time_cost_minutes: int = 0
+    score: float = 0.0
+    priority: int = 0
+    status: str = "pending"  # pending | completed | skipped
+    tab: str = ""
+    item_id: int = 0
+    day_index: int = -1
+
+
+class ProgressionPlan(BaseModel):
+    plan_id: str = ""
+    goal_id: str = ""
+    account_name: str = ""
+    strategy: str = "balanced"
+    total_cost_copper: int = 0
+    estimated_days: int = 0
+    completion_percent: float = 0.0
+    status: str = "active"
+    actions: list[PlanAction] = []
+    insight: str = ""
+    created_at: str = ""
+
+
+class PlanRevision(BaseModel):
+    revision_id: str = ""
+    plan_id: str = ""
+    user_request: str = ""
+    previous_strategy: str = ""
+    new_strategy: str = ""
+    delta_summary: str = ""
+    created_at: str = ""
+
+
+class ReportArtifact(BaseModel):
+    report_id: str = ""
+    plan_id: str = ""
+    account_name: str = ""
+    report_type: str = "free"  # free | paid
+    file_url: str = ""
+    access_level: str = "free"
+    price_copper: int = 0
+    preview_html: str = ""
+    created_at: str = ""
+
+
+class GoalInterpretResponse(BaseModel):
+    parsed: ParsedGoal
+    alternatives: list[ParsedGoal] = []
+
+
+class PlanGenerateResponse(BaseModel):
+    plan: ProgressionPlan
+    insight: str = ""
+    top_actions: list[PlanAction] = []
+    seven_day_plan: list[list[PlanAction]] = []
+    report_preview: str = ""
+    tier: str = "free"
+
+
+class PlanReviseResponse(BaseModel):
+    revised_plan: ProgressionPlan
+    delta_summary: str = ""
+    changed_actions: list[str] = []
+
+
+class ProgressiveResult(BaseModel):
+    stage: int = 1
+    account_name: str = ""
+    wallet_gold: int = 0
+    character_count: int = 0
+    total_value_estimate: int = 0
+    hidden_wealth: int = 0
+    best_build_name: str = ""
+    closest_goal_name: str = ""
+    first_action: PlanAction | None = None
+    ready: bool = False

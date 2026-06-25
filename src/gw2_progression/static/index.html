@@ -3,147 +3,322 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>GW Progression</title>
+  <title>GW2 Progression OS</title>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
   <link rel="stylesheet" href="/static/style.css" />
   <link rel="manifest" href="/static/manifest.json" />
   <meta name="theme-color" content="#c8956c" />
+  <style>
+    /* Goal-Driven OS Styles */
+    .goal-hero { background: linear-gradient(135deg,#0f1a0f,#1a0f1a); border: 1px solid #2a2a2a; border-radius: 16px; padding: 48px 32px; text-align: center; margin-bottom: 24px; }
+    .goal-hero h2 { font-size: 28px; color: var(--gold); font-weight: 300; letter-spacing: 2px; margin-bottom: 8px; }
+    .goal-hero p { color: var(--text-dim); font-size: 14px; margin-bottom: 24px; }
+    .goal-prompt-row { display: flex; gap: 10px; max-width: 640px; margin: 0 auto; }
+    .goal-prompt-row input { flex: 1; background: var(--bg3); border: 1px solid var(--border); border-radius: 8px; color: var(--text-bright); font-size: 16px; padding: 14px 18px; outline: none; }
+    .goal-prompt-row input:focus { border-color: var(--gold); }
+    .goal-prompt-row button { background: var(--gold); border: none; border-radius: 8px; color: #111; cursor: pointer; font-size: 15px; font-weight: 600; padding: 14px 28px; white-space: nowrap; }
+    .goal-prompt-row button:hover { background: var(--gold-light); }
+
+    .quick-goal-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px; max-width: 740px; margin: 0 auto 24px; }
+    .quick-goal-card { background: var(--bg2); border: 1px solid var(--border); border-radius: 10px; padding: 16px; text-align: center; cursor: pointer; transition: border-color .2s, background .2s; }
+    .quick-goal-card:hover { border-color: var(--gold); background: #1a1f1a; }
+    .quick-goal-card .icon { font-size: 28px; margin-bottom: 6px; }
+    .quick-goal-card .label { font-size: 13px; color: var(--text); font-weight: 500; }
+    .quick-goal-card .sub { font-size: 11px; color: var(--text-dim); margin-top: 2px; }
+
+    .page-section { display: none; }
+    .page-section.active { display: block; }
+
+    nav.nav-os { background: #151515; border-bottom: 1px solid var(--border); padding: 0 16px; display: flex; gap: 0; overflow-x: auto; }
+    nav.nav-os button { background: none; border: none; border-bottom: 2px solid transparent; color: var(--text-dim); cursor: pointer; font-size: 13px; padding: 10px 18px; transition: color .15s, border-color .15s; white-space: nowrap; }
+    nav.nav-os button:hover { color: var(--gold-light); }
+    nav.nav-os button.active { color: var(--gold); border-bottom-color: var(--gold); }
+
+    .strategy-btn:hover { opacity: 0.8; }
+    .strategy-btn.active { background: var(--gold) !important; color: #111 !important; }
+
+    .plan-section { margin-bottom: 20px; }
+    .insight-card { background: linear-gradient(135deg,#1a2a1a,#2a1a2a); border: 1px solid #3a2a3a; border-radius: 12px; padding: 24px; margin-bottom: 16px; }
+
+    .trust-banner { background: var(--bg2); border: 1px solid var(--border); border-radius: 8px; padding: 12px 16px; margin-top: 16px; font-size: 12px; color: var(--text-dim); display: flex; gap: 16px; flex-wrap: wrap; justify-content: center; }
+    .trust-banner span { display: flex; align-items: center; gap: 4px; }
+
+    .pricing-card { background: var(--bg2); border: 1px solid var(--border); border-radius: 10px; padding: 20px; text-align: center; }
+    .pricing-card.featured { border-color: var(--gold); background: #1a1f14; }
+    .pricing-card .price { font-size: 32px; color: var(--gold); font-weight: 700; }
+    .pricing-card .price-period { font-size: 13px; color: var(--text-dim); }
+    .pricing-card ul { list-style: none; padding: 0; margin: 12px 0; text-align: left; }
+    .pricing-card ul li { padding: 4px 0; font-size: 12px; color: var(--text); }
+    .pricing-card ul li:before { content: '✓ '; color: var(--green); }
+
+    .featured-badge { background: var(--gold); color: #111; font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 10px; text-transform: uppercase; letter-spacing: 1px; display: inline-block; margin-bottom: 8px; }
+
+    @media (max-width: 640px) {
+      .goal-hero { padding: 32px 16px; }
+      .goal-hero h2 { font-size: 22px; }
+      .goal-prompt-row { flex-direction: column; }
+      .goal-prompt-row button { width: 100%; }
+      .quick-goal-grid { grid-template-columns: 1fr 1fr; }
+    }
+  </style>
 </head>
 <body>
 
 <header>
-  <h1>GW Progression</h1>
-  <span>Account Intelligence</span>
+  <h1>GW2 Progression OS</h1>
+  <span>Goal-Driven Account Intelligence</span>
 </header>
 
-<nav id="nav-tabs" class="hidden" role="tablist" aria-label="Account sections">
-  <button class="active" data-tab="overview" role="tab" aria-selected="true">🏠 Home</button>
-  <button data-tab="coach" role="tab" aria-selected="false">🎯 Coach</button>
-  <button data-tab="timeline" role="tab" aria-selected="false">📈 Timeline</button>
-  <button data-tab="advanced" role="tab" aria-selected="false">🔧 Advanced</button>
+<nav class="nav-os" id="os-nav" role="tablist" aria-label="Goal-Driven Navigation">
+  <button class="active" data-nav="home" role="tab" aria-selected="true">🏠 Home</button>
+  <button data-nav="plan" role="tab" aria-selected="false">📋 Plan</button>
+  <button data-nav="report" role="tab" aria-selected="false">📄 Report</button>
+  <button data-nav="tools" role="tab" aria-selected="false">🔧 Tools</button>
 </nav>
 
 <main>
-      <div id="key-section">
-      <div style="text-align:center;margin-bottom:12px">
-        <div style="font-size:26px;font-weight:700;color:var(--gold);margin-bottom:4px">GW2 Progression</div>
-        <div style="font-size:13px;color:var(--text-dim)">Turn your GW2 account into a progression plan</div>
-      </div>
-      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:8px;margin-bottom:16px">
-        <div style="text-align:center;padding:10px;background:var(--bg2);border:1px solid var(--border);border-radius:6px"><div style="font-size:20px">💰</div><div style="font-size:11px;color:var(--text-dim)">Total Value</div></div>
-        <div style="text-align:center;padding:10px;background:var(--bg2);border:1px solid var(--border);border-radius:6px"><div style="font-size:20px">🎯</div><div style="font-size:11px;color:var(--text-dim)">Action Plan</div></div>
-        <div style="text-align:center;padding:10px;background:var(--bg2);border:1px solid var(--border);border-radius:6px"><div style="font-size:20px">🤖</div><div style="font-size:11px;color:var(--text-dim)">AI Coach</div></div>
-        <div style="text-align:center;padding:10px;background:var(--bg2);border:1px solid var(--border);border-radius:6px"><div style="font-size:20px">📆</div><div style="font-size:11px;color:var(--text-dim)">Weekly Plan</div></div>
-      </div>
-      <div id="pricing-banner" style="display:none;background:linear-gradient(135deg,#1a2a1a,#2a1a2a);border:1px solid #3a2a3a;border-radius:8px;padding:12px;margin-bottom:12px;text-align:center">
-        <div style="font-size:14px;font-weight:600;color:var(--gold);margin-bottom:4px">Unlock Full Progression System</div>
-        <div style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap;font-size:12px">
-          <span style="background:var(--bg3);padding:4px 8px;border-radius:4px">Report — $5</span>
-          <span style="background:var(--bg3);padding:4px 8px;border-radius:4px">Weekly — $5/mo</span>
-          <span style="background:var(--bg3);padding:4px 8px;border-radius:4px">Coach — $9/mo</span>
-        </div>
-      </div>
-      <h2>Connect Your Account</h2>
-      <div style="font-size:12px;color:var(--text-dim);margin-bottom:12px;line-height:1.5">
-        Enter your <a href="https://account.arena.net/applications" target="_blank" style="color:var(--gold)">GW2 API Key</a> to analyze your account. Keys are never stored without permission.
-      </div>
-      <div id="key-row">
-        <input id="key-input" type="text" placeholder="Paste your GW2 API key…" autocomplete="off" spellcheck="false" aria-label="GW2 API key" />
-        <button id="analyze-btn" aria-label="Analyze account">Analyze</button>
-        <select id="account-selector" class="hidden" aria-label="Switch account"></select>
-      </div>
-      <div id="status-msg" role="status" aria-live="polite"></div>
-      <div id="progress-steps" class="hidden" style="margin-top:8px;display:flex;flex-wrap:wrap;gap:4px">
-        <span class="step-badge" data-step="tokeninfo">Token</span>
-        <span class="step-badge" data-step="account">Account</span>
-        <span class="step-badge" data-step="characters">Characters</span>
-        <span class="step-badge" data-step="wallet">Wallet</span>
-        <span class="step-badge" data-step="bank">Bank</span>
-        <span class="step-badge" data-step="materials">Materials</span>
-        <span class="step-badge" data-step="inventory">Inventory</span>
-        <span class="step-badge" data-step="achievements">Achievements</span>
-        <span class="step-badge" data-step="masteries">Masteries</span>
-        <span class="step-badge" data-step="builds">Builds</span>
-        <span class="step-badge" data-step="guilds">Guilds</span>
-        <span class="step-badge" data-step="pvp">PvP</span>
-        <span class="step-badge" data-step="tp">TP</span>
-        <span class="step-badge" data-step="unlocks">Unlocks</span>
-        <span class="step-badge" data-step="wvw">WvW</span>
-        <span class="step-badge" data-step="done">Done</span>
+
+  <!-- ── API Key Section (always visible) ── -->
+  <div id="key-section">
+    <div style="text-align:center;margin-bottom:12px">
+      <div style="font-size:26px;font-weight:700;color:var(--gold);margin-bottom:4px">GW2 Progression OS</div>
+      <div style="font-size:13px;color:var(--text-dim)">A goal-driven system that turns your GW2 account into actionable progression plans.</div>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:8px;margin-bottom:16px">
+      <div style="text-align:center;padding:10px;background:var(--bg2);border:1px solid var(--border);border-radius:6px"><div style="font-size:20px">🎯</div><div style="font-size:11px;color:var(--text-dim)">Goal-Driven</div></div>
+      <div style="text-align:center;padding:10px;background:var(--bg2);border:1px solid var(--border);border-radius:6px"><div style="font-size:20px">⚡</div><div style="font-size:11px;color:var(--text-dim)">Instant Plan</div></div>
+      <div style="text-align:center;padding:10px;background:var(--bg2);border:1px solid var(--border);border-radius:6px"><div style="font-size:20px">🔄</div><div style="font-size:11px;color:var(--text-dim)">Iterate</div></div>
+      <div style="text-align:center;padding:10px;background:var(--bg2);border:1px solid var(--border);border-radius:6px"><div style="font-size:20px">📊</div><div style="font-size:11px;color:var(--text-dim)">Report</div></div>
+    </div>
+    <h2>Connect Your Account</h2>
+    <div style="font-size:12px;color:var(--text-dim);margin-bottom:12px;line-height:1.5">
+      Enter your <a href="https://account.arena.net/applications" target="_blank" style="color:var(--gold)">GW2 API Key</a> to start. Your key is never stored without permission.
+    </div>
+    <div id="key-row">
+      <input id="key-input" type="text" placeholder="Paste your GW2 API key…" autocomplete="off" spellcheck="false" aria-label="GW2 API key" />
+      <button id="analyze-btn" aria-label="Analyze account">Connect & Analyze</button>
+      <select id="account-selector" class="hidden" aria-label="Switch account"></select>
+    </div>
+    <div id="status-msg" role="status" aria-live="polite"></div>
+    <div id="progress-steps" class="hidden" style="margin-top:8px;display:flex;flex-wrap:wrap;gap:4px">
+      <span class="step-badge" data-step="tokeninfo">Token</span>
+      <span class="step-badge" data-step="account">Account</span>
+      <span class="step-badge" data-step="characters">Characters</span>
+      <span class="step-badge" data-step="wallet">Wallet</span>
+      <span class="step-badge" data-step="bank">Bank</span>
+      <span class="step-badge" data-step="materials">Materials</span>
+      <span class="step-badge" data-step="inventory">Inventory</span>
+      <span class="step-badge" data-step="achievements">Achievements</span>
+      <span class="step-badge" data-step="masteries">Masteries</span>
+      <span class="step-badge" data-step="builds">Builds</span>
+      <span class="step-badge" data-step="guilds">Guilds</span>
+      <span class="step-badge" data-step="pvp">PvP</span>
+      <span class="step-badge" data-step="tp">TP</span>
+      <span class="step-badge" data-step="unlocks">Unlocks</span>
+      <span class="step-badge" data-step="wvw">WvW</span>
+      <span class="step-badge" data-step="done">Done</span>
+    </div>
+  </div>
+
+  <!-- ── Page: HOME (Goal Prompt) ── -->
+  <div class="page-section active" id="page-home">
+    <div class="goal-hero">
+      <h2>What do you want to achieve in GW2?</h2>
+      <p>Tell us your goal. We'll turn your account into a personalized progression plan.</p>
+      <div class="goal-prompt-row">
+        <input id="goal-prompt-input" type="text" placeholder='e.g. "I want to finish Bolt cheaply" or "Make 500g this week"' autocomplete="off" />
+        <button id="goal-prompt-btn">Generate My Plan</button>
       </div>
     </div>
+
+    <div class="quick-goal-grid">
+      <div class="quick-goal-card" data-goal="I want to make gold this week">
+        <div class="icon">💰</div>
+        <div class="label">Make Gold</div>
+        <div class="sub">Maximize weekly income</div>
+      </div>
+      <div class="quick-goal-card" data-goal="I want to finish Bolt">
+        <div class="icon">⚔️</div>
+        <div class="label">Finish Legendary</div>
+        <div class="sub">Complete a legendary weapon</div>
+      </div>
+      <div class="quick-goal-card" data-goal="I need a fractal-ready build">
+        <div class="icon">🛡️</div>
+        <div class="label">Prepare Build</div>
+        <div class="sub">Get raid/fractal ready</div>
+      </div>
+      <div class="quick-goal-card" data-goal="I want to clean my inventory">
+        <div class="icon">📦</div>
+        <div class="label">Optimize Inventory</div>
+        <div class="sub">Clean and organize storage</div>
+      </div>
+      <div class="quick-goal-card" data-goal="Plan my week">
+        <div class="icon">📆</div>
+        <div class="label">Plan My Week</div>
+        <div class="sub">7-day progression plan</div>
+      </div>
+    </div>
+
+    <div id="goal-status" style="text-align:center;font-size:13px;color:var(--text-dim);margin-bottom:12px"></div>
+
+    <div class="trust-banner">
+      <span>🔒 Your ArenaNet password is never required</span>
+      <span>🔑 Session-only mode stores nothing</span>
+      <span>🔄 Revoke your key anytime from ArenaNet</span>
+    </div>
+  </div>
+
+  <!-- ── Page: PLAN ── -->
+  <div class="page-section" id="page-plan">
+    <div style="font-size:18px;font-weight:700;color:var(--gold);margin-bottom:4px">📋 Your Progression Plan</div>
+    <div style="font-size:12px;color:var(--text-dim);margin-bottom:16px">Review your personalized plan. Adjust strategy or refine with natural language.</div>
+    <div id="interpretation-display" style="display:none"></div>
+    <div id="plan-content">
+      <div style="text-align:center;padding:40px;color:var(--text-dim)">
+        <div style="font-size:48px;margin-bottom:12px">🎯</div>
+        <div>Enter a goal on the Home page to generate your plan.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Page: REPORT ── -->
+  <div class="page-section" id="page-report">
+    <div style="font-size:18px;font-weight:700;color:var(--gold);margin-bottom:4px">📄 Reports & Export</div>
+    <div style="font-size:12px;color:var(--text-dim);margin-bottom:16px">Generate detailed reports of your progression plan.</div>
+
+    <div id="report-empty" style="text-align:center;padding:40px;color:var(--text-dim)">
+      <div style="font-size:48px;margin-bottom:12px">📊</div>
+      <div>Generate a plan first, then create a report here.</div>
+    </div>
+
+    <div id="report-content" style="display:none">
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:16px;margin-bottom:24px">
+        <!-- Free Tier -->
+        <div class="pricing-card">
+          <div style="font-size:14px;font-weight:600;color:var(--text-bright);margin-bottom:8px">Free Preview</div>
+          <div class="price">$0</div>
+          <ul>
+            <li>Account insight summary</li>
+            <li>Top action recommendation</li>
+            <li>Limited plan preview</li>
+            <li>Copy plan to clipboard</li>
+          </ul>
+          <button id="generate-free-report-btn" class="btn-sm" style="background:var(--bg3);border:1px solid var(--border);color:var(--text);width:100%;padding:10px;cursor:pointer">Generate Free Report</button>
+        </div>
+        <!-- Paid Report -->
+        <div class="pricing-card featured">
+          <span class="featured-badge">Best Value</span>
+          <div style="font-size:14px;font-weight:600;color:var(--text-bright);margin-bottom:8px">Full Report</div>
+          <div class="price">$5</div>
+          <div class="price-period">one-time</div>
+          <ul>
+            <li>Full action plan with 7-day schedule</li>
+            <li>Crafting path analysis</li>
+            <li>Build readiness + gaps</li>
+            <li>PDF export with full styling</li>
+            <li>Personalized recommendations</li>
+          </ul>
+          <button class="btn-sm" style="background:var(--gold);border:none;color:#111;width:100%;padding:10px;font-weight:600;cursor:pointer">Purchase Report — $5</button>
+        </div>
+        <!-- Subscription -->
+        <div class="pricing-card">
+          <div style="font-size:14px;font-weight:600;color:var(--text-bright);margin-bottom:8px">Weekly Subscription</div>
+          <div class="price">$5</div>
+          <div class="price-period">/month</div>
+          <ul>
+            <li>Automated weekly report</li>
+            <li>Updated progression plan</li>
+            <li>Market alerts & signals</li>
+            <li>Progression tracking</li>
+            <li>Everything in Full Report</li>
+          </ul>
+          <button class="btn-sm" style="background:var(--gold);border:none;color:#111;width:100%;padding:10px;font-weight:600;cursor:pointer">Subscribe — $5/mo</button>
+        </div>
+      </div>
+
+      <div id="report-preview-area"></div>
+    </div>
+  </div>
+
+  <!-- ── Page: TOOLS (Advanced Tools, collapsed) ── -->
+  <div class="page-section" id="page-tools">
+    <div style="font-size:18px;font-weight:700;color:var(--gold);margin-bottom:4px">🔧 Advanced Tools</div>
+    <div style="font-size:12px;color:var(--text-dim);margin-bottom:16px">Full suite of GW2 account analysis tools.</div>
+
+    <!-- Legacy Tab Navigation (hidden behind Tools) -->
+    <nav id="nav-tabs" class="hidden" role="tablist" aria-label="Account sections">
+      <button class="active" data-tab="overview" role="tab" aria-selected="true">🏠 Home</button>
+      <button data-tab="coach" role="tab" aria-selected="false">🎯 Coach</button>
+      <button data-tab="timeline" role="tab" aria-selected="false">📈 Timeline</button>
+      <button data-tab="advanced" role="tab" aria-selected="false">🔧 Advanced</button>
+    </nav>
 
     <div id="results" class="hidden">
-
-    <!-- ── Page 1: Home (Action Center) ── -->
-    <div class="tab-panel active" id="tab-overview" role="tabpanel">
-      <div class="tab-loading"><span class="spinner"></span> Loading…</div>
-      <div id="insight-screen" style="display:none">
-        <div id="insight-hero" style="background:linear-gradient(135deg,#1a2a1a,#2a1a2a);border:1px solid #3a2a3a;border-radius:12px;padding:24px;text-align:center;margin-bottom:12px"></div>
-        <div id="insight-grid" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px;margin-bottom:16px"></div>
-        <div style="text-align:center">
-          <button id="insight-dismiss-btn" class="btn-sm" onclick="dismissInsight()">🎯 Show me my Next Move →</button>
+      <div class="tab-panel active" id="tab-overview" role="tabpanel">
+        <div class="tab-loading"><span class="spinner"></span> Loading…</div>
+        <div id="insight-screen" style="display:none">
+          <div id="insight-hero" style="background:linear-gradient(135deg,#1a2a1a,#2a1a2a);border:1px solid #3a2a3a;border-radius:12px;padding:24px;text-align:center;margin-bottom:12px"></div>
+          <div id="insight-grid" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px;margin-bottom:16px"></div>
+          <div style="text-align:center">
+            <button id="insight-dismiss-btn" class="btn-sm" onclick="dismissInsight()">🎯 Show me my Next Move →</button>
+          </div>
+        </div>
+        <div id="action-center">
+          <div id="strategy-bar" style="display:none;margin-bottom:12px;padding:8px 12px;background:var(--bg2);border:1px solid var(--border);border-radius:6px;font-size:12px">
+            <span class="dim">Strategy:</span>
+            <select id="strategy-select" style="background:var(--bg3);color:var(--text);border:1px solid var(--border);padding:2px 6px;border-radius:4px;font-size:12px;cursor:pointer">
+              <option value="hybrid">Balanced</option>
+              <option value="gold">Gold Farming</option>
+              <option value="build">Build Completion</option>
+              <option value="legendary">Legendary Rush</option>
+            </select>
+            <span id="strategy-desc" class="dim" style="margin-left:8px"></span>
+          </div>
+          <div id="today-section" style="display:none;margin-bottom:16px">
+            <div style="font-size:13px;color:var(--text-dim);margin-bottom:8px">YOUR NEXT BEST MOVE</div>
+            <div id="today-list" style="display:flex;flex-direction:column;gap:6px"></div>
+          </div>
+          <div id="hero-metrics" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin-bottom:16px"></div>
+          <div id="quick-stats" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:8px;margin-bottom:16px"></div>
+          <details style="margin-bottom:12px">
+            <summary style="cursor:pointer;color:var(--text-dim);font-size:13px">📋 Account Details</summary>
+            <div class="stat-cards" id="overview-cards" style="margin-top:8px"></div>
+          </details>
+          <div style="margin:12px 0">
+            <button id="export-report-btn" class="btn btn-sm" onclick="exportReport()" disabled>📄 Export Report</button>
+          </div>
+          <div id="report-history" style="display:none;margin-bottom:12px"><div class="section-title">Recent Reports</div><div id="report-list" style="font-size:13px"></div></div>
+          <div class="section-title">Permissions</div>
+          <div class="perm-grid" id="perm-grid"></div>
+          <div class="tab-error" id="err-overview"></div>
         </div>
       </div>
-      <div id="action-center">
-        <div id="strategy-bar" style="display:none;margin-bottom:12px;padding:8px 12px;background:var(--bg2);border:1px solid var(--border);border-radius:6px;font-size:12px">
-          <span class="dim">Strategy:</span>
-          <select id="strategy-select" style="background:var(--bg3);color:var(--text);border:1px solid var(--border);padding:2px 6px;border-radius:4px;font-size:12px;cursor:pointer" onchange="switchStrategy(this.value)">
-            <option value="hybrid">Balanced</option>
-            <option value="gold">Gold Farming</option>
-            <option value="build">Build Completion</option>
-            <option value="legendary">Legendary Rush</option>
-          </select>
-          <span id="strategy-desc" class="dim" style="margin-left:8px"></span>
+
+      <div class="tab-panel" id="tab-coach" role="tabpanel">
+        <div class="tab-loading"><span class="spinner"></span> Loading…</div>
+        <div id="coach-content">
+          <div style="font-size:18px;font-weight:700;color:var(--gold);margin-bottom:4px">🎯 Your Coach Plan</div>
+          <div style="font-size:12px;color:var(--text-dim);margin-bottom:16px">Personalized growth recommendations based on your account data.</div>
+          <div id="coach-p0"></div><div id="coach-p1"></div><div id="coach-p2"></div>
         </div>
-        <div id="today-section" style="display:none;margin-bottom:16px">
-          <div style="font-size:13px;color:var(--text-dim);margin-bottom:8px">YOUR NEXT BEST MOVE</div>
-          <div id="today-list" style="display:flex;flex-direction:column;gap:6px"></div>
-        </div>
-        <div id="hero-metrics" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin-bottom:16px"></div>
-        <div id="quick-stats" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:8px;margin-bottom:16px"></div>
-        <details style="margin-bottom:12px">
-          <summary style="cursor:pointer;color:var(--text-dim);font-size:13px">📋 Account Details</summary>
-          <div class="stat-cards" id="overview-cards" style="margin-top:8px"></div>
-        </details>
-        <div style="margin:12px 0">
-          <button id="share-report-btn" class="btn btn-sm" onclick="shareReport()" style="display:none">🔗 Share</button>
-        <button id="export-report-btn" class="btn btn-sm" onclick="exportReport()" disabled>📄 Export Report</button>
-        </div>
-        <div id="report-history" style="display:none;margin-bottom:12px"><div class="section-title">Recent Reports</div><div id="report-list" style="font-size:13px"></div></div>
-        <div class="section-title">Permissions</div>
-        <div class="perm-grid" id="perm-grid"></div>
-        <div class="tab-error" id="err-overview"></div>
       </div>
-    </div>
 
-    <!-- ── Page 2: Coach ── -->
-    <div class="tab-panel" id="tab-coach" role="tabpanel">
-      <div class="tab-loading"><span class="spinner"></span> Loading…</div>
-      <div id="coach-content">
-        <div style="font-size:18px;font-weight:700;color:var(--gold);margin-bottom:4px">🎯 Your Coach Plan</div>
-        <div style="font-size:12px;color:var(--text-dim);margin-bottom:16px">Personalized growth recommendations based on your account data.</div>
-        <div id="coach-p0"></div><div id="coach-p1"></div><div id="coach-p2"></div>
+      <div class="tab-panel" id="tab-timeline" role="tabpanel">
+        <div class="tab-loading"><span class="spinner"></span> Loading…</div>
+        <div style="font-size:18px;font-weight:700;color:var(--gold);margin-bottom:4px">📈 Your 7-Day Growth Path</div>
+        <div style="font-size:12px;color:var(--text-dim);margin-bottom:16px">Follow this weekly rhythm to maximize your progression.</div>
+        <div id="timeline-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:8px;margin-bottom:16px"></div>
+        <div class="section-title">✅ Weekly Quests <span id="quest-progress" class="dim" style="font-size:12px;font-weight:normal"></span></div>
+        <div id="quest-list" style="display:flex;flex-direction:column;gap:4px;margin-bottom:16px"></div>
       </div>
-    </div>
 
-    <!-- ── Page 3: Timeline ── -->
-    <div class="tab-panel" id="tab-timeline" role="tabpanel">
-      <div class="tab-loading"><span class="spinner"></span> Loading…</div>
-      <div style="font-size:18px;font-weight:700;color:var(--gold);margin-bottom:4px">📈 Your 7-Day Growth Path</div>
-      <div style="font-size:12px;color:var(--text-dim);margin-bottom:16px">Follow this weekly rhythm to maximize your progression.</div>
-      <div id="timeline-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:8px;margin-bottom:16px"></div>
-      <div class="section-title">✅ Weekly Quests <span id="quest-progress" class="dim" style="font-size:12px;font-weight:normal"></span></div>
-      <div id="quest-list" style="display:flex;flex-direction:column;gap:4px;margin-bottom:16px"></div>
-    </div>
-
-    <!-- ── Page 4: Advanced Tools ── -->
-    <div class="tab-panel" id="tab-advanced" role="tabpanel">
-      <div class="tab-loading"><span class="spinner"></span> Loading…</div>
-      <div id="advanced-tools" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:10px"></div>
-      <div id="advanced-tool-panel" style="display:none">
-        <button id="adv-back-btn" class="btn-sm" style="margin-bottom:12px">← Back to Tools</button>
-        <div id="adv-tool-content"></div>
+      <div class="tab-panel" id="tab-advanced" role="tabpanel">
+        <div class="tab-loading"><span class="spinner"></span> Loading…</div>
+        <div id="advanced-tools" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:10px"></div>
+        <div id="advanced-tool-panel" style="display:none">
+          <button id="adv-back-btn" class="btn-sm" style="margin-bottom:12px">← Back to Tools</button>
+          <div id="adv-tool-content"></div>
+        </div>
       </div>
     </div>
 
@@ -156,8 +331,12 @@
       <div id="tab-progression"></div><div id="tab-wardrobe"></div><div id="tab-inventory"></div>
       <div id="tab-planner"></div><div id="tab-market"></div><div id="tab-advisor"></div>
       <div id="tab-products"></div>
-    </div></main>
+    </div>
+  </div>
 
+</main>
+
+<!-- Guide overlay (legacy) -->
 <div id="guide-overlay" class="hidden" style="position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.85);z-index:1000;display:flex;align-items:center;justify-content:center">
   <div id="guide-card" style="background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:24px;max-width:480px;width:90%;max-height:80vh;overflow-y:auto">
     <div id="guide-header" style="font-size:18px;font-weight:700;color:var(--gold);margin-bottom:8px"></div>
@@ -173,6 +352,7 @@
   </div>
 </div>
 <button id="guide-btn" class="btn-sm" style="position:fixed;bottom:60px;right:12px;z-index:100;font-size:11px;padding:4px 10px;background:var(--bg3);border:1px solid var(--border);color:var(--text-dim);border-radius:20px;cursor:pointer">Guide</button>
+
 <script type="module" src="/static/app.js"></script>
 </body>
 </html>

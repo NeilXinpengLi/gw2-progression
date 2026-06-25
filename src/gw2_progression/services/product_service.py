@@ -14,6 +14,14 @@ SAMPLE_PRODUCTS = [
         "deliverables": json.dumps(["PDF Report", "Value Breakdown Chart", "Top Items List", "7-Day Change Delta"], ensure_ascii=False),
     },
     {
+        "slug": "goal-driven-report",
+        "name": "Goal-Driven Full Report",
+        "description": "Full goal-driven progression report: insight, top actions, 7-day plan, build readiness, goal progress, crafting path. PDF export.",
+        "price_copper": 50000,
+        "type": "one_time",
+        "deliverables": json.dumps(["PDF Report", "Action Plan", "7-Day Schedule", "Build Readiness", "Goal Progress", "Crafting Path", "Market Signals"], ensure_ascii=False),
+    },
+    {
         "slug": "legendary-gap-report",
         "name": "Legendary Gap Report",
         "description": "Pick a legendary target and get a complete material gap analysis: what you own, what you need, total cost, and crafting steps.",
@@ -36,6 +44,14 @@ SAMPLE_PRODUCTS = [
         "price_copper": 3000,
         "type": "subscription",
         "deliverables": json.dumps(["Weekly Email Report", "Value Delta", "Goal Progress", "Build Updates", "Action Plan"], ensure_ascii=False),
+    },
+    {
+        "slug": "goal-driven-weekly",
+        "name": "Goal-Driven Weekly Progression",
+        "description": "Automated weekly goal-driven progression report: updated 7-day plan, market alerts, goal progress tracking, build updates, and personalized recommendations delivered weekly.",
+        "price_copper": 5000,
+        "type": "subscription",
+        "deliverables": json.dumps(["Weekly Email Report", "Updated 7-Day Plan", "Goal Progress Delta", "Build Updates", "Market Signals", "Personalized Recommendations"], ensure_ascii=False),
     },
     {
         "slug": "guild-audit",

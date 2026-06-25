@@ -5,6 +5,7 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, field_validator
 
 from gw2_progression.gw2_client import Gw2ApiError
+from gw2_progression.models import CraftingPlanResult, CraftingResponse, RecipeOptimizationResult
 from gw2_progression.services.crafting_plan_service import create_plan
 from gw2_progression.services.recipe_optimizer import optimize
 from gw2_progression.services.recipe_service import calculate, calculate_cheapest
@@ -116,7 +117,7 @@ async def get_recipes_by_output(item_id: int):
     return recipes
 
 
-@router.post("/calculate/cheapest")
+@router.post("/calculate/cheapest", response_model=CraftingResponse)
 async def post_crafting_calculate_cheapest(request: CraftCalcRequest):
     try:
         result = await calculate_cheapest(
@@ -130,7 +131,7 @@ async def post_crafting_calculate_cheapest(request: CraftCalcRequest):
         raise HTTPException(status_code=401, detail=e.message)
 
 
-@router.post("/plan")
+@router.post("/plan", response_model=CraftingPlanResult)
 async def post_crafting_plan(request: CraftCalcRequest):
     try:
         result = await create_plan(
@@ -144,7 +145,7 @@ async def post_crafting_plan(request: CraftCalcRequest):
         raise HTTPException(status_code=401, detail=e.message)
 
 
-@router.post("/optimize")
+@router.post("/optimize", response_model=RecipeOptimizationResult)
 async def post_crafting_optimize(request: OptimizeRequest):
     try:
         result = await optimize(
@@ -179,7 +180,7 @@ async def get_optimize_disciplines(result_id: str):
     return {"result_id": result_id, "disciplines": []}
 
 
-@router.post("/calculate")
+@router.post("/calculate", response_model=CraftingResponse)
 async def post_crafting_calculate(request: CraftCalcRequest):
     try:
         result = await calculate(

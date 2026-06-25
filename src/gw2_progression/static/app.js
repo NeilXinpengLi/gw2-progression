@@ -13,6 +13,7 @@ import { renderValue, renderValueCharts, filterHoldings } from './app-value.js';
 import { renderCharacters, setupWardrobe, renderWallet, renderInventory, renderProgression, renderPvp, renderUnlocks, renderWvw, renderBuilds } from './app-characters.js';
 import { loadGoals, createGoal, refreshGoalUI, deleteGoalUI, setGoalsStatus } from './app-goals.js';
 import { getValueCharts } from './app-shared.js';
+import { initGoalDriven } from './app-goal-driven.js';
 
 let _valueData = null;
 let _abortController = null;
@@ -42,7 +43,36 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 });
 
-// ── Tab switching ──
+// ── OS Nav switching ──
+document.getElementById('os-nav')?.addEventListener('click', e => {
+  const btn = e.target.closest('button[data-nav]');
+  if (!btn) return;
+  document.querySelectorAll('#os-nav button').forEach(b => {
+    b.classList.remove('active');
+    b.style.color = 'var(--text-dim)';
+    b.style.borderTop = 'none';
+    b.setAttribute('aria-selected', 'false');
+  });
+  document.querySelectorAll('.page-section').forEach(p => p.classList.remove('active'));
+  btn.classList.add('active');
+  btn.style.color = 'var(--gold)';
+  btn.style.borderTop = '2px solid var(--gold)';
+  btn.setAttribute('aria-selected', 'true');
+  const page = document.getElementById('page-' + btn.dataset.nav);
+  if (page) {
+    page.classList.add('active');
+    // Show legacy tools when on Tools page
+    if (btn.dataset.nav === 'tools') {
+      document.getElementById('nav-tabs')?.classList.remove('hidden');
+      document.getElementById('results')?.classList.remove('hidden');
+    } else {
+      document.getElementById('nav-tabs')?.classList.add('hidden');
+      document.getElementById('results')?.classList.add('hidden');
+    }
+  }
+});
+
+// ── Legacy Tab switching ──
 document.getElementById('nav-tabs').addEventListener('click', e => {
   const btn = e.target.closest('button[data-tab]');
   if (!btn) return;
@@ -555,6 +585,13 @@ function renderAll(d) {
     activeBtn.style.borderTop = '2px solid var(--gold)';
   }
   showInsightScreen(d);
+
+  // Initialize goal-driven OS
+  const rawKey = document.getElementById('key-input').value.trim();
+  const sessionKey = _sessionToken || rawKey;
+  if (sessionKey) {
+    try { initGoalDriven(sessionKey); } catch(e) { console.warn('Goal-driven init:', e); }
+  }
 }
 
 function renderCoach() {
