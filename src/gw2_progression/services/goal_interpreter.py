@@ -45,11 +45,11 @@ WEEKLY_KEYWORDS = [
 ]
 
 STRATEGY_KEYWORDS = {
-    "cheapest": ["cheap", "cheapest", "frugal", "budget", "save", "low cost", "minimum gold", "economy"],
-    "fastest": ["fast", "fastest", "quick", "rush", "speed", "hurry", "asap", "immediate"],
-    "gold_first": ["gold", "money", "profit", "income", "farm"],
-    "build_first": ["build", "gear", "equip", "ready"],
-    "low_effort": ["lazy", "easy", "simple", "casual", "chill", "relaxed", "minimal", "effortless", "1 hour", "30 min"],
+    "cheapest": ["cheap", "cheaper", "cheapest", "frugal", "budget", "minimum", "economy"],
+    "fastest": ["faster", "fastest", "rush", "asap", "immediately", "speedrun"],
+    "gold_first": [],
+    "build_first": [],
+    "low_effort": ["lazy", "easy", "simple", "casual", "chill", "relaxed", "effortless"],
     "balanced": [],
 }
 
@@ -154,41 +154,33 @@ def _detect_constraints(text: str) -> tuple[int, int, list[str]]:
 
 
 def _match_template(text: str) -> tuple[str, int]:
-    """Match text against known progression templates."""
+    """Match text against known progression templates.
+    Only triggers when text is clearly about finishing/crafting a specific item.
+    """
     t = text.lower()
-    best_name = ""
-    best_id = 0
-    best_ratio = 0.0
 
-    for template in CURATED_TEMPLATES:
-        name_lower = template.name.lower()
-        if name_lower in t:
-            return template.name, template.target_item_id
-        ratio = SequenceMatcher(None, t, name_lower).ratio()
-        if ratio > best_ratio and ratio > 0.3:
-            best_ratio = ratio
-            best_name = template.name
-            best_id = template.target_item_id
-
-    # Check common item names outside templates
+    # Check common legendary/item names (exact word match)
     common_items = {
-        "bolt": ("Bolt", 46765),
-        "twilight": ("Twilight", 30684),
-        "sunrise": ("Sunrise", 30703),
-        "nevermore": ("Nevermore", 76158),
-        "astralaria": ("Astralaria", 72066),
-        "bifrost": ("The Bifrost", 30705),
-        "frostfang": ("Frostfang", 30709),
-        "incinerator": ("Incinerator", 30713),
-        "aurora": ("Aurora", 84767),
-        "vision": ("Vision", 93031),
+        "bolt": ("Bolt", 46765), "twilight": ("Twilight", 30684),
+        "sunrise": ("Sunrise", 30703), "nevermore": ("Nevermore", 76158),
+        "astralaria": ("Astralaria", 72066), "bifrost": ("The Bifrost", 30705),
+        "frostfang": ("Frostfang", 30709), "incinerator": ("Incinerator", 30713),
+        "aurora": ("Aurora", 84767), "vision": ("Vision", 93031),
         "ad infinitum": ("Ad Infinitum", 79906),
     }
     for key, (name, iid) in common_items.items():
         if key in t:
             return name, iid
 
-    return best_name, best_id
+    # Full template name match — only exact name appears in text
+    for template in CURATED_TEMPLATES:
+        name_lower = template.name.lower()
+        # Extract just the item name (before parenthesis)
+        simple_name = name_lower.split("(")[0].strip()
+        if simple_name in t and len(simple_name) > 3:
+            return template.name, template.target_item_id
+
+    return "", 0
 
 
 def _detect_game_mode(text: str) -> str:
@@ -219,10 +211,14 @@ async def interpret_goal(goal_text: str) -> ParsedGoal:
     strategy = _detect_strategy(text)
     time_min, gold_copper, exclusions = _detect_constraints(text)
     game_mode = _detect_game_mode(text)
-    item_name, item_id = _match_template(text)
 
-    if not item_name:
-        item_name = _extract_item_name(text)
+    # Only match items for craft/legendary goals
+    item_name = ""
+    item_id = 0
+    if goal_type in (GoalType.FINISH_LEGENDARY, GoalType.CRAFT_ITEM):
+        item_name, item_id = _match_template(text)
+        if not item_name:
+            item_name = _extract_item_name(text)
 
     confidence_parts = 1.0
     if goal_type != GoalType.GENERIC:
