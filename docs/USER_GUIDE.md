@@ -1,389 +1,395 @@
-# GW2 Progression OS — 专业玩家使用指南
+# GW2 Progression OS — 玩家成长指南
 
 > **目标驱动的 GW2 成长系统。**  
-> 告诉系统你想要什么，它把你的账号数据转化为最优行动方案。
+> 新手、回归玩家、传奇党、Build 玩家、经济玩家都可以用。
 
 ---
 
-## 目录
+## 快速入口：你是哪类玩家？
 
-1. [核心理念](#1-核心理念)
-2. [快速开始](#2-快速开始)
-3. [五个实战场景](#3-五个实战场景)
-4. [深度理解你的方案](#4-深度理解你的方案)
-5. [迭代修改：用自然语言调整](#5-迭代修改用自然语言调整)
-6. [报告与导出](#6-报告与导出)
-7. [高级工具](#7-高级工具)
-8. [专业技巧](#8-专业技巧)
+- [🆕 新手](#3-新手路线--第一次用gw2-progression-os)
+- [🔄 回归玩家](#4-回归玩家路线--一段时间没玩了)
+- [⚔️ 传奇党](#5-传奇党路线--我要做传奇)
+- [🛡️ PvE 玩家](#6-pve-玩家路线--我要打碎层raidstrike)
+- [💰 经济玩家](#7-经济玩家路线--我要赚钱)
+- [😌 休闲玩家](#8-休闲玩家路线--每天30分钟)
+- [🏢 公会管理者](#9-公会管理者路线--团队成长)
 
 ---
 
-## 1. 核心理念
+## 1. 这是什么？
 
-这不是传统的功能导航工具。你不需要在 "Value / Crafting / Goals / Build / Advisor" 之间来回切换。
+一句话：**告诉系统你想要什么，它自动生成行动方案。**
 
-**只需要说一句话：**
+不再需要在 `Value / Crafting / Goals / Build / Advisor` 之间切换。
 
 ```
 I want to finish Bolt in the cheapest way.
 ```
 
-系统会自动：
-1. 读取你的账号状态（金币、材料、银行、角色）
-2. 识别目标类型和策略偏好
-3. 生成 7 天渐进式行动方案
-4. 允许你用自然语言继续修改
+系统自动：
+1. 读取你的账号（金币、材料、银行、角色）
+2. 识别目标类型（传奇/赚钱/Build/整理背包）
+3. 生成 7 天行动方案
+4. 让你用自然语言继续调整
 5. 支持导出报告
 
 ---
 
-## 2. 快速开始
+## 2. 3 分钟开始
 
 ### 2.1 获取 API Key
 
 访问 [ArenaNet Applications](https://account.arena.net/applications)，创建新 Key。
 
-**必需权限：**
-
-| 权限 | 用途 |
-|------|------|
-| `account` | 账号名称 |
-| `characters` | 角色等级与装备 |
-| `inventories` | 银行、材料、共享背包 |
-| `wallet` | 金币与货币 |
-
-**推荐额外开启：** `tradingpost`、`builds`、`progression`、`unlocks`
+**必需权限：** `account`、`characters`、`inventories`、`wallet`  
+**推荐：** `tradingpost`、`builds`、`progression`、`unlocks`
 
 ### 2.2 连接账号
 
-1. 将 API Key 粘贴到首页输入框
-2. 点击 **Connect & Analyze**
-3. 系统自动拉取 16+ 个 GW2 API 端点
+1. 粘贴 API Key 到首页 → 点击 **Connect & Analyze**
+2. 系统自动拉取 16+ 个 GW2 API 端点
+3. 看到你的账号总览
 
-### 2.3 先试试 Demo
+### 2.3 先试 Demo
 
-没有 API Key？点击 **"Try Demo"** 按钮：
+没有 Key？点击 **"Try Demo"** → 立刻看到示例方案，无需任何凭证。
+
+### 2.4 输入第一个目标
+
+在输入框输入：
 
 ```
-系统展示示例账号 "DemoPlayer.1234"
-→ 总价值 12,450g
-→ 最佳目标：Bolt（67% 完成）
-→ 推荐卖出 3 类高价值材料
-→ 21 天 7 天行动方案
+Plan my week
 ```
 
-Demo 模式展示了完整的渐进式加载流程和方案界面，帮助你快速了解系统能力。
+或点击任一快速目标卡片。系统分 4 阶段返回结果：
+
+```
+阶段 1 (1-3s)   账号名称、钱包、角色数
+阶段 2 (3-8s)   总资产估值、隐藏财富
+阶段 3 (8-15s)  最佳 Build、最近目标
+阶段 4 (15-30s) 完整方案 + 7 天日程
+```
 
 ---
 
-## 3. 五个实战场景
+## 3. 新手路线 — 第一次用 GW2 Progression OS
 
-### 场景 1：完成传奇武器
+### 适合你吗？
 
-```
-"I want to finish Bolt"
-```
+- 刚开始玩 GW2 不久
+- 不知道每天该做什么
+- 背包和材料库很乱
+- 看到"T4 Fractals""Mystic Forge"等术语不太熟悉
 
-系统响应：
-```
-你 67% 接近 Bolt
-最省路线需要 21 天，约 830g
-今天先做 3 件事：
-1. 卖出 3 类高流动性材料 → +180g
-2. Farm T4 Fractals → 预计 45g/天
-3. 开始 Gift of Might 材料准备
-```
-
-### 场景 2：本周赚钱
-
-```
-"Make gold this week"
-```
-
-系统响应：
-```
-总赚钱潜力：~140g/周
-推荐行动：
-1. T4 碎层日常 + 推荐 → 20g/天
-2. 日常成就 + 世界boss → 10g/天
-3. TP 倒卖机会 → 额外收益
-4. 清理材料库存 → 即时金币
-```
-
-### 场景 3：准备副本 Build
-
-```
-"I need a fractal-ready build"
-```
-
-系统响应：
-```
-检测到游戏模式：fractal
-最佳 Build 匹配：Power Virtuoso（72% 就绪）
-缺少 3 件装备，约 240g
-推荐先去 T4 碎层获取 ascended 首饰
-```
-
-### 场景 4：清理背包
-
-```
-"Clean my inventory"
-```
-
-系统响应：
-```
-1. 分解所有 masterwork/rare 装备
-2. 出售材料库存溢出（>250 堆叠）
-3. 一键存入材料库
-```
-
-### 场景 5：制定周计划
+### 推荐的第一个目标
 
 ```
 "Plan my week"
 ```
 
-系统响应：
+系统会给你一个简单的 7 天计划，不需要理解复杂概念。
+
+### 进阶
+
 ```
-Monday    卖出清理 + 整合金币
-Tuesday   推进传奇材料
-Wednesday 获取 Build 装备
-Thursday  地图完成 + 货币收集
-Friday    碎层冲刺
-Saturday  WvW / PvP 奖励
-Sunday    周回顾 + 下周规划
+"Clean my inventory"
+"Make gold"
+"What should I do today?"
 ```
+
+> 💡 **小提示：** 暂时不用看"策略切换"和"高级工具"。先用"Plan my week"建立节奏。
+
+### 术语参考
+
+| 术语 | 说明 |
+|------|------|
+| **T4 Fractals** | 最高难度的碎层副本，稳定金币来源 |
+| **TP** | Trading Post（交易行） |
+| **Build** | 角色技能/装备配置 |
+| **Ascended** | 橙色品质装备，最高属性 |
+| **Legendary** | 紫色品质，可免费切换属性的装备 |
 
 ---
 
-## 4. 深度理解你的方案
+## 4. 回归玩家路线 — 一段时间没玩了
 
-### 4.1 渐进式加载
+### 适合你吗？
 
-提交目标后，系统分 4 阶段返回结果：
+- 退坑几个月或几年
+- 包里一堆东西不知道值不值钱
+- 不知道现在流行什么 Build
+- 不知道先做什么目标
+
+### 推荐输入
 
 ```
-阶段 1 (1-3s)  账号名称、钱包金币、角色数
-阶段 2 (3-8s)  总资产估值、隐藏财富、Top 10 资产
-阶段 3 (8-15s) 最佳 Build、最近目标、首要行动
-阶段 4 (15-30s) 完整方案、行动计划、7 天日程
+"I came back after a long break, tell me what to do first"
 ```
 
-每一步完成后界面自动更新，无需等待全部完成。
+系统会：
+1. **检查当前 Build 是否过时** — 对比 SnowCrows/MetaBattle 数据
+2. **评估账号资产** — 总价值、隐藏财富
+3. **清理背包** — 识别有价值的旧材料和过时物品
+4. **找到最近的传奇进度** — 完成度最高的目标
+5. **重建金币储备** — 如果钱包偏低
 
-### 4.2 Insight 摘要
+### 你还可以
 
-方案顶部显示关键摘要：
+```
+"Check my old build"
+"What's changed since I left"
+"Audit my inventory"
+```
+
+> 💡 **小提示：** 先用"Returning Player"卡片获得全面评估，再决定长期目标。
+
+---
+
+## 5. 传奇党路线 — 我要做传奇
+
+### 适合你吗？
+
+- 正在做或计划做传奇武器/首饰/护甲
+- 想知道还差多少材料/金币
+- 想选最省钱或最快的路线
+
+### 推荐输入
+
+```
+"I want to finish Bolt"
+"I want to finish Bolt in the cheapest way"
+"I want to finish Twilight as fast as possible"
+```
+
+系统输出：
 
 ```
 📊 INSIGHT
-你 67% 接近 Bolt。钱包: 520g。
-首要行动：卖出高价值材料。
+你 67% 接近 Bolt。最省路线需要 21 天，约 830g。
+
+Materials:    72%   Currency:    40%
+Achievement: 100%   Time-gated:  30%
+
+Top 3 Actions:
+1. 卖出 3 类高流动性材料 → +180g
+2. Farm T4 Fractals → 预计 45g/天
+3. 开始 Gift of Might 材料准备
 ```
 
-附加快捷指标：
-- 📅 方案总天数
-- 💰 预估总成本
-- 🎯 完成百分比
-- ⚡ 当前策略
-
-### 4.3 Top 3 行动
-
-每条行动包含：
-- **图标**：💰 卖出 / 🛒 买入 / 🔨 制作 / ⚔️ 刷金 / 🏆 成就
-- **标题**：行动名称
-- **理由**：为什么推荐这个
-- **收益/成本**：金币影响
-- **时间**：预计花费分钟数
-
-### 4.4 7 天计划
-
-按天分组的行动日程，每天最多 3 个行动：
+### 调整方案
 
 ```
-Mon  卖出清理     Tue  传奇材料     Wed  装备获取
-Thu  地图货币     Fri  碎层冲刺     Sat  WvW/PvP
-Sun  回顾规划
+"Make it cheaper"       → 切换到 cheapest 策略
+"Focus on gold"         → 优先赚钱步骤
+"I only have 1 hour"    → 过滤超时行动
+"Avoid WvW"             → 排除 WvW 相关内容
 ```
 
-### 4.5 策略选择
-
-一键切换方案策略，系统重新排序所有行动：
-
-| 策略 | 适用场景 | 效果 |
-|------|----------|------|
-| **Balanced** | 默认综合 | 均衡考虑金币/进度/Build |
-| **Frugal** | 金币紧张 | 最小化金币支出，增加 farming 步骤 |
-| **Fast** | 时间优先 | 最大化金币投入，缩短天数 |
-| **Gold First** | 急需金币 | 优先高收益行动 |
-| **Build First** | 装备优先 | 优先 Build 相关行动 |
-| **Low Effort** | 休闲玩家 | 最小化每日花费时间 |
+> 💡 **小提示：** 传奇完成度拆分为 4 个维度——材料、货币、成就、时间门控，让你更清楚瓶颈在哪。
 
 ---
 
-## 5. 迭代修改：用自然语言调整
+## 6. PvE 玩家路线 — 我要打碎层/Raid/Strike
 
-这是系统最强大的功能。方案生成后，你可以随时用自然语言修改：
+### 适合你吗？
 
-### 5.1 修改策略
+- 想进入高难度 PvE 内容
+- 需要一个经过验证的 meta Build
+- 想知道还缺什么装备、花多少钱
 
-```
-"Make it cheaper"
-```
-
-系统响应：
-```
-策略从 Balanced → Frugal
-变化：
-- 总成本：1,200g → 420g
-- 时间：14天 → 35天
-- 新增 farming 步骤
-- 减少 TP 购买
-```
-
-### 5.2 调整焦点
+### 推荐输入
 
 ```
-"Focus on gold"
-"Focus on build"
+"I need a fractal-ready build"
+"I want a raid-ready Heal Alac build"
+"Prepare a strike build for me"
 ```
 
-系统重新计算所有行动评分，优先与焦点相关的行动。
-
-### 5.3 排除内容
+系统输出：
 
 ```
-"Avoid WvW"
-"No fractals"
-"Without PvP"
+🎯 Best Build: Power Virtuoso
+Source: SnowCrows (verified)
+Mode: Fractal
+Readiness: 72%
+Missing: 3 items (~240g)
+
+Top Actions:
+1. 装备 Power Virtuoso（碎层）
+2. 购买缺失装备
+3. 通过 T4 碎层获取 ascended 首饰
 ```
 
-系统移除所有涉及排除内容的行动。
+### Build 信任标记
 
-### 5.4 设定时间预算
-
-```
-"I only have 1 hour per day"
-"Only 30 minutes a day"
-```
-
-系统过滤超出时间预算的行动，保留最短的行动组合。
-
-### 5.5 每次修改都有 Delta 摘要
-
-系统会清晰展示修改前后的差异：
+每条 Build 推荐显示来源和版本：
 
 ```
-✅ Plan Updated
-策略从 Balanced 调整为 Frugal
-移除了 3 个涉及 WvW 的行动
-总成本从 830g 降至 420g
-时间从 21 天延长至 35 天
+✅ Source: SnowCrows
+✅ Patch: 2026-xx
+✅ Role: DPS / Heal / Quick / Alac
+✅ Mode: Fractal / Raid / Strike
 ```
+
+> 💡 **小提示：** 如果你需要特定角色（Heal/Quick/Alac），在目标中注明即可。
 
 ---
 
-## 6. 报告与导出
+## 7. 经济玩家路线 — 我要赚钱
 
-### 6.1 免费报告
+### 适合你吗？
 
-点击 **"Generate Report"** 生成基础报告：
-- 账号摘要
-- 价值概览
-- 目标进度
-- 创建时间
+- 想知道账号总价值
+- 想找到被低估的资产
+- 想做 TP 倒卖
+- 想优化每周收入
 
-### 6.2 付费完整报告（$5）
-
-购买后获得：
-- 完整行动方案（含排序和评分）
-- 7 天日程表
-- Build 就绪度分析 + 缺口装备检测
-- 目标进度详情
-- 个性化建议
-- HTML 报告预览（可打印/转 PDF）
-
-### 6.3 周订阅（$5/月）
-
-自动每周收到：
-- 更新的 7 天行动方案
-- 目标进度变化
-- 市场信号更新
-- Build 变化追踪
-
-### 6.4 复制方案
-
-点击 **"Copy Plan"** 将完整方案以文本格式复制到剪贴板：
+### 推荐输入
 
 ```
-GW2 Progression OS Plan
-═══════════════════════════════
-Account: Player.1234
-Strategy: cheapest
-Estimated: 21 days
-...
-
-TOP 5 ACTIONS:
-1. Sell 3 high-value materials
-   Generate liquid gold
-   Reward: +180g
-   Time: 15min
+"Make gold this week"
+"How much is my account worth"
+"Find sell candidates"
 ```
 
-### 6.5 分享
+系统输出：
 
-点击 **"Share"** 通过 Web Share API 分享方案链接，或复制到剪贴板。
+```
+💰 Total earning potential: ~140g/week
+💎 Hidden wealth: 890g（未充分利用资产）
+💰 Wallet: 45g
+
+Top Actions:
+1. T4 碎层日常 + 推荐 → ~140g/周
+2. 日常成就 + 世界Boss → ~70g/周
+3. TP 倒卖机会检测
+4. 清理材料库存 → 即时现金
+```
+
+### 价值如何计算
+
+```
+Instant Sell Value = highest buy order × 0.85（-15% TP fee）
+Listing Value     = lowest sell listing
+Net Sell Value    = listing × 0.85
+Liquidity         = buy volume + sell volume（高/中/低/无）
+Spread            = sell price - buy price
+TP Opportunity    = spread after fee > threshold
+```
+
+> 💡 **小提示：** 系统默认用 Instant Sell 口径（最保守），确保你不会高估资产。
 
 ---
 
-## 7. 高级工具
+## 8. 休闲玩家路线 — 每天 30 分钟
 
-在 **Tools** 页面可以访问完整的传统功能套件：
+### 适合你吗？
 
-| 工具 | 用途 |
+- 每天只有少量时间玩游戏
+- 不想高压力内容
+- 想要简单、稳定的成长路径
+
+### 推荐输入
+
+```
+"Plan my week"
+"I only have 30 minutes a day"
+```
+
+系统自动切换到 **Low Effort** 策略，每天行动不超过你的时间预算。
+
+### 推荐策略
+
+```
+"Plan my week"     
+→ 切换到 "Low Effort" 策略
+→ 或输入 "I only have 1 hour per day"
+```
+
+### 快速目标
+
+```
+"Clean my inventory"
+"Make gold"
+"Plan my week"
+```
+
+> 💡 **小提示：** 如果某天没时间，跳过即可。系统不会因为你跳过行动而惩罚你。
+
+---
+
+## 9. 公会管理者路线 — 团队成长
+
+### 适合你吗？
+
+- 管理公会，想了解成员成长情况
+- 想知道谁缺什么 Build 角色
+- 想制定公会周计划
+
+### 目前可用的功能
+
+- **分享方案** — 生成方案链接发给成员
+- **报告导出** — 生成 PDF/HTML 报告
+- **付费周报** — 订阅每周自动更新
+
+### 推荐的用法
+
+```
+"Plan my week" → 导出报告 → 分享给公会
+"Check build" → 查看 Build 就绪度 → 指导成员配置
+```
+
+> 📌 **后续计划：** 公会管理专用功能（Build coverage、Role gap 分析、成员总览）将在独立版本中提供。
+
+---
+
+## 10. 如何相信系统
+
+### API Key 安全
+
+| 问题 | 回答 |
 |------|------|
-| **Overview** | 账号总览卡片、权限网格 |
-| **Coach** | P0/P1/P2 行动建议 + 周计划 |
-| **Timeline** | 7 天成长路径 + 每周任务 |
-| **Advanced** | 完整 15 个功能面板：价值/角色/Build/目标/背包/制作/市场等 |
+| 需要我的 ArenaNet 密码吗？ | **从不** |
+| Key 保存在哪里？ | 默认仅会话使用，不保存到磁盘 |
+| 可以撤销 Key 吗？ | 随时在 ArenaNet Applications 撤销 |
+| 能修改我账号吗？ | **不能**，Key 只读 |
+| 分享链接会暴露我账号吗？ | 默认匿名，隐藏账号名 |
+
+### 隐私模式
+
+```
+🟢 Session Mode（默认）：Key 仅内存使用，关闭即丢弃
+🟡 Saved Mode（可选）：加密保存 Key，用于周报自动更新
+🔵 Share Mode：匿名分享，隐藏账号名和完整资产明细
+```
+
+### 数据来源
+
+- 所有数据来自 **Guild Wars 2 官方 API**
+- Build 模板来源：**SnowCrows**（Raid）和 **MetaBattle**（开放世界/ fractals）
+- 价格数据：**GW2 交易行实时数据**
+- 估值口径：**Instant Sell / Listing / Net Sell 三口径**
 
 ---
 
-## 8. 专业技巧
+## 11. 免费与付费区别
 
-### 8.1 目标描述越具体越好
-
-```
-❌ "I need help"
-✅ "I want to finish Bolt cheaply, only 1 hour per day"
-```
-
-包含目标物品、策略偏好、时间预算会让方案更加精准。
-
-### 8.2 组合使用策略切换 + 自然语言修改
-
-1. 先生成方案（默认 Balanced）
-2. 点击 **"Frugal"** 切换到省钱模式
-3. 输入 `"Avoid WvW"` 排除不想玩的内容
-4. 输入 `"Only 1 hour per day"` 设时间预算
-
-每一步系统都会展示变化摘要。
-
-### 8.3 通过定价卡片购买完整报告
-
-方案生成后，可以在 Report 页面查看定价：
-- **Free**：基础报告 + 1 条行动建议
-- **$5 Full Report**：完整行动方案 + Build 分析 + PDF
-- **$5/mo Weekly**：自动更新 + 市场警报
-
-购买流程：点击按钮 → 输入邮箱 → 支持 Stripe 信用卡或直接获取 License Key。
-
-### 8.4 API Key 安全须知
-
-- 🔒 系统**从不**请求 ArenaNet 密码
-- 🔑 API Key 默认仅会话使用，不持久存储
-- 🔄 随时可以在 [ArenaNet Applications](https://account.arena.net/applications) 撤销 Key
-- 👁️ Key 只读，无法交易、删除物品、修改账号
+| 功能 | Free | Full Report ($5) | Weekly ($5/月) |
+|------|------|-----------------|--------------|
+| 目标解读 | ✅ | ✅ | ✅ |
+| 方案生成 | ✅ | ✅ | ✅ |
+| 自然语言修改 | ✅ | ✅ | ✅ |
+| 策略切换 | ✅ | ✅ | ✅ |
+| 7 天计划 | ✅ | ✅ | ✅ |
+| 行动排序 | 3 条 | 全部 | 全部 |
+| Build 分析 | — | ✅ | ✅ |
+| Crafting 路径 | — | ✅ | ✅ |
+| HTML 报告 | — | ✅ 可转 PDF | ✅ 可转 PDF |
+| 每周自动更新 | — | — | ✅ |
+| 市场警报 | — | — | ✅ |
+| 进度追踪 | — | — | ✅ |
 
 ---
 

@@ -87,6 +87,9 @@ def _extract_item_name(text: str) -> str:
 def _detect_goal_type(text: str) -> GoalType:
     """Detect the goal type from text."""
     t = text.lower()
+    # Returning player detection: "came back", "return", "after a break", "long time"
+    if any(kw in t for kw in ["return", "came back", "after a break", "long time", "hiatus", "old account"]):
+        return GoalType.GENERIC
     # Gold detection first: "make gold", "farm gold", "earn money"
     if any(kw in t for kw in GOLD_KEYWORDS) and not any(kw in t for kw in ["finish", "complete", "craft", "work on"] + LEGENDARY_KEYWORDS):
         return GoalType.MAKE_GOLD

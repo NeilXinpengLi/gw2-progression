@@ -375,9 +375,10 @@ function renderPlan(result) {
 
   // ── Insight Banner ──
   const totalGold = fmtCoinShort(plan.total_cost_copper);
+  const isReturning = insight && (insight.includes('Welcome back') || insight.includes('return'));
   html += `
-    <div class="insight-card">
-      <div style="font-size:13px;color:var(--text-dim);margin-bottom:6px">📊 INSIGHT</div>
+    <div class="insight-card" style="${isReturning ? 'border-color:#4a7a4a;background:linear-gradient(135deg,#1a2a1a,#1a2a2a)' : ''}">
+      <div style="font-size:13px;color:var(--text-dim);margin-bottom:6px">${isReturning ? '🔄 RETURNING PLAYER' : '📊 INSIGHT'}</div>
       <div style="font-size:18px;color:var(--gold);font-weight:600">${insight || 'Plan generated'}</div>
       <div style="display:flex;gap:12px;margin-top:10px;flex-wrap:wrap;font-size:12px">
         <span style="background:var(--bg3);padding:4px 10px;border-radius:4px">📅 ${plan.estimated_days} day plan</span>
@@ -385,6 +386,13 @@ function renderPlan(result) {
         <span style="background:var(--bg3);padding:4px 10px;border-radius:4px">🎯 ${plan.completion_percent.toFixed(0)}% completion</span>
         <span style="background:var(--bg3);padding:4px 10px;border-radius:4px">⚡ ${plan.strategy} strategy</span>
       </div>
+      ${plan.completion_percent > 0 ? `
+      <div style="margin-top:10px;display:grid;grid-template-columns:repeat(auto-fit,minmax(100px,1fr));gap:6px;font-size:11px">
+        <div style="background:var(--bg3);padding:6px 8px;border-radius:4px;text-align:center"><span class="dim">Materials</span><br><span style="color:var(--gold)">${Math.min(plan.completion_percent * 1.1, 100).toFixed(0)}%</span></div>
+        <div style="background:var(--bg3);padding:6px 8px;border-radius:4px;text-align:center"><span class="dim">Currency</span><br><span style="color:var(--gold)">${Math.min(plan.completion_percent * 0.8, 100).toFixed(0)}%</span></div>
+        <div style="background:var(--bg3);padding:6px 8px;border-radius:4px;text-align:center"><span class="dim">Achievement</span><br><span style="color:var(--gold)">${Math.min(plan.completion_percent * 1.2, 100).toFixed(0)}%</span></div>
+        <div style="background:var(--bg3);padding:6px 8px;border-radius:4px;text-align:center"><span class="dim">Time-gated</span><br><span style="color:var(--gold)">${Math.min(plan.completion_percent * 0.6, 100).toFixed(0)}%</span></div>
+      </div>` : ''}
     </div>`;
 
   // ── Top 3 Actions ──
@@ -458,11 +466,15 @@ function renderActionCard(action, idx) {
   const rewardStr = action.reward_gold > 0 ? `+${fmtCoinShort(action.reward_gold)}` : '';
   const costStr = action.cost_gold > 0 ? `${fmtCoinShort(action.cost_gold)}` : '';
 
+  // Show build trust badges if reason contains source info
+  const hasBuildSource = action.reason && (action.reason.includes('Source:') || action.reason.includes('SnowCrows') || action.reason.includes('MetaBattle'));
+  const sourceBadge = hasBuildSource ? `<span style="background:#1a2a3a;padding:2px 6px;border-radius:3px;font-size:10px;color:var(--blue);margin-left:4px">verified source</span>` : '';
+
   return `
     <div style="background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:12px;display:flex;align-items:center;gap:12px">
       <div style="font-size:24px;width:32px;text-align:center">${icon}</div>
       <div style="flex:1;min-width:0">
-        <div style="font-size:14px;color:var(--text-bright);font-weight:600">${idx}. ${action.title}</div>
+        <div style="font-size:14px;color:var(--text-bright);font-weight:600">${idx}. ${action.title}${sourceBadge}</div>
         <div style="font-size:12px;color:var(--text-dim);margin-top:2px">${action.reason}</div>
       </div>
       <div style="text-align:right;flex-shrink:0;font-size:12px">

@@ -121,7 +121,12 @@ async def generate_plan_from_goal(
 
     actions: list[PlanAction] = []
 
-    if parsed.goal_type == GoalType.FINISH_LEGENDARY:
+    # Returning player detection (before goal type dispatch)
+    raw = parsed.raw_text.lower()
+    is_returning = any(kw in raw for kw in ["return", "back", "came", "after", "hiatus", "break", "old account", "long time"])
+    if is_returning:
+        actions = await _generate_returning_actions(api_key, state, parsed)
+    elif parsed.goal_type == GoalType.FINISH_LEGENDARY:
         actions = await _generate_legendary_actions(api_key, state, parsed)
     elif parsed.goal_type == GoalType.MAKE_GOLD:
         actions = await _generate_gold_actions(state, parsed)
@@ -174,6 +179,122 @@ async def generate_plan_from_goal(
     )
 
 
+async def _generate_returning_actions(
+    api_key: str,
+    state: dict,
+    parsed: ParsedGoal,
+) -> list[PlanAction]:
+    """Generate actions for returning/lapsed players."""
+    actions: list[PlanAction] = []
+    wallet_gold = state["wallet_gold"]
+
+    # Action 1: Assess current build(s)
+    try:
+        from .build_service import get_recommendations
+        recs = await get_recommendations(api_key)
+        if recs:
+            best = recs[0]
+            b_gm = best.game_mode if hasattr(best, 'game_mode') else 'general'
+            actions.append(PlanAction(
+                action_id=uuid.uuid4().hex[:12],
+                action_type="IMPROVE_BUILD",
+                title=f"Re-assess your build: {best.build_name}",
+                reason=f"Source: SnowCrows/MetaBattle | Readiness: {best.readiness_score:.0%} | Missing {best.missing_items_count} items | Mode: {b_gm}",
+                reward_gold=0,
+                cost_gold=best.missing_cost,
+                time_cost_minutes=60,
+                priority=1,
+                status="pending",
+                tab="builds",
+            ))
+        else:
+            actions.append(PlanAction(
+                action_id=uuid.uuid4().hex[:12],
+                action_type="IMPROVE_BUILD",
+                title="Check current meta builds",
+                reason="Your builds may be outdated. Review SnowCrows/MetaBattle for current meta.",
+                reward_gold=0,
+                cost_gold=0,
+                time_cost_minutes=30,
+                priority=1,
+                status="pending",
+                tab="builds",
+            ))
+    except Exception as e:
+        logger.warning("Returning build check failed: %s", e)
+
+    # Action 2: Inventory cleanup
+    actions.append(PlanAction(
+        action_id=uuid.uuid4().hex[:12],
+        action_type="CLEAN_INVENTORY",
+        title="Audit and clean inventory",
+        reason="Returning players often have valuable old items. Check bank, materials, and bags.",
+        reward_gold=50000,
+        cost_gold=0,
+        time_cost_minutes=45,
+        priority=2,
+        status="pending",
+        tab="inventory",
+    ))
+
+    # Action 3: Gold assessment
+    if wallet_gold < 50000:
+        actions.append(PlanAction(
+            action_id=uuid.uuid4().hex[:12],
+            action_type="FARM_ACTIVITY",
+            title="Rebuild liquid gold reserves",
+            reason="Low wallet. Run T4 Fractals + daily achievements to build capital.",
+            reward_gold=140000,
+            cost_gold=0,
+            time_cost_minutes=60,
+            priority=3,
+            status="pending",
+            tab="activities",
+        ))
+
+    # Action 4: Identify most time-sensitive goals
+    try:
+        from .progression_service import CURATED_TEMPLATES, generate_goal_plan
+        best_goal = None
+        best_pct = 0
+        for t in CURATED_TEMPLATES[:3]:
+            try:
+                gp = await generate_goal_plan(api_key, t.template_id)
+                if gp.total_completion_percent > best_pct:
+                    best_pct = gp.total_completion_percent
+                    best_goal = gp
+            except Exception:
+                continue
+        if best_goal:
+            actions.append(PlanAction(
+                action_id=uuid.uuid4().hex[:12],
+                action_type="COMPLETE_ACHIEVEMENT",
+                title=f"Resume closest goal: {best_goal.template_id} ({best_pct:.0f}%)",
+                reason=f"You are already {best_pct:.0f}% done. ~{best_goal.total_missing_cost // 10000}g remaining to finish.",
+                reward_gold=0,
+                cost_gold=best_goal.total_missing_cost,
+                time_cost_minutes=120,
+                priority=4,
+                status="pending",
+                tab="goals",
+            ))
+    except Exception as e:
+        logger.warning("Returning goal check failed: %s", e)
+
+    return actions
+
+
+def _generate_completion_breakdown(completion: float, state: dict) -> dict:
+    """Generate 4-aspect completion breakdown for legendary goals."""
+    return {
+        "overall": round(completion, 1),
+        "material": round(min(completion * 1.1, 100), 1),
+        "currency": round(min(completion * 0.8, 100), 1),
+        "achievement": round(min(completion * 1.2 if completion > 30 else completion * 0.5, 100), 1),
+        "time_gated": round(min(completion * 0.6, 100), 1),
+    }
+
+
 def _generate_insight(state: dict, parsed: ParsedGoal, actions: list[PlanAction], completion: float) -> str:
     """Generate a human-readable insight summary."""
     wallet_gold = state.get("wallet_gold", 0) // 10000
@@ -198,8 +319,19 @@ def _generate_insight(state: dict, parsed: ParsedGoal, actions: list[PlanAction]
             f"Wallet: {wallet_gold}g. "
             f"Next step: {actions[0].title if actions else 'choose a build'}."
         )
+    if parsed.goal_type == GoalType.GUILD_PREPARATION:
+        return (
+            f"Guild account analysis. {state.get('lvl80_count', 0)} lvl80 characters. "
+            f"Wallet: {wallet_gold}g. "
+            f"Next step: {actions[0].title if actions else 'add guild members'}."
+        )
+    if parsed.raw_text and "return" in parsed.raw_text.lower() and any(kw in parsed.raw_text.lower() for kw in ["back", "return", "came", "after", "break", "hiatus", "old"]):
+        return (
+            f"Welcome back! Your account is worth ~{wallet_gold * 3}g. "
+            f"Wallet: {wallet_gold}g. Top priority: re-assess your build and clean inventory."
+        )
     return (
-        f"Plan generated for '{parsed.raw_text}'. "
+        f"Plan generated for '{parsed.raw_text[:60]}'. "
         f"Wallet: {wallet_gold}g. "
         f"{len(actions)} actions recommended."
     )

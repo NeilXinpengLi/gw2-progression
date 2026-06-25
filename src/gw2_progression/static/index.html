@@ -161,6 +161,11 @@
         <div class="label">Plan My Week</div>
         <div class="sub">7-day progression plan</div>
       </div>
+      <div class="quick-goal-card" data-goal="I came back after a long break, tell me what to do first">
+        <div class="icon">🔄</div>
+        <div class="label">Returning Player</div>
+        <div class="sub">Re-entry assessment</div>
+      </div>
     </div>
 
     <div id="goal-status" style="text-align:center;font-size:13px;color:var(--text-dim);margin-bottom:12px"></div>
@@ -176,11 +181,22 @@
     </div>
 
     <div class="trust-banner">
-      <span>🔒 Your ArenaNet password is never required</span>
-      <span>🔑 Session-only mode stores nothing</span>
-      <span>🔄 Revoke your key anytime from ArenaNet</span>
-      <span>📋 <a href="https://account.arena.net/applications" target="_blank" style="color:var(--gold)">Create API Key</a></span>
+      <span title="Session mode: Key is never saved to disk">🔒 Session-only by default</span>
+      <span title="Your ArenaNet password is never requested">🔑 No password needed</span>
+      <span title="Revoke key anytime at account.arena.net">🔄 Revocable anytime</span>
+      <span title="Share links hide your account name by default">👤 Anonymous share</span>
+      <span title="Create a new API Key at ArenaNet">📋 <a href="https://account.arena.net/applications" target="_blank" style="color:var(--gold)">Create API Key</a></span>
     </div>
+
+    <!-- Privacy mode details (collapsible) -->
+    <details style="margin-top:8px;font-size:11px;color:var(--text-dim);text-align:center">
+      <summary style="cursor:pointer">🔒 Privacy modes explained</summary>
+      <div style="margin-top:6px;display:flex;gap:10px;justify-content:center;flex-wrap:wrap">
+        <span style="background:var(--bg3);padding:4px 10px;border-radius:4px">🟢 Session: Key not saved, discarded after session</span>
+        <span style="background:var(--bg3);padding:4px 10px;border-radius:4px">🟡 Saved: Encrypted key for weekly reports</span>
+        <span style="background:var(--bg3);padding:4px 10px;border-radius:4px">🔵 Share: Anonymized, account name hidden</span>
+      </div>
+    </details>
 
     <!-- API Key Guide Overlay -->
     <div id="apikey-guide-overlay" class="hidden" style="position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.85);z-index:999;display:flex;align-items:center;justify-content:center">
