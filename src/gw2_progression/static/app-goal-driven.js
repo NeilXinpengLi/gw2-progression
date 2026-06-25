@@ -49,6 +49,9 @@ function switchPage(page) {
   }
 }
 
+// Export for inline onclick handlers
+window.switchPage = switchPage;
+
 function showTrustPanel() {
   // Trust panel is already in HTML, but we can add dynamic tips
   const tips = [
@@ -371,7 +374,7 @@ function wirePlanActions(result) {
   });
 
   const reportBtn = document.getElementById('generate-report-btn');
-  if (reportBtn) reportBtn.onclick = generateReport;
+  if (reportBtn) reportBtn.onclick = () => generateReport(false);
 
   window.exportPlanText = () => {
     const text = planToText(result);
@@ -456,71 +459,137 @@ function renderSevenDayOnly(plan) {
   `).join('');
 }
 
-// ── Report Generation (via commercial endpoint with plan data) ──
-async function generateReport() {
+// ── Report Generation (free via /reports/generate, paid via /commercial/report/generate) ──
+async function generateReport(isPaid) {
   if (!_currentPlanId) return;
   const previewEl = document.getElementById('report-preview');
-  if (previewEl) previewEl.innerHTML = '<span class="spinner"></span> Generating full report…';
+  if (previewEl) previewEl.innerHTML = '<span class="spinner"></span> Generating report…';
 
   try {
-    const res = await fetch('/commercial/report/generate', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        api_key: _sessionApiKey,
+    if (isPaid) {
+      // Paid: commercial endpoint with plan data (requires license key)
+      const res = await fetch('/commercial/report/generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          api_key: _sessionApiKey,
+          account_name: _currentPlan?.account_name || 'unknown',
+          plan_data: _currentPlanResult,
+        }),
+      });
+      if (!res.ok) throw new Error(`Report generation failed: ${res.status}`);
+      const report = await res.json();
+      renderReportResult(report, previewEl);
+      renderReportHtmlPreview(report);
+    } else {
+      // Free: basic report via /reports/generate
+      const walletGold = await getWalletGold();
+      const res = await fetch('/reports/generate?' + new URLSearchParams({
         account_name: _currentPlan?.account_name || 'unknown',
-        plan_data: _currentPlanResult,
-      }),
-    });
-    if (!res.ok) throw new Error(`Report generation failed: ${res.status}`);
-    const report = await res.json();
-    const s = report.summary || {};
+        report_type: 'full',
+        title: `Progression Report — ${new Date().toLocaleDateString()}`,
+        total_value_buy: _currentPlan?.total_cost_copper || 0,
+        wallet_gold: walletGold,
+        character_count: 0,
+        goal_count: _currentPlan?.actions?.length || 0,
+        goal_progress_pct: _currentPlan?.completion_percent || 0,
+      }), { method: 'POST' });
+      if (!res.ok) throw new Error(`Report generation failed: ${res.status}`);
+      const report = await res.json();
 
-    if (previewEl) {
-      previewEl.innerHTML = `
-        <div style="background:#1a2a1a;border:1px solid #3a5a3a;border-radius:8px;padding:16px;margin-top:12px">
-          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
-            <div style="font-size:15px;color:var(--gold);font-weight:600">📄 ${report.account_name} — Report</div>
-            <button onclick="viewReportHTML('${report.report_id}')" style="background:var(--gold);border:none;border-radius:4px;color:#111;padding:6px 14px;font-size:12px;font-weight:600;cursor:pointer">View Full Report</button>
-          </div>
-          <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:8px;font-size:12px">
-            <div style="background:var(--bg3);padding:8px;border-radius:4px;text-align:center"><span class="dim">Value</span><br><span style="color:var(--gold);font-weight:600">${s.total_value_display || '0g'}</span></div>
-            <div style="background:var(--bg3);padding:8px;border-radius:4px;text-align:center"><span class="dim">Wallet</span><br><span style="color:var(--gold);font-weight:600">${s.wallet_display || '0g'}</span></div>
-            <div style="background:var(--bg3);padding:8px;border-radius:4px;text-align:center"><span class="dim">Characters</span><br><span style="color:var(--gold);font-weight:600">${s.characters || '0'}</span></div>
-            <div style="background:var(--bg3);padding:8px;border-radius:4px;text-align:center"><span class="dim">Best Goal</span><br><span style="color:var(--gold);font-weight:600">${s.best_goal_progress || 0}%</span></div>
-          </div>
-          ${report.recommendations && report.recommendations.length > 0 ? `
-            <div style="margin-top:12px;font-size:12px">
-              <div class="dim" style="margin-bottom:4px">Recommendations:</div>
-              <ul style="margin:0;padding-left:16px;color:var(--text)">
-                ${report.recommendations.slice(0, 3).map(r => `<li style="padding:2px 0">${r}</li>`).join('')}
-              </ul>
-            </div>` : ''}
-          <div style="margin-top:8px;font-size:11px;color:var(--text-dim)">Report #${report.report_id} · ${report.generated_at?.slice(0, 10) || ''}</div>
-        </div>`;
+      if (previewEl) {
+        previewEl.innerHTML = `
+          <div style="background:#1a2a1a;border:1px solid #3a5a3a;border-radius:8px;padding:16px;margin-top:12px">
+            <div style="font-size:15px;color:var(--gold);font-weight:600;margin-bottom:8px">📄 Free Report #${report.report_id}</div>
+            <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:8px;font-size:12px">
+              <div style="background:var(--bg3);padding:8px;border-radius:4px;text-align:center"><span class="dim">Type</span><br><span style="color:var(--gold);font-weight:600">${report.report_type}</span></div>
+              <div style="background:var(--bg3);padding:8px;border-radius:4px;text-align:center"><span class="dim">Value</span><br><span style="color:var(--gold);font-weight:600">${fmtCoinShort(report.total_value_buy)}</span></div>
+              <div style="background:var(--bg3);padding:8px;border-radius:4px;text-align:center"><span class="dim">Progress</span><br><span style="color:var(--gold);font-weight:600">${report.goal_progress_pct.toFixed(0)}%</span></div>
+              <div style="background:var(--bg3);padding:8px;border-radius:4px;text-align:center"><span class="dim">Created</span><br><span style="color:var(--text);font-size:11px">${(report.created_at || '').slice(0, 10)}</span></div>
+            </div>
+            <div style="margin-top:12px;text-align:center">
+              <div class="dim" style="font-size:11px;margin-bottom:8px">💡 Upgrade to Full Report for action plan, build analysis, and PDF export</div>
+              <button onclick="switchPage('report')" style="background:var(--gold);border:none;border-radius:4px;color:#111;padding:8px 20px;font-size:12px;font-weight:600;cursor:pointer">View Pricing →</button>
+            </div>
+          </div>`;
+      }
     }
 
-    // Also show report content on the Report page
     document.getElementById('report-empty').style.display = 'none';
     document.getElementById('report-content').style.display = 'block';
-    const previewArea = document.getElementById('report-preview-area');
-    if (previewArea && report.html) {
-      previewArea.innerHTML = `
-        <details style="margin-top:16px">
-          <summary style="cursor:pointer;color:var(--gold);font-size:13px">📄 HTML Report Preview</summary>
-          <div style="margin-top:8px;border:1px solid var(--border);border-radius:4px;overflow:hidden;max-height:400px;overflow-y:auto">
-            <iframe srcdoc="${escapeHtml(report.html)}" style="width:100%;height:380px;border:none;background:white"></iframe>
-          </div>
-        </details>`;
-    }
-
-    window.viewReportHTML = (rid) => {
-      window.open(`/commercial/report/html?report_id=${rid}`, '_blank');
-    };
   } catch (err) {
     console.error('Report error:', err);
     if (previewEl) previewEl.innerHTML = `<div class="error-box">Failed: ${err.message}</div>`;
   }
+}
+
+function renderReportResult(report, previewEl) {
+  const s = report.summary || {};
+  if (!previewEl) return;
+  previewEl.innerHTML = `
+    <div style="background:#1a2a1a;border:1px solid #3a5a3a;border-radius:8px;padding:16px;margin-top:12px">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+        <div style="font-size:15px;color:var(--gold);font-weight:600">📄 ${report.account_name} — Report</div>
+        <button id="view-full-report-btn" style="background:var(--gold);border:none;border-radius:4px;color:#111;padding:6px 14px;font-size:12px;font-weight:600;cursor:pointer">View Full Report</button>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:8px;font-size:12px">
+        <div style="background:var(--bg3);padding:8px;border-radius:4px;text-align:center"><span class="dim">Value</span><br><span style="color:var(--gold);font-weight:600">${s.total_value_display || '0g'}</span></div>
+        <div style="background:var(--bg3);padding:8px;border-radius:4px;text-align:center"><span class="dim">Wallet</span><br><span style="color:var(--gold);font-weight:600">${s.wallet_display || '0g'}</span></div>
+        <div style="background:var(--bg3);padding:8px;border-radius:4px;text-align:center"><span class="dim">Characters</span><br><span style="color:var(--gold);font-weight:600">${s.characters || '0'}</span></div>
+        <div style="background:var(--bg3);padding:8px;border-radius:4px;text-align:center"><span class="dim">Best Goal</span><br><span style="color:var(--gold);font-weight:600">${s.best_goal_progress || 0}%</span></div>
+      </div>
+      ${report.recommendations && report.recommendations.length > 0 ? `
+        <div style="margin-top:12px;font-size:12px">
+          <div class="dim" style="margin-bottom:4px">Recommendations:</div>
+          <ul style="margin:0;padding-left:16px;color:var(--text)">
+            ${report.recommendations.slice(0, 3).map(r => `<li style="padding:2px 0">${r}</li>`).join('')}
+          </ul>
+        </div>` : ''}
+      <div style="margin-top:8px;font-size:11px;color:var(--text-dim)">Report #${report.report_id} · ${(report.generated_at || '').slice(0, 10) || ''}</div>
+    </div>`;
+
+  // Wire the view full report button
+  setTimeout(() => {
+    const viewBtn = document.getElementById('view-full-report-btn');
+    if (viewBtn) viewBtn.onclick = () => viewReportHTML(report.html);
+  }, 0);
+}
+
+function renderReportHtmlPreview(report) {
+  const previewArea = document.getElementById('report-preview-area');
+  if (!previewArea || !report.html) return;
+  previewArea.innerHTML = `
+    <details style="margin-top:16px">
+      <summary style="cursor:pointer;color:var(--gold);font-size:13px">📄 HTML Report Preview</summary>
+      <div style="margin-top:8px;border:1px solid var(--border);border-radius:4px;overflow:hidden;max-height:400px;overflow-y:auto">
+        <iframe id="report-iframe" style="width:100%;height:380px;border:none;background:white"></iframe>
+      </div>
+    </details>`;
+  const iframe = document.getElementById('report-iframe');
+  if (iframe) iframe.srcdoc = report.html;
+}
+
+function viewReportHTML(htmlContent) {
+  if (!htmlContent) return;
+  const w = window.open('', '_blank');
+  if (!w) return;
+  w.document.write(htmlContent);
+  w.document.close();
+}
+
+async function getWalletGold() {
+  try {
+    const res = await fetch('/goal-driven/progressive', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ api_key: _sessionApiKey }),
+    });
+    if (res.ok) {
+      const data = await res.json();
+      return data.wallet_gold || 0;
+    }
+  } catch (e) { /* ignore */ }
+  return 0;
 }
 
 // ── Pricing Card Checkout Wiring ──

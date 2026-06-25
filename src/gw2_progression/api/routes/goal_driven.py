@@ -76,6 +76,8 @@ async def post_generate(body: dict = Body(...)):
 
         # Generate plan
         plan = await generate_plan_from_goal(api_key, parsed)
+        # Persist plan to database for retrieval via GET /goal-driven/plan/{id}
+        await _save_plan(plan)
         top_actions = plan.actions[:3]
 
         # Build 7-day plan (actions grouped by day)
