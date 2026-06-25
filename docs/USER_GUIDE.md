@@ -17,6 +17,19 @@
 
 ---
 
+## 🚀 30 秒版
+
+```
+不知道做什么？  输入 Plan my week
+想做传奇？     输入 I want to finish Bolt
+想赚钱？       输入 Make gold this week
+想打副本？     输入 I need a fractal-ready build
+回归玩家？     输入 I came back after a long break
+没有 API Key？ 点击 Try Demo
+```
+
+---
+
 ## 1. 这是什么？
 
 一句话：**告诉系统你想要什么，它自动生成行动方案。**
@@ -122,28 +135,50 @@ Plan my week
 - 不知道现在流行什么 Build
 - 不知道先做什么目标
 
-### 推荐输入
+### 🔥 推荐入口：Returning Player Audit
+
+这是系统目前最强大的场景之一。点击 **Home 页的 "Returning Player" 卡片**，或直接输入：
 
 ```
-"I came back after a long break, tell me what to do first"
+I came back after a long break, tell me what to do first
 ```
 
-系统会：
-1. **检查当前 Build 是否过时** — 对比 SnowCrows/MetaBattle 数据
-2. **评估账号资产** — 总价值、隐藏财富
-3. **清理背包** — 识别有价值的旧材料和过时物品
-4. **找到最近的传奇进度** — 完成度最高的目标
-5. **重建金币储备** — 如果钱包偏低
+系统会执行一次完整的回归审计：
+
+```
+📋 RETURNING PLAYER AUDIT
+
+1. 🛡️ Build 评估
+   - 当前 Build vs SnowCrows/MetaBattle 最新数据
+   - 来源: verified · 角色: DPS / Heal / Alac / Quick
+   - 状态: 过时 / 部分匹配 / 已验证
+
+2. 💰 资产审计
+   - 账号总价值
+   - 隐藏财富（未定价物品 + 供应商价值）
+   - 高价值旧物品检测
+
+3. 🧹 背包清理
+   - 可清理的物品和材料
+   - 有价值的旧收藏品
+
+4. 🎯 最近目标
+   - 最接近完成的传奇
+   - 剩余成本和天数
+
+5. 💳 金币重建（如需要）
+   - 每日推荐收入路径
+```
 
 ### 你还可以
 
 ```
-"Check my old build"
-"What's changed since I left"
-"Audit my inventory"
+"Check my old build"         → Build 过时检测
+"What's changed since I left" → 版本变化概览
+"Audit my inventory"          → 资产清理清单
 ```
 
-> 💡 **小提示：** 先用"Returning Player"卡片获得全面评估，再决定长期目标。
+> 💡 **小提示：** 回归玩家是系统价值最高的用户群之一。你的旧账号可能隐藏着你没意识到的财富。先用 Returning Player Audit 全面评估，再决定长期目标。
 
 ---
 
@@ -188,6 +223,36 @@ Top 3 Actions:
 ```
 
 > 💡 **小提示：** 传奇完成度拆分为 4 个维度——材料、货币、成就、时间门控，让你更清楚瓶颈在哪。
+
+### 完成度如何计算
+
+很多玩家问："67% 是怎么算的？是不是只看金币？"
+
+**不是。** 系统按 4 个维度独立计算再综合：
+
+| 维度 | 说明 | 示例 |
+|------|------|------|
+| **Materials** | 可交易材料的持有量 vs 需求量 | 你拥有 180/250 T6 Claws = 72% |
+| **Currency** | 钱包金币 + 地图货币 | 你持有 500g，需要 1200g = 42% |
+| **Achievement** | 成就/收藏步骤完成情况 | 3/3 前置收藏完成 = 100% |
+| **Time-gated** | 每日/每周限量的材料 | 你有 60/100 Mystic Coins = 60% |
+
+**为什么不是简单的金币估算？**  
+因为纯金币估算会忽略账号绑定材料、成就阻塞和时间门控。一个目标可能只需要 200g，但如果差 40 个 Mystic Clover（时间门控 40 天），实际等待时间比金币成本更重要。
+
+### 系统会识别的特殊阻塞
+
+```
+✅ 可交易材料     → 可从 TP 直接购买
+✅ 账号绑定材料   → 必须用对应角色获取
+⏳ 时间门控材料   → 每日/每周限量（Mystic Coin、Crystalline Ore）
+🏆 成就阻塞      → 必须先完成前置收藏
+⚔️ WvW 阻塞      → 需要 Gift of Battle（WvW 奖励）
+🔄 PvP 阻塞      → 需要特定 PvP 奖励
+🎁 特殊组件      → Mystic Clover、Gift of Mastery 等组合组件
+```
+
+系统会在方案中标注哪些阻塞当前无法通过金币解决，哪些只能等待。
 
 ---
 
@@ -281,6 +346,30 @@ TP Opportunity    = spread after fee > threshold
 
 > 💡 **小提示：** 系统默认用 Instant Sell 口径（最保守），确保你不会高估资产。
 
+### 经济模型设置
+
+| 参数 | 值 | 说明 |
+|------|-----|------|
+| TP 手续费 | 15% | 卖出时扣除的标准交易税 |
+| 价格刷新频率 | 每 15 分钟 | TP 缓存自动更新 |
+| 低流动性阈值 | buy + sell volume < 100 | 低于此值标记为低流动性 |
+| 价差阈值（TP 机会） | spread 比例 > 15% | 扣除手续费后有套利空间 |
+| 套利检测 | 买一价 vs 卖一价 | 扣除 15% 手续费后仍有正利润 |
+| 数据来源 | GW2 API /v2/commerce/prices | 官方实时数据 |
+
+**什么是低流动性？**  
+如果某个物品的买入+卖出总量 < 100，系统会标记为"低流动性"。它可能显示高价值，但实际难以快速卖出。系统在估值时会降低这类资产的权重。
+
+**什么是 TP 机会？**  
+当买一价和卖一价的差价 > 15%（扣除手续费后仍有正利润），系统标记为 TP 机会。但请注意：套利需要资本和耐心，不一定适合所有玩家。
+
+### CSV 导出
+
+当前支持的导出格式：
+- **Copy Plan** — 文本格式，可粘贴到任何应用
+- **HTML 报告** — 付费报告可保存为 HTML，支持打印/转 PDF
+- **CSV 导出** — 计划中，后续版本提供
+
 ---
 
 ## 8. 休闲玩家路线 — 每天 30 分钟
@@ -328,20 +417,33 @@ TP Opportunity    = spread after fee > threshold
 - 想知道谁缺什么 Build 角色
 - 想制定公会周计划
 
-### 目前可用的功能
+### 当前主版本的个人模式
+
+GW2 Progression OS **当前版本主要面向个人成长**。如果你需要团队管理能力，目前可以：
 
 - **分享方案** — 生成方案链接发给成员
-- **报告导出** — 生成 PDF/HTML 报告
-- **付费周报** — 订阅每周自动更新
+- **报告导出** — 生成 HTML 报告分享给团队
+- **付费周报** — 订阅账号进度更新
 
 ### 推荐的用法
 
 ```
-"Plan my week" → 导出报告 → 分享给公会
-"Check build" → 查看 Build 就绪度 → 指导成员配置
+"Plan my week" → 导出报告 → 分享给公会频道
+"Check build" → 查看成员 Build 就绪度 → 一对一指导
 ```
 
-> 📌 **后续计划：** 公会管理专用功能（Build coverage、Role gap 分析、成员总览）将在独立版本中提供。
+### 公会管理者目前还不能做的事
+
+```
+❌ 批量查看所有成员的 Build coverage
+❌ 团队 Role gap 分析（谁缺 heal/quick/alac）
+❌ 成员进度横向对比
+❌ 自动推荐替补阵容
+```
+
+> 📌 **Guild Edition（独立版本）：**  
+> 完整的公会管理功能正在独立开发中，包括 Build coverage 矩阵、Role gap 检测、成员总览仪表盘、团队周计划生成器。  
+> 如果你有公会管理需求，当前版本适合先用个人报告 + 分享功能做轻量管理，完整功能将在 Guild Edition 中提供。
 
 ---
 
