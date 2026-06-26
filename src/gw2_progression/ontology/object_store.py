@@ -4,6 +4,7 @@ In-memory dict-based registry with optional SQLite persistence.
 MVP uses dicts (not Neo4j/RDF) for simplicity and speed.
 """
 
+import asyncio
 import json
 import logging
 import uuid
@@ -11,6 +12,7 @@ from datetime import datetime, timezone
 from typing import Any
 
 from ..database import using_db
+from .exceptions import PersistenceError
 from .models import OntologyAction, OntologyObject, OntologyRelation
 
 logger = logging.getLogger("gw2.ontology.store")
@@ -169,6 +171,22 @@ def clear() -> None:
     _relations_by_type.clear()
 
 
+_MAX_RETRIES = 3
+_RETRY_DELAY = 0.1
+
+
+async def _with_retry(coro_factory):
+    last_exc = None
+    for attempt in range(_MAX_RETRIES):
+        try:
+            return await coro_factory()
+        except Exception as e:
+            last_exc = e
+            if attempt < _MAX_RETRIES - 1:
+                await asyncio.sleep(_RETRY_DELAY * (attempt + 1))
+    raise PersistenceError(f"Failed after {_MAX_RETRIES} retries: {last_exc}") from last_exc
+
+
 # ── Persistence ──────────────────────────────────────────────────────
 
 
@@ -220,70 +238,76 @@ CREATE TABLE IF NOT EXISTS ontology_actions (
 
 
 async def persist_object(obj: OntologyObject) -> None:
-    async with using_db() as conn:
-        await conn.execute(
-            """INSERT OR REPLACE INTO ontology_objects
-            (object_id, class_name, account_name, properties, qa_status, privacy_scope,
-             revision, source_object_id, created_at, updated_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
-            (
-                obj.object_id,
-                obj.class_name,
-                obj.account_name,
-                json.dumps(obj.properties),
-                obj.qa_status,
-                obj.privacy_scope,
-                obj.revision,
-                obj.source_object_id,
-                obj.created_at,
-                obj.updated_at,
-            ),
-        )
+    async def _do():
+        async with using_db() as conn:
+            await conn.execute(
+                """INSERT OR REPLACE INTO ontology_objects
+                (object_id, class_name, account_name, properties, qa_status, privacy_scope,
+                 revision, source_object_id, created_at, updated_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                (
+                    obj.object_id,
+                    obj.class_name,
+                    obj.account_name,
+                    json.dumps(obj.properties),
+                    obj.qa_status,
+                    obj.privacy_scope,
+                    obj.revision,
+                    obj.source_object_id,
+                    obj.created_at,
+                    obj.updated_at,
+                ),
+            )
+    await _with_retry(_do)
 
 
 async def persist_relation(rel: OntologyRelation) -> None:
-    async with using_db() as conn:
-        await conn.execute(
-            """INSERT OR REPLACE INTO ontology_relations
-            (relation_id, source_id, target_id, relation_type, properties, confidence, created_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?)""",
-            (
-                rel.relation_id,
-                rel.source_id,
-                rel.target_id,
-                rel.relation_type,
-                json.dumps(rel.properties),
-                rel.confidence,
-                rel.created_at,
-            ),
-        )
+    async def _do():
+        async with using_db() as conn:
+            await conn.execute(
+                """INSERT OR REPLACE INTO ontology_relations
+                (relation_id, source_id, target_id, relation_type, properties, confidence, created_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?)""",
+                (
+                    rel.relation_id,
+                    rel.source_id,
+                    rel.target_id,
+                    rel.relation_type,
+                    json.dumps(rel.properties),
+                    rel.confidence,
+                    rel.created_at,
+                ),
+            )
+    await _with_retry(_do)
 
 
 async def persist_action(action: OntologyAction) -> None:
-    async with using_db() as conn:
-        await conn.execute(
-            """INSERT OR REPLACE INTO ontology_actions
-            (action_id, action_type, account_name, params, preconditions_met,
-             affected_object_ids, rollback_strategy, privacy_policy, freshness_policy,
-             qa_status, status, error, created_at, completed_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
-            (
-                action.action_id,
-                action.action_type,
-                action.account_name,
-                json.dumps(action.params),
-                1 if action.preconditions_met else 0,
-                json.dumps(action.affected_object_ids),
-                action.rollback_strategy,
-                action.privacy_policy,
-                action.freshness_policy,
-                action.qa_status,
-                action.status,
-                action.error,
-                action.created_at,
-                action.completed_at,
-            ),
-        )
+    async def _do():
+        async with using_db() as conn:
+            await conn.execute(
+                """INSERT OR REPLACE INTO ontology_actions
+                (action_id, action_type, account_name, params, preconditions_met,
+                 affected_object_ids, rollback_strategy, privacy_policy, freshness_policy,
+                 qa_status, status, error, created_at, completed_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                (
+                    action.action_id,
+                    action.action_type,
+                    action.account_name,
+                    json.dumps(action.params),
+                    1 if action.preconditions_met else 0,
+                    json.dumps(action.affected_object_ids),
+                    action.rollback_strategy,
+                    action.privacy_policy,
+                    action.freshness_policy,
+                    action.qa_status,
+                    action.status,
+                    action.error,
+                    action.created_at,
+                    action.completed_at,
+                ),
+            )
+    await _with_retry(_do)
 
 
 async def load_objects(account_name: str | None = None) -> list[OntologyObject]:

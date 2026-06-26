@@ -350,6 +350,18 @@ async def generate_advice(api_key: str) -> ProgressionAdvice:
     advice.recommended_actions = actions
     advice.weekly_plan = weekly_plan
     advice.confidence, advice.data_sources, advice.risk_reason = _summarize_action_confidence(actions)
+
+    try:
+        from ..ontology.action_registry import execute_action
+        await execute_action(
+            "generate_report",
+            account_name=account_name,
+            params={"report_type": "advice", "action_count": len(actions)},
+            force=True,
+        )
+    except Exception as e:
+        logger.debug("Ontology action record skipped (non-blocking): %s", e)
+
     return advice
 
 

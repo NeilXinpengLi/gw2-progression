@@ -222,6 +222,18 @@ async def generate_plan_from_goal(
 
     actions = _with_action_confidence(actions, parsed)
 
+    try:
+        from ..ontology.impact_analyzer import analyze_sell_impact
+        for a in actions:
+            if a.action_type == "SELL_ITEM" and a.item_id > 0:
+                impact = await analyze_sell_impact(a.item_id, 1, acct, a.title)
+                if impact.risk_level in ("high", "medium"):
+                    a.risk_reason = f"[Ontology] {impact.recommendation} " + a.risk_reason
+                    a.confidence = round(a.confidence * (0.5 if impact.risk_level == "high" else 0.8), 2)
+                    a.data_sources.append("ontology_impact_analyzer")
+    except Exception as e:
+        logger.debug("Ontology impact analysis skipped (non-blocking): %s", e)
+
     # Compute totals
     total_cost = sum(a.cost_gold for a in actions)
     estimated_days = max(1, min(max(a.day_index for a in actions) + 1, 30)) if actions else 7

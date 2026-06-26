@@ -770,3 +770,180 @@ class TestBuildAndReportE2E:
 
         pub = check_publication_requirements(report_data, qa)
         assert pub["publishable"] is True
+
+
+# ── Phase D: Market Domain Tests ──────────────────────────────────────
+
+class TestMarketMapper:
+    def test_map_sell_candidate(self):
+        from gw2_progression.ontology.market_mapper import map_signal_to_ontology
+        from gw2_progression.models import TradingPostSignal
+
+        signal = TradingPostSignal(
+            item_id=19976,
+            signal_type="sell_candidate",
+            severity="info",
+            reason="Mystic Coin surplus available",
+            current_buy_price=20000,
+            current_sell_price=21000,
+            spread_ratio=0.05,
+            quantity_owned=120,
+            value_owned=2400000,
+            confidence=0.78,
+            data_sources=["gw2_commerce_prices"],
+            price_timestamp="2026-06-26T12:00:00",
+        )
+        obj = map_signal_to_ontology(signal, "Player.1")
+        assert obj.class_name == "sell_candidate"
+        assert obj.properties["item_id"] == 19976
+        assert obj.properties["signal_type"] == "sell_candidate"
+
+    def test_map_sell_candidate_stale_price(self):
+        from gw2_progression.ontology.market_mapper import map_signal_to_ontology
+        from gw2_progression.models import TradingPostSignal
+
+        old_signal = TradingPostSignal(
+            item_id=19976,
+            signal_type="sell_candidate",
+            price_timestamp="2020-01-01T00:00:00",
+        )
+        obj = map_signal_to_ontology(old_signal, "Player.1")
+        assert obj.properties.get("price_stale") is True
+
+    def test_get_active_sell_candidates(self):
+        from gw2_progression.ontology.market_mapper import get_active_sell_candidates, map_signal_to_ontology
+        from gw2_progression.models import TradingPostSignal
+
+        for i in range(3):
+            map_signal_to_ontology(TradingPostSignal(item_id=i, signal_type="sell_candidate"), "Player.1")
+        candidates = get_active_sell_candidates("Player.1")
+        assert len(candidates) == 3
+
+    def test_get_protected_market_assets(self):
+        from gw2_progression.ontology.market_mapper import map_signal_to_ontology, get_protected_market_assets
+        from gw2_progression.models import TradingPostSignal
+
+        map_signal_to_ontology(TradingPostSignal(item_id=19976, signal_type="protected_asset"), "Player.1")
+        protected = get_protected_market_assets("Player.1")
+        assert len(protected) == 1
+        assert protected[0].class_name == "protected_market_asset"
+
+    def test_check_price_freshness(self):
+        from gw2_progression.ontology.market_mapper import check_price_freshness, map_signal_to_ontology
+        from gw2_progression.models import TradingPostSignal
+
+        map_signal_to_ontology(TradingPostSignal(item_id=19976, signal_type="sell_candidate", price_timestamp="2026-06-26T12:00:00"), "Player.1")
+        result = check_price_freshness(19976, "Player.1")
+        assert result["is_stale"] is False
+        assert result["item_id"] == 19976
+
+        result_missing = check_price_freshness(99999, "Player.1")
+        assert result_missing["is_stale"] is True
+
+
+# ── Delta Sync Tests ──────────────────────────────────────────────────
+
+@pytest.mark.asyncio
+class TestDeltaSync:
+    async def test_delta_sync_updates_existing(self):
+        from gw2_progression.ontology.account_mapper import sync_account_to_ontology
+
+        with patch("gw2_progression.ontology.account_mapper.using_db") as mock_ctx, \
+             patch("gw2_progression.ontology.account_mapper.load_latest_holdings") as mock_holdings:
+            mock_db = AsyncMock()
+            mock_ctx.return_value.__aenter__ = AsyncMock(return_value=mock_db)
+            mock_ctx.return_value.__aexit__ = AsyncMock()
+            mock_holdings.return_value = [
+                type("H", (), {"item_id": 19976, "count": 120, "location_type": "material_storage", "location_ref": "", "tradable": True, "value_buy": 50000, "value_sell": 48000, "binding_status": "", "confidence": 0.9})(),
+            ]
+
+            objs1 = await sync_account_to_ontology("key", "Delta.Player")
+            assert len(objs1) >= 1
+
+            mock_holdings.return_value = [
+                type("H", (), {"item_id": 19976, "count": 150, "location_type": "material_storage", "location_ref": "", "tradable": True, "value_buy": 60000, "value_sell": 57000, "binding_status": "", "confidence": 0.9})(),
+            ]
+            objs2 = await sync_account_to_ontology("key", "Delta.Player")
+
+            assets = store.get_objects_by_account("account_asset", "Delta.Player")
+            mystic_coin_assets = [a for a in assets if a.properties.get("item_id") == 19976]
+            assert len(mystic_coin_assets) == 1
+            assert mystic_coin_assets[0].properties["count"] == 150
+
+    async def test_delta_sync_adds_new_items(self):
+        from gw2_progression.ontology.account_mapper import sync_account_to_ontology
+
+        with patch("gw2_progression.ontology.account_mapper.using_db") as mock_ctx, \
+             patch("gw2_progression.ontology.account_mapper.load_latest_holdings") as mock_holdings:
+            mock_db = AsyncMock()
+            mock_ctx.return_value.__aenter__ = AsyncMock(return_value=mock_db)
+            mock_ctx.return_value.__aexit__ = AsyncMock()
+
+            mock_holdings.return_value = [
+                type("H", (), {"item_id": 19976, "count": 120, "location_type": "material_storage", "location_ref": "", "tradable": True, "value_buy": 50000, "value_sell": 48000, "binding_status": "", "confidence": 0.9})(),
+                type("H", (), {"item_id": 46765, "count": 1, "location_type": "bank", "location_ref": "", "tradable": False, "value_buy": 0, "value_sell": 0, "binding_status": "AccountBound", "confidence": 1.0})(),
+            ]
+            objs = await sync_account_to_ontology("key", "Delta.New")
+            assets = [o for o in objs if o.class_name == "account_asset"]
+            assert len(assets) == 2
+
+
+# ── Error Handling Tests ──────────────────────────────────────────────
+
+class TestOntologyExceptions:
+    def test_exception_hierarchy(self):
+        from gw2_progression.ontology.exceptions import (
+            OntologyError, ObjectNotFoundError, RelationNotFoundError,
+            ValidationError, PreconditionFailedError, PersistenceError,
+        )
+        assert issubclass(ObjectNotFoundError, OntologyError)
+        assert issubclass(RelationNotFoundError, OntologyError)
+        assert issubclass(ValidationError, OntologyError)
+        assert issubclass(PreconditionFailedError, OntologyError)
+        assert issubclass(PersistenceError, OntologyError)
+
+    def test_object_not_found_raised(self):
+        from gw2_progression.ontology.exceptions import ObjectNotFoundError
+        with pytest.raises(ObjectNotFoundError):
+            raise ObjectNotFoundError("Object not found")
+
+    def test_persistence_error_raised(self):
+        from gw2_progression.ontology.exceptions import PersistenceError
+        with pytest.raises(PersistenceError):
+            raise PersistenceError("DB failed")
+
+
+# ── Object Store Retry Tests ─────────────────────────────────────────
+
+@pytest.mark.asyncio
+class TestObjectStoreRetry:
+    async def test_with_retry_succeeds(self):
+        from gw2_progression.ontology.object_store import _with_retry
+
+        call_count = 0
+
+        async def succeeds():
+            nonlocal call_count
+            call_count += 1
+            if call_count < 2:
+                raise Exception("First attempt fails")
+            return "success"
+
+        result = await _with_retry(succeeds)
+        assert result == "success"
+        assert call_count == 2
+
+    async def test_with_retry_exhausted(self):
+        from gw2_progression.ontology.object_store import _with_retry, _MAX_RETRIES
+        from gw2_progression.ontology.exceptions import PersistenceError
+
+        call_count = 0
+
+        async def always_fails():
+            nonlocal call_count
+            call_count += 1
+            raise Exception("Always fails")
+
+        with pytest.raises(PersistenceError):
+            await _with_retry(always_fails)
+        assert call_count == _MAX_RETRIES
