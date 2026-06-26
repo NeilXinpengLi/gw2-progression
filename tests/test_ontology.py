@@ -947,3 +947,214 @@ class TestObjectStoreRetry:
         with pytest.raises(PersistenceError):
             await _with_retry(always_fails)
         assert call_count == _MAX_RETRIES
+
+
+# ── Phase D1: Guild Workspace Tests ───────────────────────────────────
+
+class TestGuildMapper:
+    @pytest.mark.asyncio
+    async def test_map_guild_to_ontology(self):
+        from gw2_progression.ontology.guild_mapper import map_guild_to_ontology
+
+        guild_data = {
+            "id": 1,
+            "name": "Test Guild",
+            "invite_code": "abc123",
+            "members": [
+                {"account_name": "Player.1", "role": "leader", "joined_at": "2026-01-01"},
+                {"account_name": "Player.2", "role": "member", "joined_at": "2026-02-01"},
+            ],
+        }
+        objs = await map_guild_to_ontology(guild_data)
+        guilds = [o for o in objs if o.class_name == "guild_workspace"]
+        members = [o for o in objs if o.class_name == "guild_member"]
+        assert len(guilds) == 1
+        assert len(members) == 2
+        assert guilds[0].properties["name"] == "Test Guild"
+
+    @pytest.mark.asyncio
+    async def test_sync_guild_goals(self):
+        from gw2_progression.ontology.guild_mapper import map_guild_to_ontology, sync_guild_goals
+
+        guild_data = {"id": 2, "name": "Shared Guild", "invite_code": "xyz", "members": [
+            {"account_name": "Player.A"},
+            {"account_name": "Player.B"},
+        ]}
+        await map_guild_to_ontology(guild_data)
+
+        from gw2_progression.ontology.goal_mapper import map_goal_to_ontology
+        map_goal_to_ontology(TrackedGoal(goal_id="g1", account_name="Player.A", target_item_id=46765, status="active"))
+        map_goal_to_ontology(TrackedGoal(goal_id="g2", account_name="Player.B", target_item_id=46765, status="active"))
+
+        count = await sync_guild_goals(2, ["Player.A", "Player.B"])
+        assert count >= 1
+
+        goals = store.get_objects_by_class("guild_goal")
+        assert len(goals) >= 1
+
+    def test_get_guild_member_objects(self):
+        from gw2_progression.ontology.guild_mapper import get_guild_member_objects
+
+        store.register_object("guild_member", properties={"guild_id": 1, "role": "member"})
+        store.register_object("guild_member", properties={"guild_id": 2, "role": "member"})
+        members = get_guild_member_objects(1)
+        assert len(members) == 1
+
+
+# ── Phase D2: Quest Mapper Tests ──────────────────────────────────────
+
+class TestQuestMapper:
+    def test_map_quest_to_ontology(self):
+        from gw2_progression.ontology.quest_mapper import map_quest_to_ontology
+
+        obj = map_quest_to_ontology("goal_progress", "Work on legendary", "Player.1")
+        assert obj.class_name == "quest_goal"
+        assert obj.properties["quest_key"] == "goal_progress"
+
+    def test_map_achievement_to_ontology(self):
+        from gw2_progression.ontology.quest_mapper import map_achievement_to_ontology
+
+        obj = map_achievement_to_ontology(1001, "Mystic Tribune", "Player.1", current=3, max_count=5)
+        assert obj.class_name == "achievement"
+        assert obj.properties["progress_pct"] == 60.0
+        assert obj.properties["done"] is False
+
+    def test_achievement_done(self):
+        from gw2_progression.ontology.quest_mapper import map_achievement_to_ontology
+
+        obj = map_achievement_to_ontology(1002, "Complete", "Player.1", current=5, max_count=5, done=True)
+        assert obj.properties["done"] is True
+        assert obj.properties["progress_pct"] == 100.0
+
+    def test_quest_class_map_completeness(self):
+        from gw2_progression.ontology.quest_mapper import COACH_QUEST_CLASS_MAP
+        from gw2_progression.services.quest_service import COACH_QUESTS
+
+        keys_in_map = set(COACH_QUEST_CLASS_MAP.keys())
+        keys_in_coach = set(q["key"] for q in COACH_QUESTS)
+        assert keys_in_coach.issubset(keys_in_map), f"Missing quest keys: {keys_in_coach - keys_in_map}"
+
+    @pytest.mark.asyncio
+    async def test_get_quests_by_account(self):
+        from gw2_progression.ontology.quest_mapper import get_quests_by_account, map_quest_to_ontology
+
+        map_quest_to_ontology("sell_liquidate", "Sell items", "Player.Q", completed=True)
+        map_quest_to_ontology("goal_progress", "Goal work", "Player.Q")
+        quests = get_quests_by_account("Player.Q")
+        assert len(quests) == 2
+
+    @pytest.mark.asyncio
+    async def test_get_completed_quests(self):
+        from gw2_progression.ontology.quest_mapper import get_completed_quests, map_quest_to_ontology
+
+        map_quest_to_ontology("fractal_push", "Fractals", "Player.Q", completed=True)
+        map_quest_to_ontology("wvw_pvp", "WvW", "Player.Q", completed=False)
+        done = get_completed_quests("Player.Q")
+        assert len(done) == 1
+        assert done[0].properties["quest_key"] == "fractal_push"
+
+    def test_weekly_quest_progress(self):
+        from gw2_progression.ontology.quest_mapper import get_weekly_quest_progress, map_quest_to_ontology
+
+        map_quest_to_ontology("sell_liquidate", "Sell", "Player.W", completed=True)
+        map_quest_to_ontology("goal_progress", "Goal", "Player.W", completed=True)
+        map_quest_to_ontology("build_gear", "Build", "Player.W", completed=False)
+        prog = get_weekly_quest_progress("Player.W")
+        assert prog["total"] == 3
+        assert prog["completed"] == 2
+        assert prog["progress_pct"] == 66.7
+
+
+# ── Phase D3: Performance Tests ───────────────────────────────────────
+
+class TestPerformance:
+    def test_batch_register_objects(self):
+        from gw2_progression.ontology.object_store import register_objects, get_objects_by_class
+
+        specs = [
+            {"class_name": "test_batch", "account_name": "Player.B", "properties": {"idx": i}}
+            for i in range(10)
+        ]
+        objs = register_objects(specs)
+        assert len(objs) == 10
+        assert len(get_objects_by_class("test_batch")) == 10
+
+    def test_batch_register_relations(self):
+        from gw2_progression.ontology.object_store import register_objects, register_relations, get_relations
+
+        objs = register_objects([
+            {"class_name": "batch_a", "account_name": "P"},
+            {"class_name": "batch_b", "account_name": "P"},
+        ])
+        rels = register_relations([
+            {"source_id": objs[0].object_id, "target_id": objs[1].object_id, "relation_type": "batch_rel", "confidence": 0.9},
+        ])
+        assert len(rels) == 1
+        assert len(get_relations(relation_type="batch_rel")) == 1
+
+    def test_get_objects_by_property(self):
+        from gw2_progression.ontology.object_store import register_object, get_objects_by_property
+
+        register_object("prop_test", properties={"color": "red", "size": 1})
+        register_object("prop_test", properties={"color": "blue", "size": 2})
+        register_object("prop_test", properties={"color": "red", "size": 3})
+
+        reds = get_objects_by_property("prop_test", "color", "red")
+        assert len(reds) == 2
+        blues = get_objects_by_property("prop_test", "color", "blue")
+        assert len(blues) == 1
+
+    def test_get_objects_by_property_batch(self):
+        from gw2_progression.ontology.object_store import register_object, get_objects_by_property_batch
+
+        register_object("batch_filter", properties={"type": "a", "active": True})
+        register_object("batch_filter", properties={"type": "b", "active": True})
+        register_object("batch_filter", properties={"type": "a", "active": False})
+
+        result = get_objects_by_property_batch("batch_filter", {"type": "a", "active": True})
+        assert len(result) == 1
+
+    def test_count_objects(self):
+        from gw2_progression.ontology.object_store import register_object, count_objects
+
+        register_object("count_test", account_name="Player.C")
+        register_object("count_test", account_name="Player.C")
+        register_object("count_test", account_name="Player.D")
+        assert count_objects("count_test") == 3
+        assert count_objects("count_test", account_name="Player.C") == 2
+
+    def test_count_relations(self):
+        from gw2_progression.ontology.object_store import register_object, register_relation, count_relations
+
+        a = register_object("count_rel_a")
+        b = register_object("count_rel_b")
+        register_relation(a.object_id, b.object_id, "type_x")
+        register_relation(b.object_id, a.object_id, "type_y")
+        assert count_relations() == 2
+        assert count_relations(relation_type="type_x") == 1
+
+    def test_pagination(self):
+        from gw2_progression.ontology.object_store import register_object, get_objects_paginated
+
+        for i in range(10):
+            register_object("page_test", account_name="Player.P", properties={"i": i})
+        page1 = get_objects_paginated("page_test", offset=0, limit=3)
+        assert len(page1) <= 3
+        page2 = get_objects_paginated("page_test", offset=3, limit=3)
+        assert len(page2) <= 3
+
+    def test_property_index_caching(self):
+        from gw2_progression.ontology.object_store import register_object, get_objects_by_property, clear_prop_index
+
+        clear_prop_index()
+        register_object("cache_test", properties={"key": "val"})
+        result1 = get_objects_by_property("cache_test", "key", "val")
+        assert len(result1) == 1
+
+        register_object("cache_test", properties={"key": "val"})
+        result2 = get_objects_by_property("cache_test", "key", "val")
+        assert len(result2) == 1  # cached, still shows 1
+
+        clear_prop_index()
+        result3 = get_objects_by_property("cache_test", "key", "val")
+        assert len(result3) == 2  # re-queried, shows 2

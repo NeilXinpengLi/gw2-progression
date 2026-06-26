@@ -169,6 +169,72 @@ def clear() -> None:
     _relations_by_source.clear()
     _relations_by_target.clear()
     _relations_by_type.clear()
+    _prop_index.clear()
+
+
+# ── Performance: Batch Operations ─────────────────────────────────────
+
+
+def register_objects(objects: list[dict]) -> list[OntologyObject]:
+    return [register_object(**spec) for spec in objects]
+
+
+def register_relations(relations: list[dict]) -> list[OntologyRelation]:
+    return [register_relation(**spec) for spec in relations]
+
+
+def get_objects_by_property(class_name: str, property_key: str, property_value: Any) -> list[OntologyObject]:
+    key = (class_name, property_key, str(property_value))
+    cached = _prop_index.get(key)
+    if cached is not None:
+        return cached
+    result = [
+        o for o in _objects_by_class.get(class_name, {}).values()
+        if o.properties.get(property_key) == property_value
+    ]
+    if len(_prop_index) < _PROP_INDEX_MAX:
+        _prop_index[key] = result
+    return result
+
+
+def get_objects_by_property_batch(class_name: str, filters: dict[str, Any]) -> list[OntologyObject]:
+    results = list(_objects_by_class.get(class_name, {}).values())
+    for key, val in filters.items():
+        results = [o for o in results if o.properties.get(key) == val]
+    return results
+
+
+def count_objects(class_name: str, account_name: str | None = None) -> int:
+    if account_name:
+        return sum(1 for o in _objects_by_class.get(class_name, {}).values() if o.account_name == account_name)
+    return len(_objects_by_class.get(class_name, {}))
+
+
+def count_relations(relation_type: str | None = None) -> int:
+    if relation_type:
+        return len(_relations_by_type.get(relation_type, []))
+    return len(_relations)
+
+
+# ── Performance: Property Index ───────────────────────────────────────
+
+_prop_index: dict[tuple[str, str, str], list[OntologyObject]] = {}
+_PROP_INDEX_MAX = 1000
+
+
+def clear_prop_index() -> None:
+    _prop_index.clear()
+
+
+# ── Performance: Pagination ───────────────────────────────────────────
+
+def get_objects_paginated(class_name: str, offset: int = 0, limit: int = 50) -> list[OntologyObject]:
+    all_objs = sorted(
+        _objects_by_class.get(class_name, {}).values(),
+        key=lambda o: o.created_at,
+        reverse=True,
+    )
+    return all_objs[offset:offset + limit]
 
 
 _MAX_RETRIES = 3
