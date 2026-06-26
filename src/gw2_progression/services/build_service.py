@@ -5,7 +5,7 @@ from typing import Any
 
 from ..models import AccountBuildReadiness, BuildGearRequirement, BuildTemplate
 from ..ontology import object_store as ontology_store
-from ..ontology.build_trust import evaluate_build_source_freshness, filter_recommendations_by_freshness, get_build_recommendation_confidence
+from ..ontology.build_trust import evaluate_build_source_freshness, get_build_recommendation_confidence
 
 logger = logging.getLogger("gw2.builds")
 

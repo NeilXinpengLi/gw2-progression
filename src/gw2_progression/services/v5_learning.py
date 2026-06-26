@@ -29,7 +29,17 @@ async def record_experience(
     time_spent_minutes: int = 0,
     success: bool = True,
 ) -> dict:
-    """Record a user action and its outcome into the experience buffer."""
+    try:
+        from ..ontology.action_registry import execute_action
+        await execute_action(
+            "sync_account_snapshot",
+            account_name=account_name,
+            params={"action_key": action_key, "success": success},
+            force=True,
+        )
+    except Exception:
+        pass
+
     reward = _compute_reward(gold_impact, build_impact, legendary_impact, time_spent_minutes, success)
 
     async with using_db() as conn:

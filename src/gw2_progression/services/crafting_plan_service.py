@@ -1,4 +1,8 @@
-"""Enhanced crafting plan with craft_vs_buy_delta and formal models."""
+"""Enhanced crafting plan with craft_vs_buy_delta and formal models.
+
+Integrates with ontology to reserve crafting materials and track
+which goals the crafted item contributes toward.
+"""
 
 import logging
 import uuid
@@ -79,5 +83,25 @@ async def create_plan(
         lines=lines,
         created_at=datetime.now(timezone.utc).isoformat(),
     )
+
+    try:
+        from ..database import using_db
+        db = await using_db().__aenter__()
+        try:
+            from ..analyzer import fetch_all
+            contents = await fetch_all(api_key)
+            acct = contents.account_name or "unknown"
+            await db.close()
+            db = None
+
+            from ..ontology.account_mapper import sync_account_to_ontology
+            from ..ontology.goal_mapper import sync_goal_reservations
+            await sync_account_to_ontology(api_key, acct)
+            await sync_goal_reservations(acct)
+        finally:
+            if db:
+                await db.close()
+    except Exception as e:
+        logger.debug("Ontology crafting sync skipped (non-blocking): %s", e)
 
     return plan

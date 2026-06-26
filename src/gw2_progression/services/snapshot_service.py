@@ -4,11 +4,11 @@ import hashlib
 import logging
 
 from ..analyzer import fetch_all
-from ..ontology import account_mapper as ontology_account
 from ..database import get_db, load_value_history, save_account_snapshot
 from ..models import (
     ValueAnalyzeResponse,
 )
+from ..ontology import account_mapper as ontology_account
 from .holdings_service import (
     extract_bank_holdings,
     extract_character_holdings,

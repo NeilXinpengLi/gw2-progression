@@ -1,4 +1,8 @@
-"""Decision engine — generates ranked P0/P1/P2 actions for the Action Center."""
+"""Decision engine — generates ranked P0/P1/P2 actions for the Action Center.
+
+Integrates with ontology to validate sell recommendations and annotate
+risk levels on all generated actions.
+"""
 
 
 async def decide(account_name: str, wallet_gold: int = 0, characters: list = None, goals: list = None, builds: list = None, value_data: dict = None) -> dict:
@@ -36,6 +40,17 @@ async def decide(account_name: str, wallet_gold: int = 0, characters: list = Non
 
     p2.append({"action": "Complete Dailies", "reason": "Daily achievements and world boss trains provide consistent rewards.", "reward": "~10g/day", "tab": "activities"})
     p2.append({"action": "Check TP", "reason": "Review Trading Post for profitable flips and undervalued listings.", "reward": "Variable", "tab": "market"})
+
+    try:
+        from ..ontology.impact_analyzer import analyze_sell_impact
+        for priority_group in [p0, p1, p2]:
+            for action in priority_group:
+                if "sell" in action.get("action", "").lower():
+                    impact = await analyze_sell_impact(0, 1, account_name, action.get("action", ""))
+                    if impact.risk_level != "low":
+                        action["reason"] += f" [Ontology: {impact.risk_level} risk — {impact.recommendation}]"
+    except Exception:
+        pass
 
     return {"p0": p0[:3], "p1": p1[:3], "p2": p2[:3]}
 

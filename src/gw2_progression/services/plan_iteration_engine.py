@@ -181,6 +181,12 @@ async def apply_revision(
 
     delta_summary = " ".join(delta_parts) if delta_parts else "Plan adjusted based on your feedback."
 
+    try:
+        from ..ontology.goal_mapper import sync_goal_reservations
+        await sync_goal_reservations(plan.account_name)
+    except Exception as e:
+        logger.debug("Ontology reservation sync on revision skipped (non-blocking): %s", e)
+
     revision = PlanRevision(
         revision_id=uuid.uuid4().hex[:12],
         plan_id=plan.plan_id,
