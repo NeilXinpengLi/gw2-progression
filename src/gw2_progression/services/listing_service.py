@@ -3,6 +3,7 @@
 import logging
 import time
 from collections import OrderedDict
+from datetime import UTC, datetime
 
 import httpx
 
@@ -61,6 +62,7 @@ async def fetch_listings(item_ids: list[int]) -> dict[int, dict]:
             try:
                 resp = await client.get(f"{GW2_BASE}/v2/commerce/listings?ids={ids_param}")
                 if resp.is_success:
+                    fetched_at = datetime.now(UTC).isoformat()
                     data = resp.json()
                     for entry in data if isinstance(data, list) else [data]:
                         item_id = entry.get("id")
@@ -75,6 +77,7 @@ async def fetch_listings(item_ids: list[int]) -> dict[int, dict]:
                                 "best_buy_qty": buys[0]["quantity"] if buys else 0,
                                 "best_sell": sells[0]["unit_price"] if sells else 0,
                                 "best_sell_qty": sells[0]["quantity"] if sells else 0,
+                                "fetched_at": fetched_at,
                             }
                             _set_cached_listing(item_id, listing_data)
                             result[item_id] = listing_data
@@ -109,6 +112,35 @@ def analyze_depth(listing: dict) -> dict:
 
     spread = best_sell - best_buy
     spread_ratio = round(spread / best_sell, 4) if best_sell > 0 else 0.0
+    total_depth = buy_depth_all + sell_depth_all
+
+    if total_depth >= 5000:
+        liquidity_score = "high"
+        confidence = 0.92
+        liquidity_reason = f"{total_depth} total visible orders across buy/sell depth."
+    elif total_depth >= 500:
+        liquidity_score = "medium"
+        confidence = 0.82
+        liquidity_reason = f"{total_depth} total visible orders across buy/sell depth."
+    elif total_depth > 0:
+        liquidity_score = "low"
+        confidence = 0.58
+        liquidity_reason = f"Only {total_depth} total visible orders; large trades may move price."
+    else:
+        liquidity_score = "illiquid"
+        confidence = 0.20
+        liquidity_reason = "No visible buy or sell order depth."
+
+    if not best_buy or not best_sell:
+        risk_reason = "Missing one side of the order book; TP signal is speculative."
+        confidence = min(confidence, 0.45)
+    elif spread_ratio > 0.2:
+        risk_reason = "Wide spread between buy and sell orders; execution price may vary."
+        confidence = min(confidence, 0.65)
+    elif liquidity_score in ("low", "illiquid"):
+        risk_reason = "Low order depth; liquidation may require price concessions."
+    else:
+        risk_reason = "Order book depth and spread support this TP estimate."
 
     return {
         "best_buy": best_buy,
@@ -123,4 +155,10 @@ def analyze_depth(listing: dict) -> dict:
         "net_profit": net_profit,
         "profit_margin": profit_margin,
         "arbitrage_viable": net_profit > 0,
+        "liquidity_score": liquidity_score,
+        "liquidity_reason": liquidity_reason,
+        "confidence": confidence,
+        "data_sources": ["gw2_commerce_listings"],
+        "price_timestamp": listing.get("fetched_at", ""),
+        "risk_reason": risk_reason,
     }

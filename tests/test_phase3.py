@@ -31,6 +31,8 @@ class TestTradingPost:
     def test_signal_model(self):
         s = TradingPostSignal(item_id=19976, signal_type="sell_candidate", severity="info", reason="Test")
         assert s.signal_type == "sell_candidate"
+        assert s.confidence == 0.0
+        assert s.data_sources == []
 
     def test_protected_asset_model(self):
         a = ProtectedAsset(account_name="Player.1234", item_id=19976, reason="manual_lock")
@@ -59,6 +61,54 @@ class TestTradingPost:
         ):
             signals = await generate_signals("Player.1234")
         assert signals == []
+
+    @pytest.mark.asyncio
+    async def test_generate_signals_confidence_metadata(self):
+        from gw2_progression.models import ItemHolding
+        from gw2_progression.services.tp_strategy_service import generate_signals
+
+        db = AsyncMock()
+        cursor = AsyncMock()
+        cursor.fetchall = AsyncMock(return_value=[])
+        db.execute = AsyncMock(return_value=cursor)
+        db.close = AsyncMock()
+
+        holdings = [
+            ItemHolding(
+                item_id=19976,
+                count=20,
+                location_type="material_storage",
+                tradable=True,
+                valuation_status="priced",
+                price_buy=20000,
+                price_sell=21600,
+                value_buy=400000,
+                confidence=0.80,
+            )
+        ]
+        listings = {
+            19976: {
+                "item_id": 19976,
+                "best_buy": 20000,
+                "best_sell": 21600,
+                "buys": [{"unit_price": 20000, "quantity": 6000}],
+                "sells": [{"unit_price": 21600, "quantity": 5000}],
+                "fetched_at": "2026-06-26T10:00:00+00:00",
+            }
+        }
+
+        with (
+            patch("gw2_progression.services.tp_strategy_service.get_db", AsyncMock(return_value=db)),
+            patch("gw2_progression.database.load_latest_holdings", AsyncMock(return_value=holdings)),
+            patch("gw2_progression.services.tp_strategy_service.fetch_listings", AsyncMock(return_value=listings)),
+        ):
+            signals = await generate_signals("Player.1234")
+
+        sell = [s for s in signals if s.signal_type == "sell_candidate"][0]
+        assert sell.confidence > 0
+        assert "gw2_commerce_listings" in sell.data_sources
+        assert sell.price_timestamp == "2026-06-26T10:00:00+00:00"
+        assert sell.risk_reason
 
 
 class TestBuilds:

@@ -103,6 +103,8 @@ def test_value_confidence_fields_are_exposed():
 
     summary_properties = components["ValueSummary"]["properties"]
     assert {"confidence", "data_sources", "price_timestamp", "risk_reason"}.issubset(summary_properties)
+    listing_properties = components["ListingDepthResponse"]["properties"]
+    assert confidence_fields.issubset(listing_properties)
 
 
 def test_recommendation_confidence_fields_are_exposed():

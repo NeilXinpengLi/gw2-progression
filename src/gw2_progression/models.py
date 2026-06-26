@@ -207,6 +207,12 @@ class ListingDepthResponse(BaseModel):
     net_profit: int = 0
     profit_margin: float = 0.0
     arbitrage_viable: bool = False
+    liquidity_score: str = "unknown"
+    liquidity_reason: str = ""
+    confidence: float = 0.0
+    data_sources: list[str] = []
+    price_timestamp: str = ""
+    risk_reason: str = ""
 
 
 class ListingUnavailableResponse(BaseModel):
@@ -386,6 +392,11 @@ class TradingPostSignal(BaseModel):
     quantity_owned: int = 0
     value_owned: int = 0
     linked_goal_id: str = ""
+    confidence: float = 0.0
+    data_sources: list[str] = []
+    price_timestamp: str = ""
+    liquidity_reason: str = ""
+    risk_reason: str = ""
 
 
 class ProtectedAsset(BaseModel):

@@ -20,6 +20,10 @@ class TestListingDepth:
         assert depth["spread"] == 1600
         assert depth["buy_depth_5"] == 500 + 200
         assert depth["sell_depth_5"] == 300 + 150
+        assert depth["liquidity_score"] == "medium"
+        assert depth["confidence"] > 0
+        assert depth["data_sources"] == ["gw2_commerce_listings"]
+        assert depth["risk_reason"]
 
         # Arbitrage: buy 21600, sell 20000, fees 21600*0.05 + 20000*0.10 = 1080+2000=3080
         # Net profit = 20000 - 21600 - 3080 = -4680
@@ -59,6 +63,9 @@ class TestListingDepth:
         assert depth["best_buy"] == 0
         assert depth["net_profit"] == 0
         assert depth["arbitrage_viable"] is False
+        assert depth["liquidity_score"] == "illiquid"
+        assert depth["confidence"] == 0.20
+        assert "No visible" in depth["liquidity_reason"]
 
     def test_buy_depth_vs_sell_depth(self):
         listing = {
