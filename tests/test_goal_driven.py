@@ -4,7 +4,7 @@
 import pytest
 
 from gw2_progression.models import GoalType, ParsedGoal, PlanAction, ProgressionPlan
-from gw2_progression.services.goal_driven_engine import _score_action, revise_plan
+from gw2_progression.services.goal_driven_engine import _score_action, generate_plan_from_goal, revise_plan
 from gw2_progression.services.plan_iteration_engine import apply_revision, classify_revision
 
 
@@ -44,6 +44,38 @@ class TestGoalDrivenEngine:
         state = {"wallet_gold": 50000}
         pct = _estimate_completion(state, parsed)
         assert pct > 0
+
+    @pytest.mark.asyncio
+    async def test_generated_actions_include_confidence_metadata(self, monkeypatch):
+        async def fake_extract_account_state(api_key: str) -> dict:
+            return {
+                "account_name": "Test.1234",
+                "wallet_gold": 50000,
+                "characters": [{"name": "Hero", "level": 80}],
+                "lvl80_count": 1,
+                "materials": [],
+                "bank": [],
+                "wallet_currencies": [],
+                "contents": None,
+            }
+
+        monkeypatch.setattr("gw2_progression.services.goal_driven_engine._extract_account_state", fake_extract_account_state)
+
+        parsed = ParsedGoal(
+            raw_text="Make me gold this week",
+            goal_type=GoalType.MAKE_GOLD,
+            strategy="gold_first",
+            confidence=0.84,
+        )
+
+        plan = await generate_plan_from_goal("fake-key", parsed)
+
+        assert plan.actions
+        assert all(action.plan_id == plan.plan_id for action in plan.actions)
+        assert all(action.confidence > 0 for action in plan.actions)
+        assert all(action.data_sources for action in plan.actions)
+        assert all(action.risk_reason for action in plan.actions)
+        assert any("gw2_commerce_prices" in action.data_sources for action in plan.actions if action.action_type == "BUY_ITEM")
 
 
 class TestPlanIterationEngine:

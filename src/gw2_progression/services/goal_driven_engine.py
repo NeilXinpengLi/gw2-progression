@@ -25,6 +25,71 @@ ACTION_WEIGHTS = {
     "risk": -0.1,
 }
 
+ACTION_CONFIDENCE_METADATA = {
+    "SELL_ITEM": (
+        0.72,
+        ["gw2_account_materials", "gw2_account_bank", "gw2_commerce_prices", "curated_strategy_rules"],
+        "Sell value depends on live TP demand, spread, and whether stored materials are actually tradable.",
+    ),
+    "BUY_ITEM": (
+        0.66,
+        ["gw2_commerce_prices", "curated_strategy_rules"],
+        "Purchase cost can drift quickly when TP liquidity or buy/sell spread changes.",
+    ),
+    "CRAFT_ITEM": (
+        0.78,
+        ["gw2_account_materials", "gw2_recipe_tree", "gw2_commerce_prices"],
+        "Crafting estimate depends on recipe coverage, owned materials, and live material prices.",
+    ),
+    "FARM_ACTIVITY": (
+        0.68,
+        ["gw2_account_characters", "curated_activity_baseline"],
+        "Gold and progress yield vary by daily rotation, player skill, group quality, and market conversion.",
+    ),
+    "COMPLETE_ACHIEVEMENT": (
+        0.74,
+        ["gw2_account_progression", "curated_goal_templates"],
+        "Completion effort can vary when collection steps are time-gated or account progress data is partial.",
+    ),
+    "IMPROVE_BUILD": (
+        0.82,
+        ["gw2_account_builds", "curated_build_templates", "gw2_commerce_prices"],
+        "Build readiness is strongest when current equipment and missing gear prices are available.",
+    ),
+    "CLEAN_INVENTORY": (
+        0.76,
+        ["gw2_account_inventory", "gw2_account_materials", "curated_strategy_rules"],
+        "Cleanup value depends on item binding, salvage choice, and whether TP valuation exists.",
+    ),
+}
+
+
+def _confidence_from_goal(base_confidence: float, parsed: ParsedGoal) -> float:
+    """Blend action rule confidence with goal parser confidence."""
+    if parsed.confidence <= 0:
+        return base_confidence
+    return round(min(0.95, max(0.1, base_confidence * 0.75 + parsed.confidence * 0.25)), 2)
+
+
+def _with_action_confidence(actions: list[PlanAction], parsed: ParsedGoal) -> list[PlanAction]:
+    """Populate confidence metadata for generated plan actions."""
+    for action in actions:
+        base_confidence, data_sources, risk_reason = ACTION_CONFIDENCE_METADATA.get(
+            action.action_type,
+            (
+                0.62,
+                ["gw2_account_state", "curated_strategy_rules"],
+                "Recommendation is based on broad account state and may need manual validation.",
+            ),
+        )
+        if action.confidence <= 0:
+            action.confidence = _confidence_from_goal(base_confidence, parsed)
+        if not action.data_sources:
+            action.data_sources = list(data_sources)
+        if not action.risk_reason:
+            action.risk_reason = risk_reason
+    return actions
+
 
 def _score_action(
     action_type: str,
@@ -155,6 +220,8 @@ async def generate_plan_from_goal(
     for i, a in enumerate(actions):
         a.day_index = min(i // 3, 6)
 
+    actions = _with_action_confidence(actions, parsed)
+
     # Compute totals
     total_cost = sum(a.cost_gold for a in actions)
     estimated_days = max(1, min(max(a.day_index for a in actions) + 1, 30)) if actions else 7
@@ -164,6 +231,8 @@ async def generate_plan_from_goal(
     plan_id = uuid.uuid4().hex[:12]
 
     insight = _generate_insight(state, parsed, actions, completion)
+    for action in actions:
+        action.plan_id = plan_id
 
     return ProgressionPlan(
         plan_id=plan_id,
