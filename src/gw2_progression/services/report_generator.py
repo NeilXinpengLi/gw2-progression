@@ -7,6 +7,7 @@ goal progress, build readiness, and 7-day plan.
 import logging
 from datetime import datetime, timezone
 
+from gw2_progression.ontology.qa_gate import check_report_publishable
 from gw2_progression.services.report_service import generate_report
 
 logger = logging.getLogger("gw2.report_generator")
@@ -142,6 +143,20 @@ async def generate_commercial_report(api_key: str, account_name: str = "", plan_
         pass
 
     now = datetime.now(timezone.utc).isoformat()
+
+    report_meta = {
+        "account_name": name,
+        "snapshot_time": now,
+        "access_level": "paid" if plan_data else "free",
+        "recommendations": recommendations,
+        "report_type": "commercial" if plan_data else "full",
+    }
+    qa = await check_report_publishable(report_meta)
+    if qa.status != "pass":
+        logger.warning("Report QA warnings: %s", qa.warnings)
+    if qa.blocking_errors:
+        logger.warning("Report QA blocking errors: %s", qa.blocking_errors)
+
     sections = ["Account Summary", "Total Value", "Top Assets", "Build Analysis", "Goal Progress", "7-Day Plan"]
     if plan_data:
         sections.append("Action Plan")

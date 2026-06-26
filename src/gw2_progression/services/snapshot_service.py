@@ -4,6 +4,7 @@ import hashlib
 import logging
 
 from ..analyzer import fetch_all
+from ..ontology import account_mapper as ontology_account
 from ..database import get_db, load_value_history, save_account_snapshot
 from ..models import (
     ValueAnalyzeResponse,
@@ -114,6 +115,7 @@ async def run_full_analysis(api_key: str) -> ValueAnalyzeResponse:
         db = await get_db()
         try:
             snapshot_id = await save_account_snapshot(db, account_name, api_key_hash, summary, all_holdings, warnings)
+            await ontology_account.sync_account_to_ontology(api_key, account_name)
         finally:
             await db.close()
     except Exception as e:

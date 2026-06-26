@@ -6,6 +6,7 @@ from datetime import datetime, timezone
 
 from ..database import get_db
 from ..models import TrackedGoal
+from ..ontology import goal_mapper as ontology_goal
 from .crafting_plan_service import create_plan
 
 logger = logging.getLogger("gw2.goal")
@@ -56,6 +57,12 @@ async def create_goal(api_key: str, target_item_id: int, target_count: int = 1, 
         await db.commit()
     finally:
         await db.close()
+
+    try:
+        ontology_goal.map_goal_to_ontology(goal)
+        await ontology_goal.sync_goal_reservations(goal.account_name)
+    except Exception as e:
+        logger.warning("Ontology sync for goal %s failed (continuing): %s", goal.goal_id, e)
 
     return goal
 
@@ -129,6 +136,11 @@ async def refresh_goal(api_key: str, goal_id: str) -> TrackedGoal:
 
     if completion >= 100:
         goal.status = "completed"
+
+    try:
+        await ontology_goal.sync_goal_reservations(goal.account_name)
+    except Exception as e:
+        logger.warning("Ontology reservation sync after refresh failed (continuing): %s", e)
 
     return goal
 

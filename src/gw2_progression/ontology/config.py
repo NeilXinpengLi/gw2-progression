@@ -1,0 +1,215 @@
+"""Ontology class, relation, and action definitions.
+
+MVP uses Python dicts (not RDF/OWL) for simplicity.  Each dict entry
+documents the schema constraints, QA expectations, and privacy rules for
+that class or relation type.
+"""
+
+CLASS_DEFINITIONS: dict[str, dict] = {
+    "account_snapshot": {
+        "description": "Point-in-time account data snapshot",
+        "required_properties": ["account_name", "snapshot_id"],
+        "qa_checks": ["snapshot_exists", "snapshot_freshness"],
+        "privacy_scope": "private",
+    },
+    "account_asset": {
+        "description": "An item holding owned by an account",
+        "required_properties": ["item_id", "count", "location"],
+        "qa_checks": ["item_id_valid", "count_non_negative"],
+        "privacy_scope": "private",
+    },
+    "legendary_goal": {
+        "description": "A tracked legendary goal (active/paused/completed)",
+        "required_properties": ["template_id", "target_item_id", "status"],
+        "qa_checks": ["goal_template_exists", "goal_status_valid"],
+        "privacy_scope": "private",
+    },
+    "goal_requirement": {
+        "description": "A material/currency/achievement required by a goal",
+        "required_properties": ["template_id", "item_id", "required_count", "owned_count"],
+        "qa_checks": ["requirement_count_valid"],
+        "privacy_scope": "private",
+    },
+    "reserved_asset": {
+        "description": "An asset quantity reserved for a specific goal",
+        "required_properties": ["item_id", "reserved_count", "goal_id"],
+        "qa_checks": ["reserved_count_positive"],
+        "privacy_scope": "private",
+    },
+    "safe_surplus": {
+        "description": "Computed safe-to-sell quantity for an asset",
+        "required_properties": ["item_id", "total_owned", "total_reserved", "safe_surplus"],
+        "qa_checks": ["surplus_non_negative"],
+        "privacy_scope": "private",
+    },
+    "build": {
+        "description": "A curated or user-imported build template",
+        "required_properties": ["build_id", "source", "profession"],
+        "qa_checks": ["build_source_reviewed", "patch_freshness_ok"],
+        "privacy_scope": "shared",
+    },
+    "build_readiness": {
+        "description": "Account readiness evaluation for a specific build",
+        "required_properties": ["build_id", "readiness_score"],
+        "qa_checks": ["readiness_score_valid"],
+        "privacy_scope": "private",
+    },
+    "report": {
+        "description": "A generated progression report",
+        "required_properties": ["report_id", "report_type", "access_level"],
+        "qa_checks": ["report_qa_pass", "no_private_data_leak", "no_api_key_leak"],
+        "privacy_scope": "shared",
+    },
+    "evidence": {
+        "description": "A piece of evidence cited by a report or recommendation",
+        "required_properties": ["evidence_type", "source", "object_id"],
+        "qa_checks": ["evidence_source_valid"],
+        "privacy_scope": "private",
+    },
+    "action_record": {
+        "description": "Record of a controlled action execution",
+        "required_properties": ["action_type", "status"],
+        "qa_checks": ["action_has_preconditions"],
+        "privacy_scope": "private",
+    },
+}
+
+RELATION_DEFINITIONS: dict[str, dict] = {
+    "owns": {
+        "description": "Account owns an asset",
+        "source_class": "account_snapshot",
+        "target_class": "account_asset",
+        "allow_multiple": True,
+    },
+    "requires": {
+        "description": "Goal requires a material/currency",
+        "source_class": "legendary_goal",
+        "target_class": "goal_requirement",
+        "allow_multiple": True,
+    },
+    "reserved_for": {
+        "description": "Asset quantity is reserved for a goal",
+        "source_class": "reserved_asset",
+        "target_class": "legendary_goal",
+        "allow_multiple": True,
+    },
+    "safe_surplus_for": {
+        "description": "Computed surplus applies to an asset",
+        "source_class": "safe_surplus",
+        "target_class": "account_asset",
+        "allow_multiple": False,
+    },
+    "validates": {
+        "description": "QA report validates an object",
+        "source_class": "evidence",
+        "target_class": "account_asset",
+        "allow_multiple": True,
+    },
+    "generated_from": {
+        "description": "Report generated from a snapshot",
+        "source_class": "report",
+        "target_class": "account_snapshot",
+        "allow_multiple": False,
+    },
+    "evaluates": {
+        "description": "Build readiness evaluates a build template against account",
+        "source_class": "build_readiness",
+        "target_class": "build",
+        "allow_multiple": True,
+    },
+    "affects": {
+        "description": "An action affects an object",
+        "source_class": "action_record",
+        "target_class": None,
+        "allow_multiple": True,
+    },
+}
+
+ACTION_DEFINITIONS: dict[str, dict] = {
+    "sync_account_snapshot": {
+        "description": "Fetch account data and register snapshot + assets",
+        "input_schema": {"api_key": "string"},
+        "preconditions": [],
+        "effects": ["creates account_snapshot", "creates account_asset per holding"],
+        "rollback_strategy": "delete_snapshot",
+        "privacy_policy": "private",
+        "freshness_policy": "allow_stale",
+    },
+    "create_legendary_goal": {
+        "description": "Register a tracked legendary goal",
+        "input_schema": {"goal_id": "string", "template_id": "string"},
+        "preconditions": ["goal_not_duplicate"],
+        "effects": ["creates legendary_goal", "creates goal_requirement per template"],
+        "rollback_strategy": "delete_goal",
+        "privacy_policy": "private",
+        "freshness_policy": "any",
+    },
+    "reserve_material_for_goal": {
+        "description": "Mark a quantity as reserved for a specific goal",
+        "input_schema": {"item_id": "int", "quantity": "int", "goal_id": "string"},
+        "preconditions": ["quantity_available", "goal_active"],
+        "effects": ["creates reserved_asset", "updates safe_surplus"],
+        "rollback_strategy": "delete_reservation",
+        "privacy_policy": "private",
+        "freshness_policy": "any",
+    },
+    "generate_do_not_sell": {
+        "description": "Compute do-not-sell list from active goals",
+        "input_schema": {"account_name": "string"},
+        "preconditions": ["snapshot_exists"],
+        "effects": ["creates safe_surplus per asset", "updates reserved_asset quantities"],
+        "rollback_strategy": "recompute",
+        "privacy_policy": "private",
+        "freshness_policy": "reject_stale",
+    },
+    "analyze_sell_item": {
+        "description": "Analyze impact of selling a quantity of an item",
+        "input_schema": {"item_id": "int", "quantity": "int", "account_name": "string"},
+        "preconditions": [],
+        "effects": ["returns ImpactReport"],
+        "rollback_strategy": "none",
+        "privacy_policy": "private",
+        "freshness_policy": "reject_stale",
+    },
+    "generate_report": {
+        "description": "Generate and QA-validate a progression report",
+        "input_schema": {"report_type": "string", "account_name": "string"},
+        "preconditions": ["snapshot_exists", "snapshot_freshness_ok"],
+        "effects": ["creates report", "creates evidence", "runs qa checks"],
+        "rollback_strategy": "delete_report",
+        "privacy_policy": "shared",
+        "freshness_policy": "reject_stale",
+    },
+    "publish_report": {
+        "description": "Publish a report after passing QA gate",
+        "input_schema": {"report_id": "int"},
+        "preconditions": ["report_qa_pass", "no_private_data_leak", "no_api_key_leak"],
+        "effects": ["updates report access_level to public"],
+        "rollback_strategy": "unpublish",
+        "privacy_policy": "shared",
+        "freshness_policy": "reject_stale",
+    },
+}
+
+QA_CHECK_DEFINITIONS: dict[str, dict] = {
+    "snapshot_exists": {"check_type": "exists", "description": "Account snapshot must exist"},
+    "snapshot_freshness": {"check_type": "freshness", "description": "Snapshot must be less than 24h old", "max_age_hours": 24},
+    "item_id_valid": {"check_type": "positive_int", "description": "Item ID must be positive"},
+    "count_non_negative": {"check_type": "non_negative", "description": "Count must be >= 0"},
+    "goal_template_exists": {"check_type": "exists", "description": "Goal template must exist"},
+    "goal_status_valid": {"check_type": "enum", "description": "Goal status must be active/paused/completed", "values": ["active", "paused", "completed"]},
+    "requirement_count_valid": {"check_type": "positive_int", "description": "Required count must be positive"},
+    "reserved_count_positive": {"check_type": "positive_int", "description": "Reserved count must be positive"},
+    "surplus_non_negative": {"check_type": "non_negative", "description": "Safe surplus must be >= 0"},
+    "build_source_reviewed": {"check_type": "enum", "description": "Build source must be reviewed", "values": ["reviewed"]},
+    "patch_freshness_ok": {"check_type": "freshness", "description": "Build patch must be from last 90 days", "max_age_days": 90},
+    "readiness_score_valid": {"check_type": "range_0_1", "description": "Readiness must be 0-1"},
+    "report_qa_pass": {"check_type": "qa_pass", "description": "Report must pass QA"},
+    "no_private_data_leak": {"check_type": "privacy", "description": "No private data in public scope"},
+    "no_api_key_leak": {"check_type": "api_key", "description": "No API keys in report data"},
+    "evidence_source_valid": {"check_type": "non_empty", "description": "Evidence source must be non-empty"},
+    "action_has_preconditions": {"check_type": "non_empty", "description": "Action must define preconditions"},
+    "goal_not_duplicate": {"check_type": "unique", "description": "Goal must not already be tracked"},
+    "quantity_available": {"check_type": "sufficient", "description": "Quantity must be <= available count"},
+    "goal_active": {"check_type": "enum", "description": "Goal must be active", "values": ["active"]},
+}

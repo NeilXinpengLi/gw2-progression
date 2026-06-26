@@ -557,6 +557,46 @@ CREATE TABLE IF NOT EXISTS report_artifacts (
     created_at TEXT NOT NULL DEFAULT (datetime('now')),
     FOREIGN KEY (plan_id) REFERENCES progression_plans(plan_id)
 );
+
+CREATE TABLE IF NOT EXISTS ontology_objects (
+    object_id TEXT PRIMARY KEY,
+    class_name TEXT NOT NULL,
+    account_name TEXT NOT NULL DEFAULT '',
+    properties TEXT NOT NULL DEFAULT '{}',
+    qa_status TEXT NOT NULL DEFAULT 'pending',
+    privacy_scope TEXT NOT NULL DEFAULT 'private',
+    revision INTEGER NOT NULL DEFAULT 1,
+    source_object_id TEXT NOT NULL DEFAULT '',
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS ontology_relations (
+    relation_id TEXT PRIMARY KEY,
+    source_id TEXT NOT NULL,
+    target_id TEXT NOT NULL,
+    relation_type TEXT NOT NULL,
+    properties TEXT NOT NULL DEFAULT '{}',
+    confidence REAL NOT NULL DEFAULT 1.0,
+    created_at TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS ontology_actions (
+    action_id TEXT PRIMARY KEY,
+    action_type TEXT NOT NULL,
+    account_name TEXT NOT NULL DEFAULT '',
+    params TEXT NOT NULL DEFAULT '{}',
+    preconditions_met INTEGER NOT NULL DEFAULT 0,
+    affected_object_ids TEXT NOT NULL DEFAULT '[]',
+    rollback_strategy TEXT NOT NULL DEFAULT 'manual',
+    privacy_policy TEXT NOT NULL DEFAULT 'private',
+    freshness_policy TEXT NOT NULL DEFAULT 'any',
+    qa_status TEXT NOT NULL DEFAULT 'pending',
+    status TEXT NOT NULL DEFAULT 'pending',
+    error TEXT NOT NULL DEFAULT '',
+    created_at TEXT NOT NULL,
+    completed_at TEXT NOT NULL DEFAULT ''
+);
 """
 
 

@@ -4,6 +4,7 @@ import logging
 from typing import Any
 
 from ..models import AccountBuildReadiness, BuildGearRequirement, BuildTemplate
+from ..ontology import object_store as ontology_store
 
 logger = logging.getLogger("gw2.builds")
 
@@ -257,7 +258,40 @@ CURATED_BUILDS: list[BuildTemplate] = [
 ]
 
 
+_builds_registered = False
+
+
+def _register_builds_in_ontology() -> None:
+    global _builds_registered
+    if _builds_registered:
+        return
+    for b in CURATED_BUILDS:
+        existing = ontology_store.get_objects_by_class("build")
+        if any(o.properties.get("build_id") == b.build_id for o in existing):
+            continue
+        props = {
+            "build_id": b.build_id,
+            "source": b.source,
+            "name": b.name,
+            "profession": b.profession,
+            "elite_specialization": b.elite_specialization,
+            "game_mode": b.game_mode,
+            "role": b.role,
+            "difficulty": b.difficulty,
+            "patch_version": b.patch_version,
+            "source_url": b.source_url,
+            "review_status": "reviewed",
+        }
+        ontology_store.register_object(
+            class_name="build",
+            properties=props,
+            privacy_scope="shared",
+        )
+    _builds_registered = True
+
+
 def get_all_builds() -> list[BuildTemplate]:
+    _register_builds_in_ontology()
     return CURATED_BUILDS
 
 
@@ -333,8 +367,9 @@ async def calculate_readiness(api_key: str, build_id: str) -> AccountBuildReadin
         else "Detected gear fully matches the curated build item requirements available in this template."
     )
 
-    return AccountBuildReadiness(
-        account_name=contents.account_name or "",
+    acct_name = contents.account_name or ""
+    readiness_obj = AccountBuildReadiness(
+        account_name=acct_name,
         build_id=build_id,
         build_name=build.name,
         readiness_score=min(score, 1.0),
@@ -347,6 +382,35 @@ async def calculate_readiness(api_key: str, build_id: str) -> AccountBuildReadin
         data_sources=["gw2_account_characters", "gw2_account_equipment", "curated_build_templates"],
         risk_reason=risk_reason,
     )
+
+    try:
+        r_props = {
+            "build_id": build_id,
+            "build_name": build.name,
+            "readiness_score": min(score, 1.0),
+            "gear_completion": gear_pct,
+            "profession_match": prof_match,
+            "confidence": confidence,
+            "source": build.source,
+        }
+        r_obj = ontology_store.register_object(
+            class_name="build_readiness",
+            account_name=acct_name,
+            properties=r_props,
+            privacy_scope="private",
+        )
+        build_objs = [o for o in ontology_store.get_objects_by_class("build") if o.properties.get("build_id") == build_id]
+        if build_objs:
+            ontology_store.register_relation(
+                source_id=r_obj.object_id,
+                target_id=build_objs[0].object_id,
+                relation_type="evaluates",
+                confidence=confidence,
+            )
+    except Exception as e:
+        logger.warning("Ontology registration for build readiness failed (continuing): %s", e)
+
+    return readiness_obj
 
 
 async def get_recommendations(api_key: str) -> list[AccountBuildReadiness]:
