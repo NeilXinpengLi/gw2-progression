@@ -440,12 +440,18 @@ class AccountBuildReadiness(BaseModel):
     missing_cost: int = 0
     missing_items_count: int = 0
     profession_match: bool = False
+    confidence: float = 0.0
+    data_sources: list[str] = []
+    risk_reason: str = ""
 
 
 class ProgressionAdvice(BaseModel):
     summary: str = ""
     recommended_actions: list[dict] = []
     weekly_plan: list[dict] = []
+    confidence: float = 0.0
+    data_sources: list[str] = []
+    risk_reason: str = ""
 
 
 class CoachAction(BaseModel):
@@ -454,6 +460,9 @@ class CoachAction(BaseModel):
     reason: str = ""
     gold_impact: int = 0
     priority: str = ""
+    confidence: float = 0.0
+    data_sources: list[str] = []
+    risk_reason: str = ""
 
 
 class CoachDailyPlan(BaseModel):
@@ -476,6 +485,9 @@ class CoachPlanResponse(BaseModel):
     total_p0: int = 0
     total_p1: int = 0
     total_p2: int = 0
+    confidence: float = 0.0
+    data_sources: list[str] = []
+    risk_reason: str = ""
 
 
 class CraftingPlanLine(BaseModel):
@@ -594,6 +606,9 @@ class PlanAction(BaseModel):
     tab: str = ""
     item_id: int = 0
     day_index: int = -1
+    confidence: float = 0.0
+    data_sources: list[str] = []
+    risk_reason: str = ""
 
 
 class ProgressionPlan(BaseModel):

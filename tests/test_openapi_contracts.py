@@ -103,3 +103,12 @@ def test_value_confidence_fields_are_exposed():
 
     summary_properties = components["ValueSummary"]["properties"]
     assert {"confidence", "data_sources", "price_timestamp", "risk_reason"}.issubset(summary_properties)
+
+
+def test_recommendation_confidence_fields_are_exposed():
+    components = app.openapi()["components"]["schemas"]
+    confidence_fields = {"confidence", "data_sources", "risk_reason"}
+
+    for model_name in ("ProgressionAdvice", "CoachAction", "CoachPlanResponse", "PlanAction", "AccountBuildReadiness"):
+        properties = components[model_name]["properties"]
+        assert confidence_fields.issubset(properties)

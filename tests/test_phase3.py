@@ -86,6 +86,8 @@ class TestBuilds:
         r = AccountBuildReadiness(account_name="Player.1234", build_id="sc_dh", build_name="Test")
         assert r.readiness_score == 0.0
         assert r.profession_match is False
+        assert r.confidence == 0.0
+        assert r.data_sources == []
 
 
 class TestAgent:
@@ -120,6 +122,9 @@ class TestAgent:
             advice = await generate_advice("fake-key")
 
         assert len(advice.recommended_actions) > 0
+        assert "confidence" in advice.recommended_actions[0]
+        assert "data_sources" in advice.recommended_actions[0]
+        assert advice.confidence > 0
         assert len(advice.weekly_plan) == 7
 
     @pytest.mark.asyncio
@@ -238,7 +243,31 @@ class TestAgent:
         assert advice.summary == "LLM powered summary"
         assert len(advice.recommended_actions) == 1
         assert advice.recommended_actions[0]["action"] == "test_action"
+        assert advice.recommended_actions[0]["confidence"] == 0.60
+        assert advice.recommended_actions[0]["data_sources"] == ["llm_response", "gw2_account_snapshot"]
         assert len(advice.weekly_plan) == 7
+
+    @pytest.mark.asyncio
+    async def test_coach_plan_confidence_metadata(self):
+        from gw2_progression.services.agent_service import generate_coach_plan
+
+        with (
+            patch("gw2_progression.analyzer.fetch_all", AsyncMock()) as mock_fetch,
+            patch("gw2_progression.services.agent_service.generate_goal_plan", AsyncMock(side_effect=Exception("skip"))),
+            patch("gw2_progression.services.build_service.get_recommendations", AsyncMock(return_value=[])),
+            patch("gw2_progression.services.tp_strategy_service.generate_signals", AsyncMock(return_value=[])),
+        ):
+            mock_fetch.return_value.account_name = "Player.Coach"
+            mock_fetch.return_value.wallet = [{"id": 1, "value": 500000}]
+            mock_fetch.return_value.characters = [{"level": 80, "profession": "Guardian"}]
+            mock_fetch.return_value.unlocked_skins_count = 100
+
+            plan = await generate_coach_plan("fake-key")
+
+        assert plan["confidence"] > 0
+        assert plan["data_sources"]
+        assert plan["priorities"]["P0"][0]["confidence"] > 0
+        assert "risk_reason" in plan["priorities"]["P0"][0]
 
 
 class TestAuthService:
@@ -306,6 +335,8 @@ class TestBuildServiceDetail:
 
         assert readiness.profession_match is False
         assert readiness.readiness_score == 0.0
+        assert readiness.confidence == 0.65
+        assert readiness.data_sources == ["gw2_account_characters", "curated_build_templates"]
 
 
 class TestRecipeOptimizerDetail:

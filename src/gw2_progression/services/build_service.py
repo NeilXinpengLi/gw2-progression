@@ -301,6 +301,9 @@ async def calculate_readiness(api_key: str, build_id: str) -> AccountBuildReadin
             missing_cost=0,
             missing_items_count=0,
             profession_match=False,
+            confidence=0.65,
+            data_sources=["gw2_account_characters", "curated_build_templates"],
+            risk_reason="Profession does not match this curated build; readiness is intentionally zero.",
         )
 
     owned_items: set[int] = set()
@@ -323,6 +326,12 @@ async def calculate_readiness(api_key: str, build_id: str) -> AccountBuildReadin
     missing_cost = (total - matched) * 50000  # rough estimate per item
 
     score = round(0.50 * gear_pct / 100 + 0.30 * (1 if prof_match else 0) + 0.20 * (matched / max(total, 1)), 2)
+    confidence = round(min(0.55 + score * 0.40, 0.95), 2)
+    risk_reason = (
+        "Build recommendation uses detected equipment plus curated template requirements; traits, relics, and player skill still need review."
+        if total - matched
+        else "Detected gear fully matches the curated build item requirements available in this template."
+    )
 
     return AccountBuildReadiness(
         account_name=contents.account_name or "",
@@ -334,6 +343,9 @@ async def calculate_readiness(api_key: str, build_id: str) -> AccountBuildReadin
         missing_cost=missing_cost,
         missing_items_count=total - matched,
         profession_match=prof_match,
+        confidence=confidence,
+        data_sources=["gw2_account_characters", "gw2_account_equipment", "curated_build_templates"],
+        risk_reason=risk_reason,
     )
 
 
