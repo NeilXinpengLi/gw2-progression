@@ -436,6 +436,7 @@ class BuildTemplate(BaseModel):
     difficulty: str = "medium"
     patch_version: str = ""
     source_url: str = ""
+    review_status: str = "unreviewed"
     gear: list[BuildGearRequirement] = []
     traits: list[BuildTraitRequirement] = []
     skills: list[int] = []

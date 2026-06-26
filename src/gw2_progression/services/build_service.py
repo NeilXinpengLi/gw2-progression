@@ -5,6 +5,7 @@ from typing import Any
 
 from ..models import AccountBuildReadiness, BuildGearRequirement, BuildTemplate
 from ..ontology import object_store as ontology_store
+from ..ontology.build_trust import evaluate_build_source_freshness, filter_recommendations_by_freshness, get_build_recommendation_confidence
 
 logger = logging.getLogger("gw2.builds")
 
@@ -414,12 +415,22 @@ async def calculate_readiness(api_key: str, build_id: str) -> AccountBuildReadin
 
 
 async def get_recommendations(api_key: str) -> list[AccountBuildReadiness]:
-    """Get all build recommendations sorted by readiness score."""
     results = []
     for build in CURATED_BUILDS:
         try:
+            freshness = evaluate_build_source_freshness(build)
+            if freshness["recommendation_strength"] == "none":
+                continue
             readiness = await calculate_readiness(api_key, build.build_id)
             if readiness.readiness_score > 0:
+                confidence = get_build_recommendation_confidence(build)
+                if confidence < readiness.confidence:
+                    readiness.confidence = round(confidence, 2)
+                freshness_info = f"source={build.source}, patch={build.patch_version}"
+                if freshness.get("is_weak"):
+                    freshness_info += ", stale_source"
+                    readiness.risk_reason = f"{readiness.risk_reason} Build source may be stale ({freshness['days_old']} days old)."
+                readiness.data_sources.append(f"build_freshness:{freshness_info}")
                 results.append(readiness)
         except Exception as e:
             logger.warning("Failed to calculate readiness for %s: %s", build.build_id, e)

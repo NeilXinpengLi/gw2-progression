@@ -128,6 +128,51 @@ async def compute_safe_surplus(item_id: int, account_name: str) -> SafeSurplusRe
     )
 
 
+async def analyze_build_source_staleness(
+    build_id: str,
+    patch_version: str,
+    review_status: str,
+    build_name: str = "",
+) -> dict[str, Any]:
+    from ..models import BuildTemplate
+    from .build_trust import evaluate_build_source_freshness
+
+    fake_build = BuildTemplate(
+        build_id=build_id,
+        source="unknown",
+        name=build_name or build_id,
+        patch_version=patch_version,
+        review_status=review_status,
+    )
+    freshness = evaluate_build_source_freshness(fake_build)
+
+    affected_reports: list[str] = []
+    for report_obj in store.get_objects_by_class("report"):
+        if report_obj.properties.get("build_refs") and build_id in str(report_obj.properties["build_refs"]):
+            affected_reports.append(report_obj.object_id)
+
+    return {
+        "build_id": build_id,
+        "build_name": build_name,
+        "patch_version": patch_version,
+        "review_status": review_status,
+        "trust_level": freshness["trust_level"],
+        "recommendation_strength": freshness["recommendation_strength"],
+        "days_old": freshness.get("days_old"),
+        "is_stale": freshness.get("is_stale", False),
+        "is_weak": freshness.get("is_weak", False),
+        "affected_reports": affected_reports,
+        "risk_level": "high" if freshness.get("is_stale") else "medium" if freshness.get("is_weak") else "low",
+        "recommendation": (
+            "Downgrade or remove this build recommendation. Source is stale."
+            if freshness.get("is_stale")
+            else "Consider updating build source."
+            if freshness.get("is_weak")
+            else "Build source is fresh."
+        ),
+    }
+
+
 async def analyze_goal_priority_change(
     goal_id: str,
     new_priority: str,

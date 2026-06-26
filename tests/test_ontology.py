@@ -566,3 +566,207 @@ class TestEndToEnd:
             "recommendations": [],
         })
         assert qa_blocked.status == "fail"
+
+
+# ── Phase B: Build Fit Trust Tests ────────────────────────────────────
+
+class TestBuildTrust:
+    def test_evaluate_fresh_build(self):
+        from gw2_progression.ontology.build_trust import evaluate_build_source_freshness
+        from gw2_progression.models import BuildTemplate
+
+        build = BuildTemplate(
+            build_id="sc_dh",
+            source="snowcrows",
+            name="Dragonhunter",
+            profession="Guardian",
+            patch_version="2026.06",
+            review_status="reviewed",
+        )
+        result = evaluate_build_source_freshness(build)
+        assert result["trust_level"] == "high"
+        assert result["recommendation_strength"] == "strong"
+        assert result["is_stale"] is False
+        assert result["is_weak"] is False
+
+    def test_evaluate_weak_build(self):
+        from gw2_progression.ontology.build_trust import evaluate_build_source_freshness, WEAK_PATCH_DAYS, STALE_PATCH_DAYS
+        from gw2_progression.models import BuildTemplate
+
+        build = BuildTemplate(
+            build_id="old_build",
+            source="metabattle",
+            name="Old Build",
+            profession="Guardian",
+            patch_version="2025.01",
+            review_status="reviewed",
+        )
+        result = evaluate_build_source_freshness(build)
+        assert result["days_old"] is not None
+        if result["days_old"] > STALE_PATCH_DAYS:
+            assert result["recommendation_strength"] == "none"
+        elif result["days_old"] > WEAK_PATCH_DAYS:
+            assert result["recommendation_strength"] == "weak"
+
+    def test_unreviewed_build_no_recommendation(self):
+        from gw2_progression.ontology.build_trust import evaluate_build_source_freshness
+        from gw2_progression.models import BuildTemplate
+
+        build = BuildTemplate(
+            build_id="unreviewed",
+            source="user",
+            name="Custom Build",
+            profession="Guardian",
+            patch_version="2026.06",
+            review_status="unreviewed",
+        )
+        result = evaluate_build_source_freshness(build)
+        assert result["recommendation_strength"] == "none"
+        assert result["trust_level"] == "low"
+
+    def test_filter_recommendations_by_freshness(self):
+        from gw2_progression.ontology.build_trust import filter_recommendations_by_freshness
+        from gw2_progression.models import BuildTemplate
+
+        builds = [
+            BuildTemplate(build_id="b1", source="sc", name="Fresh", profession="Guardian", patch_version="2026.06", review_status="reviewed"),
+            BuildTemplate(build_id="b2", source="mb", name="Unreviewed", profession="Guardian", patch_version="2026.06", review_status="unreviewed"),
+        ]
+        result = filter_recommendations_by_freshness(builds, max_results=2)
+        assert len(result) == 2
+        assert result[0]["build_id"] == "b1"
+        assert result[0]["recommendation_strength"] == "strong"
+        assert result[1]["recommendation_strength"] == "none"
+
+    def test_get_build_confidence(self):
+        from gw2_progression.ontology.build_trust import get_build_recommendation_confidence
+        from gw2_progression.models import BuildTemplate
+
+        fresh = BuildTemplate(build_id="b1", source="sc", name="Fresh", profession="Guardian", patch_version="2026.06", review_status="reviewed")
+        assert get_build_recommendation_confidence(fresh) == 0.85
+
+        weak = BuildTemplate(build_id="b2", source="mb", name="Weak", profession="Guardian", patch_version="2025.01", review_status="reviewed")
+        conf = get_build_recommendation_confidence(weak)
+        assert conf <= 0.85
+
+        unreviewed = BuildTemplate(build_id="b3", source="user", name="Custom", profession="Guardian", patch_version="2026.06", review_status="unreviewed")
+        assert get_build_recommendation_confidence(unreviewed) == 0.0
+
+
+# ── Phase C: Report Mapper Tests ──────────────────────────────────────
+
+@pytest.mark.asyncio
+class TestReportMapper:
+    async def test_map_report_to_evidence(self):
+        from gw2_progression.ontology.report_mapper import map_report_to_evidence
+
+        qa = QAReport(
+            target_object_id="report_1",
+            target_class="report",
+            checks=[{"check": "snapshot_exists", "passed": True}],
+            passed=1,
+            failed=0,
+            status="pass",
+            checked_at="2026-06-26T12:00:00",
+        )
+        objs = await map_report_to_evidence(
+            report_data={
+                "report_id": 1,
+                "report_type": "full",
+                "access_level": "private",
+                "snapshot_time": "2026-06-26T12:00:00",
+                "recommendations": ["Do X", "Do Y", "Do Z"],
+            },
+            account_name="Player.1",
+            qa_report=qa,
+        )
+        report_objs = [o for o in objs if o.class_name == "report"]
+        evidence_objs = [o for o in objs if o.class_name == "evidence"]
+        assert len(report_objs) == 1
+        assert len(evidence_objs) == 4  # 3 recommendations + 1 QA report
+
+    async def test_publication_requirements_pass(self):
+        from gw2_progression.ontology.report_mapper import check_publication_requirements
+
+        qa = QAReport(target_object_id="r1", target_class="report", passed=1, failed=0, status="pass", checked_at="now")
+        result = check_publication_requirements(
+            {"report_id": 1, "access_level": "private", "snapshot_time": "2026-06-26T12:00:00"},
+            qa,
+        )
+        assert result["publishable"] is True
+
+    async def test_publication_requirements_blocked(self):
+        from gw2_progression.ontology.report_mapper import check_publication_requirements
+        result = check_publication_requirements({"report_id": 1}, None)
+        assert result["publishable"] is False
+        assert "qa_report" in result["missing_requirements"]
+
+
+# ── Phase B + C E2E Tests ─────────────────────────────────────────────
+
+@pytest.mark.asyncio
+class TestBuildAndReportE2E:
+    async def test_build_trust_in_report_gate(self):
+        from gw2_progression.ontology.qa_gate import check_report_publishable
+
+        qa = await check_report_publishable({
+            "report_id": 100,
+            "snapshot_time": "2026-06-26T12:00:00",
+            "access_level": "public",
+            "recommendations": ["Try Dragonhunter build"],
+            "build_details": [
+                {
+                    "build_id": "sc_dh",
+                    "name": "Dragonhunter",
+                    "source": "snowcrows",
+                    "profession": "Guardian",
+                    "patch_version": "2026.06",
+                    "review_status": "reviewed",
+                },
+            ],
+            "report_type": "free",
+        })
+        assert qa.status == "pass"
+
+    async def test_build_trust_blocks_unreviewed(self):
+        from gw2_progression.ontology.qa_gate import check_report_publishable
+
+        qa = await check_report_publishable({
+            "report_id": 101,
+            "snapshot_time": "2026-06-26T12:00:00",
+            "access_level": "public",
+            "recommendations": ["Try custom build"],
+            "build_details": [
+                {
+                    "build_id": "custom_1",
+                    "name": "My Build",
+                    "source": "user",
+                    "profession": "Guardian",
+                    "patch_version": "2026.06",
+                    "review_status": "unreviewed",
+                },
+            ],
+            "report_type": "free",
+        })
+        assert qa.status == "fail"
+        assert any("unreviewed" in e.lower() for e in qa.blocking_errors)
+
+    async def test_report_mapper_and_qa_e2e(self):
+        from gw2_progression.ontology.qa_gate import check_report_publishable
+        from gw2_progression.ontology.report_mapper import check_publication_requirements, map_report_to_evidence
+
+        report_data = {
+            "report_id": 200,
+            "report_type": "commercial",
+            "access_level": "public",
+            "snapshot_time": "2026-06-26T12:00:00",
+            "recommendations": ["Sell excess materials"],
+        }
+        qa = await check_report_publishable(report_data)
+        assert qa.status == "pass"
+
+        objs = await map_report_to_evidence(report_data, "Player.E2E", qa)
+        assert len(objs) >= 2
+
+        pub = check_publication_requirements(report_data, qa)
+        assert pub["publishable"] is True
