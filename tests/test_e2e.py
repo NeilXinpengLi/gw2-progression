@@ -66,7 +66,7 @@ def _mock_gw2():
         patch(f"{BASE}.fetch_wvw_stats", AsyncMock(return_value={})),
         # Mock price and listing services
         patch(
-            "gw2_progression.services.price_service.fetch_prices",
+            "gw2_progression.services.snapshot_service.fetch_prices",
             AsyncMock(
                 return_value={
                     19976: type("PD", (), {"buy_unit_price": 20000, "sell_unit_price": 21600, "buy_quantity": 5000, "sell_quantity": 3000})(),

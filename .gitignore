@@ -15,6 +15,7 @@ desktop.ini
 htmlcov/
 .coverage
 .claude/
+.agents/
 AGENTS.md
 CLAUDE.md
 data/

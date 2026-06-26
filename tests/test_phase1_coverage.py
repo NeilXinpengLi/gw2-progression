@@ -153,12 +153,12 @@ class TestStaticDataService:
     async def test_find_recipes_by_output_empty(self):
         from gw2_progression.services.static_data_service import find_recipes_by_output
 
-        with patch("gw2_progression.database.using_db") as mock_db:
+        with patch("gw2_progression.services.static_data_service.get_db") as mock_get_db:
             mock_conn = AsyncMock()
             mock_cursor = MagicMock()
             mock_cursor.fetchall = AsyncMock(return_value=[])
             mock_conn.execute.return_value = mock_cursor
-            mock_db.return_value.__aenter__.return_value = mock_conn
+            mock_get_db.return_value = mock_conn
 
             recipes = await find_recipes_by_output(999999)
         assert recipes == []

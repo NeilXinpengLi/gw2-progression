@@ -107,6 +107,7 @@ class TestAgent:
             patch("gw2_progression.services.agent_service.generate_signals", AsyncMock(return_value=[])),
             patch("gw2_progression.services.agent_service.get_recommendations", AsyncMock(return_value=[])),
             patch("gw2_progression.services.agent_service._call_llm", AsyncMock(return_value=None)),
+            patch("gw2_progression.services.credential_service.get_key_by_provider", AsyncMock(return_value=None)),
         ):
             mock_fetch.return_value.account_name = "Player.1234"
             mock_fetch.return_value.wallet = [{"id": 1, "value": 50000}]
@@ -222,6 +223,7 @@ class TestAgent:
             patch("gw2_progression.services.agent_service.generate_signals", AsyncMock(return_value=[])),
             patch("gw2_progression.services.agent_service.get_recommendations", AsyncMock(return_value=[])),
             patch("gw2_progression.services.agent_service._call_llm", AsyncMock(return_value=llm_result)),
+            patch("gw2_progression.services.credential_service.get_key_by_provider", AsyncMock(return_value=None)),
         ):
             mock_fetch.return_value.account_name = "Player.LLM"
             mock_fetch.return_value.wallet = [{"id": 1, "value": 500000}]

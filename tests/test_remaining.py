@@ -116,7 +116,7 @@ class TestAgentService:
 async def test_list_providers():
     from gw2_progression.services.provider_service import list_providers
 
-    with patch("gw2_progression.database.using_db") as mock_db:
+    with patch("gw2_progression.services.provider_service.using_db") as mock_db:
         mock_conn = AsyncMock()
         mock_conn.execute.return_value = _ac(
             fetchall=[
@@ -178,7 +178,10 @@ async def test_aggregate_guild():
 async def test_get_templates_returns_curated():
     from gw2_progression.services.progression_service import get_templates
 
-    with patch("gw2_progression.services.progression_service.CURATED_TEMPLATES", [MagicMock(template_id="test")]):
+    with (
+        patch("gw2_progression.services.progression_service.CURATED_TEMPLATES", [MagicMock(template_id="test")]),
+        patch("gw2_progression.services.progression_service.get_db", AsyncMock(side_effect=RuntimeError("db unavailable"))),
+    ):
         templates = await get_templates()
     assert len(templates) >= 1
 

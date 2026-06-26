@@ -1,290 +1,226 @@
 {
   "project_name": "gw2-progression",
-  "classes": [
+  "generated_from": {
+    "tool": "GitNexus",
+    "nodes": 4147,
+    "edges": 8767,
+    "clusters": 125,
+    "flows": 300
+  },
+  "business_view": {
+    "audience": "Advanced Guild Wars 2 players who need account progression, wealth, crafting, build, and goal decisions.",
+    "maturity_score": 7.0,
+    "stage": "Functional beta approaching professional utility",
+    "core_loop": [
+      "Fetch GW2 account data",
+      "Normalize holdings from wallet, materials, bank, characters, shared inventory, and trading post",
+      "Apply market prices and liquidity quality",
+      "Compare build, crafting, and legendary gaps",
+      "Rank actions into P0/P1/P2 recommendations",
+      "Generate coach and weekly plans"
+    ]
+  },
+  "state_axis": [
+    {
+      "name": "valuation_status",
+      "values": [
+        "priced",
+        "unpriced",
+        "account_bound"
+      ],
+      "code_anchor": "src/gw2_progression/models.py:12",
+      "owner": "ItemHolding"
+    },
+    {
+      "name": "price_quality",
+      "values": [
+        "priced",
+        "wide_spread",
+        "low_liquidity",
+        "missing_buy",
+        "missing_sell",
+        "illiquid"
+      ],
+      "code_anchor": "src/gw2_progression/services/price_service.py",
+      "owner": "PriceData"
+    },
+    {
+      "name": "action_priority",
+      "values": [
+        "P0",
+        "P1",
+        "P2"
+      ],
+      "code_anchor": "src/gw2_progression/services/v4_optimizer.py:5",
+      "owner": "ProgressionAdvice"
+    },
+    {
+      "name": "goal_progress",
+      "values": [
+        "owned",
+        "missing",
+        "blocked_by_cost",
+        "ready_to_craft"
+      ],
+      "code_anchor": "src/gw2_progression/models.py:237",
+      "owner": "GoalRequirementStatus"
+    }
+  ],
+  "entity_axis": [
     {
       "name": "AccountContents",
-      "code_anchor": "src\\gw2_progression\\analyzer.py:45",
-      "description": "Entity:AccountContents fields=[token_name:str | None, account_name:str | None, account_world:int | None, account_created:str | None, account_age_hours:float | None, fractal_level:int | None...]",
-      "kind": "entity"
+      "kind": "source_entity",
+      "code_anchor": "src/gw2_progression/analyzer.py:45",
+      "meaning": "Raw normalized account snapshot from GW2 API permissions."
     },
     {
-      "name": "AnalyzeRequest",
-      "code_anchor": "src\\gw2_progression\\api\\routes\\analyze.py:10",
-      "description": "Entity:AnalyzeRequest fields=[api_key:str]",
-      "kind": "entity"
+      "name": "ItemHolding",
+      "kind": "economic_entity",
+      "code_anchor": "src/gw2_progression/models.py:12",
+      "meaning": "Owned item or currency with location, tradability, binding, price, and valuation fields."
+    },
+    {
+      "name": "ValuationResult",
+      "kind": "economic_aggregate",
+      "code_anchor": "src/gw2_progression/models.py:109",
+      "meaning": "Account wealth summary, warnings, top items, and breakdowns."
+    },
+    {
+      "name": "RecipeOptimizationResult",
+      "kind": "crafting_plan",
+      "code_anchor": "src/gw2_progression/models.py:292",
+      "meaning": "Craft versus buy decision, recursive steps, costs, and missing materials."
+    },
+    {
+      "name": "BuildTemplate",
+      "kind": "combat_goal",
+      "code_anchor": "src/gw2_progression/models.py:348",
+      "meaning": "Curated build target with profession, gear, traits, and skills."
+    },
+    {
+      "name": "AccountBuildReadiness",
+      "kind": "gap_analysis",
+      "code_anchor": "src/gw2_progression/models.py:364",
+      "meaning": "How close an account is to a build, including missing items and cost."
+    },
+    {
+      "name": "GoalPlan",
+      "kind": "progression_goal",
+      "code_anchor": "src/gw2_progression/models.py:251",
+      "meaning": "Legendary or ascended progression target with owned value, missing cost, and completion percent."
+    },
+    {
+      "name": "ProgressionAdvice",
+      "kind": "decision_output",
+      "code_anchor": "src/gw2_progression/models.py:376",
+      "meaning": "Ranked actions and weekly plan derived from account, economy, goals, and builds."
     }
   ],
-  "properties": [
+  "relations": [
     {
-      "domain": "AccountContents",
-      "property_name": "hasToken_name",
-      "range": "str | None",
-      "code_anchor": "src\\gw2_progression\\analyzer.py:45"
+      "from": "AccountContents",
+      "relation": "extracts",
+      "to": "ItemHolding",
+      "code_anchor": "src/gw2_progression/services/holdings_service.py:5"
     },
     {
-      "domain": "AccountContents",
-      "property_name": "hasAccount_name",
-      "range": "str | None",
-      "code_anchor": "src\\gw2_progression\\analyzer.py:45"
+      "from": "ItemHolding",
+      "relation": "priced_by",
+      "to": "PriceData",
+      "code_anchor": "src/gw2_progression/services/valuation_service.py:21"
     },
     {
-      "domain": "AccountContents",
-      "property_name": "hasAccount_world",
-      "range": "int | None",
-      "code_anchor": "src\\gw2_progression\\analyzer.py:45"
+      "from": "ItemHolding",
+      "relation": "summarized_as",
+      "to": "ValuationResult",
+      "code_anchor": "src/gw2_progression/services/valuation_service.py:119"
     },
     {
-      "domain": "AccountContents",
-      "property_name": "hasAccount_created",
-      "range": "str | None",
-      "code_anchor": "src\\gw2_progression\\analyzer.py:45"
+      "from": "ItemHolding",
+      "relation": "feeds",
+      "to": "RecipeOptimizationResult",
+      "code_anchor": "src/gw2_progression/services/recipe_optimizer.py:31"
     },
     {
-      "domain": "AccountContents",
-      "property_name": "hasAccount_age_hours",
-      "range": "float | None",
-      "code_anchor": "src\\gw2_progression\\analyzer.py:45"
+      "from": "BuildTemplate",
+      "relation": "evaluated_against",
+      "to": "AccountBuildReadiness",
+      "code_anchor": "src/gw2_progression/services/build_service.py:281"
     },
     {
-      "domain": "AccountContents",
-      "property_name": "hasFractal_level",
-      "range": "int | None",
-      "code_anchor": "src\\gw2_progression\\analyzer.py:45"
+      "from": "ValuationResult",
+      "relation": "informs",
+      "to": "ProgressionAdvice",
+      "code_anchor": "src/gw2_progression/services/agent_service.py:127"
     },
     {
-      "domain": "AccountContents",
-      "property_name": "hasDaily_ap",
-      "range": "int | None",
-      "code_anchor": "src\\gw2_progression\\analyzer.py:45"
+      "from": "GoalPlan",
+      "relation": "informs",
+      "to": "ProgressionAdvice",
+      "code_anchor": "src/gw2_progression/services/agent_service.py:127"
     },
     {
-      "domain": "AccountContents",
-      "property_name": "hasMonthly_ap",
-      "range": "int | None",
-      "code_anchor": "src\\gw2_progression\\analyzer.py:45"
-    },
-    {
-      "domain": "AccountContents",
-      "property_name": "hasWvw_rank",
-      "range": "int | None",
-      "code_anchor": "src\\gw2_progression\\analyzer.py:45"
-    },
-    {
-      "domain": "AccountContents",
-      "property_name": "hasCharacters",
-      "range": "list | None",
-      "code_anchor": "src\\gw2_progression\\analyzer.py:45"
-    },
-    {
-      "domain": "AccountContents",
-      "property_name": "hasWallet",
-      "range": "list | None",
-      "code_anchor": "src\\gw2_progression\\analyzer.py:45"
-    },
-    {
-      "domain": "AccountContents",
-      "property_name": "hasBank",
-      "range": "list | None",
-      "code_anchor": "src\\gw2_progression\\analyzer.py:45"
-    },
-    {
-      "domain": "AccountContents",
-      "property_name": "hasMaterials",
-      "range": "list | None",
-      "code_anchor": "src\\gw2_progression\\analyzer.py:45"
-    },
-    {
-      "domain": "AccountContents",
-      "property_name": "hasShared_inventory",
-      "range": "list | None",
-      "code_anchor": "src\\gw2_progression\\analyzer.py:45"
-    },
-    {
-      "domain": "AccountContents",
-      "property_name": "hasAchievements",
-      "range": "list | None",
-      "code_anchor": "src\\gw2_progression\\analyzer.py:45"
-    },
-    {
-      "domain": "AccountContents",
-      "property_name": "hasMasteries",
-      "range": "list | None",
-      "code_anchor": "src\\gw2_progression\\analyzer.py:45"
-    },
-    {
-      "domain": "AccountContents",
-      "property_name": "hasMastery_points",
-      "range": "dict | None",
-      "code_anchor": "src\\gw2_progression\\analyzer.py:45"
-    },
-    {
-      "domain": "AccountContents",
-      "property_name": "hasBuilds",
-      "range": "list | None",
-      "code_anchor": "src\\gw2_progression\\analyzer.py:45"
-    },
-    {
-      "domain": "AccountContents",
-      "property_name": "hasGuilds",
-      "range": "list | None",
-      "code_anchor": "src\\gw2_progression\\analyzer.py:45"
-    },
-    {
-      "domain": "AccountContents",
-      "property_name": "hasPvp_stats",
-      "range": "dict | None",
-      "code_anchor": "src\\gw2_progression\\analyzer.py:45"
-    },
-    {
-      "domain": "AccountContents",
-      "property_name": "hasPvp_games",
-      "range": "list | None",
-      "code_anchor": "src\\gw2_progression\\analyzer.py:45"
-    },
-    {
-      "domain": "AccountContents",
-      "property_name": "hasPvp_standings",
-      "range": "list | None",
-      "code_anchor": "src\\gw2_progression\\analyzer.py:45"
-    },
-    {
-      "domain": "AccountContents",
-      "property_name": "hasTradingpost_buys",
-      "range": "list | None",
-      "code_anchor": "src\\gw2_progression\\analyzer.py:45"
-    },
-    {
-      "domain": "AccountContents",
-      "property_name": "hasTradingpost_sells",
-      "range": "list | None",
-      "code_anchor": "src\\gw2_progression\\analyzer.py:45"
-    },
-    {
-      "domain": "AccountContents",
-      "property_name": "hasUnlocked_skins_count",
-      "range": "int | None",
-      "code_anchor": "src\\gw2_progression\\analyzer.py:45"
-    },
-    {
-      "domain": "AccountContents",
-      "property_name": "hasUnlocked_skins",
-      "range": "list[int] | None",
-      "code_anchor": "src\\gw2_progression\\analyzer.py:45"
-    },
-    {
-      "domain": "AccountContents",
-      "property_name": "hasUnlocked_dyes_count",
-      "range": "int | None",
-      "code_anchor": "src\\gw2_progression\\analyzer.py:45"
-    },
-    {
-      "domain": "AccountContents",
-      "property_name": "hasUnlocked_minis_count",
-      "range": "int | None",
-      "code_anchor": "src\\gw2_progression\\analyzer.py:45"
-    },
-    {
-      "domain": "AccountContents",
-      "property_name": "hasUnlocked_finishers",
-      "range": "list | None",
-      "code_anchor": "src\\gw2_progression\\analyzer.py:45"
-    },
-    {
-      "domain": "AccountContents",
-      "property_name": "hasWvw",
-      "range": "dict | None",
-      "code_anchor": "src\\gw2_progression\\analyzer.py:45"
-    },
-    {
-      "domain": "AccountContents",
-      "property_name": "hasErrors",
-      "range": "dict[str, str]",
-      "code_anchor": "src\\gw2_progression\\analyzer.py:45"
-    },
-    {
-      "domain": "AnalyzeRequest",
-      "property_name": "hasApi_key",
-      "range": "str",
-      "code_anchor": "src\\gw2_progression\\api\\routes\\analyze.py:10"
+      "from": "AccountBuildReadiness",
+      "relation": "informs",
+      "to": "ProgressionAdvice",
+      "code_anchor": "src/gw2_progression/services/agent_service.py:300"
     }
   ],
-  "shacl_rules": [
+  "constraint_axis": [
     {
-      "rule_id": "AuthValidation",
-      "target_class": "AccountContents",
-      "severity": "Critical",
-      "logic_expression": "tokeninfo must be valid (status 200) before any fetch",
-      "message": "Invalid or expired API key → Gw2ApiError(401)",
-      "code_anchor": "src/gw2_progression/analyzer.py:82-84"
+      "rule_id": "ApiKeyValidation",
+      "target": "AnalyzeRequest and AgentRequest",
+      "severity": "critical",
+      "logic": "API key must be present, at least 8 characters, and match hex/dash validation where enforced.",
+      "code_anchor": "src/gw2_progression/api/routes/agent.py:14"
     },
     {
-      "rule_id": "PermissionGuard",
-      "target_class": "AccountContents",
-      "severity": "Critical",
-      "logic_expression": "each data section is fetched only if corresponding permission is in granted set",
-      "message": "API permission scope gating: sections not fetched when permission missing → field=None",
-      "code_anchor": "src/gw2_progression/analyzer.py:86-183"
+      "rule_id": "AccountBoundItemsHaveNoLiquidValue",
+      "target": "ItemHolding",
+      "severity": "high",
+      "logic": "Account-bound items must not be counted as liquid trading-post sell value.",
+      "code_anchor": "src/gw2_progression/services/valuation_service.py:21"
     },
     {
-      "rule_id": "SafeCallWrapper",
-      "target_class": "fetch_all",
-      "severity": "Warning",
-      "logic_expression": "_safe() catches Gw2ApiError + generic Exception → errors dict never propagates to caller",
-      "message": "Resilience pattern: per-endpoint error isolation via _safe() wrapper",
-      "code_anchor": "src/gw2_progression/analyzer.py:32-42"
+      "rule_id": "TradingPostNetSellFee",
+      "target": "ValueSummary",
+      "severity": "high",
+      "logic": "Net sell value applies the trading-post fee model before professional recommendations are made.",
+      "code_anchor": "src/gw2_progression/services/valuation_service.py:119"
     },
     {
-      "rule_id": "ApiKeyFormatValidation",
-      "target_class": "AnalyzeRequest",
-      "severity": "Warning",
-      "logic_expression": "key length checked (>=8) but no base64 decode validation",
-      "message": "Partial validation: length check implemented, base64 format validation missing per plan",
-      "code_anchor": "src/gw2_progression/api/routes/analyze.py:16-19"
+      "rule_id": "RecipeCycleGuard",
+      "target": "RecipeOptimizationResult",
+      "severity": "high",
+      "logic": "Recursive recipe expansion must guard against cycles.",
+      "code_anchor": "src/gw2_progression/services/recipe_optimizer.py:31"
     },
     {
-      "rule_id": "AsyncClientReuse",
-      "target_class": "gw2_client",
-      "severity": "Info",
-      "logic_expression": "_get() creates new httpx.AsyncClient per call",
-      "message": "Performance: each HTTP call creates new connection pool, should reuse client session",
-      "code_anchor": "src/gw2_progression/gw2_client.py:23"
-    },
-    {
-      "rule_id": "TestClientMissing",
-      "target_class": "TestSuite",
-      "severity": "Warning",
-      "logic_expression": "missing FastAPI TestClient integration test for route layer",
-      "message": "No E2E test: POST /analyze → 401/200 not covered by automated tests",
-      "code_anchor": "tests/test_analyzer.py"
-    },
-    {
-      "rule_id": "CacheNotIntegrated",
-      "target_class": "cache.py",
-      "severity": "Info",
-      "logic_expression": "TTLCache implemented but not referenced by any fetch_* function",
-      "message": "cache.py exists as standalone utility; no integration with fetch chain",
-      "code_anchor": "src/gw2_progression/cache.py"
-    },
-    {
-      "rule_id": "UnlocksSerialInsideGather",
-      "target_class": "fetch_all",
-      "severity": "Info",
-      "logic_expression": "unlock sub-endpoints (skins/dyes/minis/finishers) are serial inside _unlocks()",
-      "message": "4 unlock endpoints run sequentially inside a gather task instead of being parallel",
-      "code_anchor": "src/gw2_progression/analyzer.py:153-177"
+      "rule_id": "BuildReadinessRequiresAccountData",
+      "target": "AccountBuildReadiness",
+      "severity": "medium",
+      "logic": "Build readiness depends on fetched account professions and parsed gear requirements.",
+      "code_anchor": "src/gw2_progression/services/build_service.py:281"
     }
   ],
-  "files": [
-    "src/gw2_progression/gw2_client.py",
-    "src/gw2_progression/analyzer.py",
-    "src/gw2_progression/api/main.py",
-    "src/gw2_progression/api/routes/analyze.py",
-    "src/gw2_progression/cache.py",
-    "src/gw2_progression/static/index.html"
-  ],
-  "test_stats": {
-    "total": 13,
-    "passed": 13
-  },
-  "notes": "Semantic graph rebuilt after Phase 0-3 refactoring."
+  "professional_user_maturity": {
+    "strengths": [
+      "Complete asset ingestion and valuation loop.",
+      "Crafting and recipe planning is modeled beyond flat cost lookup.",
+      "Build readiness, legendary goals, TP signals, and coach plans are connected into a decision layer.",
+      "Broad automated tests exist across API, services, valuation, crafting, goals, and v4/v5 decision logic."
+    ],
+    "risks": [
+      "Runtime route registration can drift from indexed flows if route-map checks are not part of CI.",
+      "Rate limiting and middleware need explicit test-mode isolation.",
+      "API response shape contracts are not yet captured by GitNexus shape_check.",
+      "Professional trust signals need richer provenance: price timestamp, source, liquidity confidence, build source version, and time-gated material explanation."
+    ],
+    "next_stages": [
+      "Stabilize runtime/API contract and CI checks.",
+      "Add professional trust metadata to every recommendation.",
+      "Turn semantic graph into an enforced contract for entities, states, and response shapes.",
+      "Improve user-facing workflows for advanced GW2 planning: raids/fractals/WvW/PvP, legendary time gates, and guild/account portfolio analysis."
+    ]
+  }
 }
