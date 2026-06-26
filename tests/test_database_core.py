@@ -5,6 +5,7 @@ from unittest.mock import AsyncMock, patch
 import pytest
 
 from gw2_progression.database import (
+    CREATE_TABLES,
     close_pool,
     get_db,
     init_db,
@@ -45,6 +46,13 @@ class TestDbInit:
             await init_db()
             assert mock_db.execute.call_count > 0
             mock_db.commit.assert_called_once()
+
+    def test_plan_actions_schema_includes_confidence_metadata(self):
+        plan_actions_schema = CREATE_TABLES.split("CREATE TABLE IF NOT EXISTS plan_actions", 1)[1]
+        plan_actions_schema = plan_actions_schema.split("CREATE TABLE IF NOT EXISTS plan_revisions", 1)[0]
+        assert "confidence REAL NOT NULL DEFAULT 0" in plan_actions_schema
+        assert "data_sources TEXT NOT NULL DEFAULT '[]'" in plan_actions_schema
+        assert "risk_reason TEXT NOT NULL DEFAULT ''" in plan_actions_schema
 
 
 class TestPool:

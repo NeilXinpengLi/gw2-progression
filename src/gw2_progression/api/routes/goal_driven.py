@@ -8,6 +8,7 @@ Endpoints:
   POST /goal-driven/progressive    — Progressive result streaming
 """
 
+import json
 import logging
 
 from fastapi import APIRouter, Body, HTTPException
@@ -216,6 +217,20 @@ _plan_store: dict[str, ProgressionPlan] = {}
 _revision_store: dict[str, list] = {}
 
 
+def _decode_action_sources(value: str | None) -> list[str]:
+    if not value:
+        return []
+    try:
+        decoded = json.loads(value)
+    except (TypeError, ValueError):
+        return []
+    return decoded if isinstance(decoded, list) else []
+
+
+def _row_value(row, key: str, default):
+    return row[key] if key in row.keys() else default
+
+
 async def _save_plan(plan: ProgressionPlan):
     """Save a plan to in-memory store."""
     _plan_store[plan.plan_id] = plan
@@ -237,11 +252,12 @@ async def _save_plan(plan: ProgressionPlan):
                 """INSERT OR REPLACE INTO plan_actions
                 (action_id, plan_id, action_type, title, reason, reward_gold,
                  cost_gold, time_cost_minutes, score, priority, status, tab,
-                 item_id, day_index)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                 item_id, day_index, confidence, data_sources, risk_reason)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
                 (a.action_id, plan.plan_id, a.action_type, a.title, a.reason,
                  a.reward_gold, a.cost_gold, a.time_cost_minutes, a.score,
-                 a.priority, a.status, a.tab, a.item_id, a.day_index),
+                 a.priority, a.status, a.tab, a.item_id, a.day_index,
+                 a.confidence, json.dumps(a.data_sources), a.risk_reason),
             )
         await db.commit()
     except Exception as e:
@@ -300,6 +316,9 @@ async def _load_plan(plan_id: str) -> ProgressionPlan | None:
                 tab=r["tab"],
                 item_id=r["item_id"],
                 day_index=r["day_index"],
+                confidence=_row_value(r, "confidence", 0.0),
+                data_sources=_decode_action_sources(_row_value(r, "data_sources", "[]")),
+                risk_reason=_row_value(r, "risk_reason", ""),
             )
             for r in rows
         ]

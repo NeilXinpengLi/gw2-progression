@@ -528,6 +528,9 @@ CREATE TABLE IF NOT EXISTS plan_actions (
     tab TEXT NOT NULL DEFAULT '',
     item_id INTEGER NOT NULL DEFAULT 0,
     day_index INTEGER NOT NULL DEFAULT -1,
+    confidence REAL NOT NULL DEFAULT 0,
+    data_sources TEXT NOT NULL DEFAULT '[]',
+    risk_reason TEXT NOT NULL DEFAULT '',
     FOREIGN KEY (plan_id) REFERENCES progression_plans(plan_id)
 );
 
@@ -581,6 +584,9 @@ async def init_db():
             "ALTER TABLE item_holdings ADD COLUMN data_sources TEXT NOT NULL DEFAULT '[]'",
             "ALTER TABLE item_holdings ADD COLUMN price_timestamp TEXT NOT NULL DEFAULT ''",
             "ALTER TABLE item_holdings ADD COLUMN risk_reason TEXT NOT NULL DEFAULT ''",
+            "ALTER TABLE plan_actions ADD COLUMN confidence REAL NOT NULL DEFAULT 0",
+            "ALTER TABLE plan_actions ADD COLUMN data_sources TEXT NOT NULL DEFAULT '[]'",
+            "ALTER TABLE plan_actions ADD COLUMN risk_reason TEXT NOT NULL DEFAULT ''",
         ]:
             try:
                 await conn.execute(migration_sql)
