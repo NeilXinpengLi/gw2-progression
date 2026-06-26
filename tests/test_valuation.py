@@ -180,21 +180,33 @@ class TestValuationEngine:
             19720: (3000, 3500),
             12345: (50000, 55000),
         }
-        enriched, warnings = apply_prices(holdings, prices)
+        price_details = {
+            19976: {"buy_quantity": 6000, "sell_quantity": 5000, "fetched_at": "2026-06-26T10:00:00+00:00"},
+            19720: {"buy_quantity": 400, "sell_quantity": 100},
+            12345: {"buy_quantity": 0, "sell_quantity": 0},
+        }
+        enriched, warnings = apply_prices(holdings, prices, price_details)
 
         wallet = [h for h in enriched if h.location_type == "wallet"][0]
         assert wallet.valuation_status == "priced"
         assert wallet.value_buy == 50000
         assert wallet.value_sell == 50000
+        assert wallet.confidence == 1.0
+        assert wallet.data_sources == ["gw2_wallet"]
 
         mystic = [h for h in enriched if h.item_id == 19976][0]
         assert mystic.valuation_status == "priced"
         assert mystic.value_buy == 250 * 20000
         assert mystic.value_sell == 250 * 21600
+        assert mystic.confidence == 0.95
+        assert mystic.data_sources == ["gw2_commerce_prices"]
+        assert mystic.price_timestamp == "2026-06-26T10:00:00+00:00"
+        assert mystic.liquidity_reason
 
         bound = [h for h in enriched if h.item_id == 99999][0]
         assert bound.valuation_status == "account_bound"
         assert bound.value_buy == 0
+        assert bound.risk_reason == "Account-bound item cannot be sold on the Trading Post."
 
     def test_unpriced_item_handling(self):
         holdings = [
@@ -206,13 +218,37 @@ class TestValuationEngine:
         unpriced = [h for h in enriched if h.valuation_status == "unpriced"]
         assert len(unpriced) == 1
         assert unpriced[0].item_id == 77777
+        assert unpriced[0].confidence == 0.0
+        assert unpriced[0].risk_reason
         assert any(w.warning_type == "unpriced" for w in warnings)
 
     def test_compute_summary(self):
         holdings = [
             ItemHolding(item_id=1, count=10000, location_type="wallet", valuation_status="priced", value_buy=10000, value_sell=10000),
-            ItemHolding(item_id=19976, count=250, location_type="material_storage", valuation_status="priced", value_buy=5_000_000, value_sell=5_400_000),
-            ItemHolding(item_id=19720, count=100, location_type="bank", valuation_status="priced", value_buy=300_000, value_sell=350_000),
+            ItemHolding(
+                item_id=19976,
+                count=250,
+                location_type="material_storage",
+                valuation_status="priced",
+                value_buy=5_000_000,
+                value_sell=5_400_000,
+                quality_status="reliable",
+                confidence=0.95,
+                data_sources=["gw2_commerce_prices"],
+                price_timestamp="2026-06-26T10:00:00+00:00",
+            ),
+            ItemHolding(
+                item_id=19720,
+                count=100,
+                location_type="bank",
+                valuation_status="priced",
+                value_buy=300_000,
+                value_sell=350_000,
+                quality_status="low_liquidity",
+                liquidity_score="low",
+                confidence=0.55,
+                data_sources=["gw2_commerce_prices"],
+            ),
             ItemHolding(item_id=99999, count=1, location_type="material_storage", binding_status="AccountBound", valuation_status="account_bound", value_buy=0, value_sell=0),
             ItemHolding(item_id=88888, count=5, location_type="bank", valuation_status="unpriced", value_buy=0, value_sell=0),
         ]
@@ -225,6 +261,10 @@ class TestValuationEngine:
         assert summary.priced_item_count == 3
         assert summary.unpriced_item_count == 1
         assert summary.account_bound_count == 1
+        assert summary.confidence > 0.90
+        assert summary.data_sources == ["gw2_commerce_prices"]
+        assert summary.price_timestamp == "2026-06-26T10:00:00+00:00"
+        assert "review" in summary.risk_reason
 
     def test_compute_breakdown(self):
         holdings = self._make_holdings()
@@ -252,6 +292,7 @@ class TestValuationEngine:
         assert len(top) == 2  # wallet excluded
         assert top[0].item_id == 19976
         assert top[0].value_buy == 5_000_000
+        assert hasattr(top[0], "confidence")
 
     def test_top_items_limit(self):
         holdings = [

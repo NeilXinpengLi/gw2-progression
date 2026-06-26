@@ -1,4 +1,5 @@
 import asyncio
+import json
 import logging
 import os
 from contextlib import asynccontextmanager
@@ -125,6 +126,13 @@ CREATE TABLE IF NOT EXISTS item_holdings (
     value_buy INTEGER NOT NULL DEFAULT 0,
     value_sell INTEGER NOT NULL DEFAULT 0,
     valuation_status TEXT NOT NULL DEFAULT 'pending',
+    quality_status TEXT NOT NULL DEFAULT 'unknown',
+    liquidity_score TEXT NOT NULL DEFAULT 'unknown',
+    liquidity_reason TEXT NOT NULL DEFAULT '',
+    confidence REAL NOT NULL DEFAULT 0,
+    data_sources TEXT NOT NULL DEFAULT '[]',
+    price_timestamp TEXT NOT NULL DEFAULT '',
+    risk_reason TEXT NOT NULL DEFAULT '',
     FOREIGN KEY (snapshot_id) REFERENCES account_snapshots(id)
 );
 
@@ -566,6 +574,13 @@ async def init_db():
             "ALTER TABLE progression_goal_templates ADD COLUMN patch_version TEXT DEFAULT ''",
             "ALTER TABLE progression_goal_templates ADD COLUMN review_status TEXT DEFAULT 'unreviewed'",
             "ALTER TABLE progression_goal_templates ADD COLUMN deprecated INTEGER NOT NULL DEFAULT 0",
+            "ALTER TABLE item_holdings ADD COLUMN quality_status TEXT NOT NULL DEFAULT 'unknown'",
+            "ALTER TABLE item_holdings ADD COLUMN liquidity_score TEXT NOT NULL DEFAULT 'unknown'",
+            "ALTER TABLE item_holdings ADD COLUMN liquidity_reason TEXT NOT NULL DEFAULT ''",
+            "ALTER TABLE item_holdings ADD COLUMN confidence REAL NOT NULL DEFAULT 0",
+            "ALTER TABLE item_holdings ADD COLUMN data_sources TEXT NOT NULL DEFAULT '[]'",
+            "ALTER TABLE item_holdings ADD COLUMN price_timestamp TEXT NOT NULL DEFAULT ''",
+            "ALTER TABLE item_holdings ADD COLUMN risk_reason TEXT NOT NULL DEFAULT ''",
         ]:
             try:
                 await conn.execute(migration_sql)
@@ -649,8 +664,10 @@ async def save_account_snapshot(
         await db.execute(
             """INSERT INTO item_holdings
             (snapshot_id, item_id, count, location_type, location_ref, binding_status,
-             tradable, vendor_value, price_buy, price_sell, value_buy, value_sell, valuation_status)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+             tradable, vendor_value, price_buy, price_sell, value_buy, value_sell, valuation_status,
+             quality_status, liquidity_score, liquidity_reason, confidence, data_sources,
+             price_timestamp, risk_reason)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
             (
                 snapshot_id,
                 h.item_id,
@@ -665,6 +682,13 @@ async def save_account_snapshot(
                 h.value_buy,
                 h.value_sell,
                 h.valuation_status,
+                h.quality_status,
+                h.liquidity_score,
+                h.liquidity_reason,
+                h.confidence,
+                json.dumps(h.data_sources),
+                h.price_timestamp,
+                h.risk_reason,
             ),
         )
 
@@ -696,11 +720,33 @@ async def save_account_snapshot(
     return snapshot_id
 
 
+def _decode_data_sources(value: str | None) -> list[str]:
+    if not value:
+        return []
+    try:
+        parsed = json.loads(value)
+    except json.JSONDecodeError:
+        return []
+    return parsed if isinstance(parsed, list) else []
+
+
+def _row_value(row, key: str, default=None):
+    try:
+        if key in row.keys():
+            return row[key]
+    except AttributeError:
+        if isinstance(row, dict) and key in row:
+            return row[key]
+    return default
+
+
 async def load_latest_holdings(db: aiosqlite.Connection, account_name: str) -> list[ItemHolding]:
     cursor = await db.execute(
         """SELECT ih.item_id, ih.count, ih.location_type, ih.location_ref,
            ih.binding_status, ih.tradable, ih.vendor_value,
-           ih.price_buy, ih.price_sell, ih.value_buy, ih.value_sell, ih.valuation_status
+           ih.price_buy, ih.price_sell, ih.value_buy, ih.value_sell, ih.valuation_status,
+           ih.quality_status, ih.liquidity_score, ih.liquidity_reason, ih.confidence,
+           ih.data_sources, ih.price_timestamp, ih.risk_reason
            FROM item_holdings ih
            JOIN account_snapshots s ON ih.snapshot_id = s.id
            WHERE s.account_name = ?
@@ -722,6 +768,13 @@ async def load_latest_holdings(db: aiosqlite.Connection, account_name: str) -> l
             value_buy=row["value_buy"],
             value_sell=row["value_sell"],
             valuation_status=row["valuation_status"],
+            quality_status=_row_value(row, "quality_status", "unknown"),
+            liquidity_score=_row_value(row, "liquidity_score", "unknown"),
+            liquidity_reason=_row_value(row, "liquidity_reason", ""),
+            confidence=_row_value(row, "confidence", 0.0),
+            data_sources=_decode_data_sources(_row_value(row, "data_sources", "[]")),
+            price_timestamp=_row_value(row, "price_timestamp", ""),
+            risk_reason=_row_value(row, "risk_reason", ""),
         )
         for row in rows
     ]
@@ -754,7 +807,9 @@ async def search_latest_holdings(
 
     sql = f"""SELECT ih.item_id, ih.count, ih.location_type, ih.location_ref,
            ih.binding_status, ih.tradable, ih.vendor_value,
-           ih.price_buy, ih.price_sell, ih.value_buy, ih.value_sell, ih.valuation_status
+           ih.price_buy, ih.price_sell, ih.value_buy, ih.value_sell, ih.valuation_status,
+           ih.quality_status, ih.liquidity_score, ih.liquidity_reason, ih.confidence,
+           ih.data_sources, ih.price_timestamp, ih.risk_reason
            FROM item_holdings ih
            JOIN account_snapshots s ON ih.snapshot_id = s.id
            WHERE {" AND ".join(conditions)}
@@ -778,6 +833,13 @@ async def search_latest_holdings(
             value_buy=row["value_buy"],
             value_sell=row["value_sell"],
             valuation_status=row["valuation_status"],
+            quality_status=_row_value(row, "quality_status", "unknown"),
+            liquidity_score=_row_value(row, "liquidity_score", "unknown"),
+            liquidity_reason=_row_value(row, "liquidity_reason", ""),
+            confidence=_row_value(row, "confidence", 0.0),
+            data_sources=_decode_data_sources(_row_value(row, "data_sources", "[]")),
+            price_timestamp=_row_value(row, "price_timestamp", ""),
+            risk_reason=_row_value(row, "risk_reason", ""),
         )
         for row in rows
     ]

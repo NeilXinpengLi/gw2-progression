@@ -39,16 +39,28 @@ def apply_prices(
             h.price_sell = 1
             h.quality_status = "reliable"
             h.liquidity_score = "high"
+            h.liquidity_reason = "Wallet gold is immediately spendable."
+            h.confidence = 1.0
+            h.data_sources = ["gw2_wallet"]
+            h.risk_reason = "Direct wallet currency."
             continue
 
         if h.location_type == "tradingpost":
             h.valuation_status = "priced"
             h.quality_status = "reliable"
+            h.liquidity_score = "high"
+            h.liquidity_reason = "Open Trading Post order value is already committed."
+            h.confidence = 0.90
+            h.data_sources = ["gw2_tradingpost_orders"]
+            h.risk_reason = "Trading Post order value may change when orders fill or are cancelled."
             continue
 
         if h.binding_status is not None:
             h.valuation_status = "account_bound"
             h.tradable = False
+            h.confidence = 1.0
+            h.data_sources = ["gw2_account_inventory"]
+            h.risk_reason = "Account-bound item cannot be sold on the Trading Post."
             warnings.append(
                 ValuationWarningModel(
                     warning_type="account_bound",
@@ -62,6 +74,9 @@ def apply_prices(
         if price is None:
             h.valuation_status = "unpriced"
             h.tradable = False
+            h.confidence = 0.0
+            h.data_sources = ["gw2_account_inventory"]
+            h.risk_reason = "No current market price data was available for this item."
             warnings.append(
                 ValuationWarningModel(
                     warning_type="unpriced",
@@ -75,6 +90,9 @@ def apply_prices(
         if buy_price == 0 and sell_price == 0:
             h.valuation_status = "unpriced"
             h.tradable = False
+            h.confidence = 0.0
+            h.data_sources = ["gw2_account_inventory", "gw2_commerce_prices"]
+            h.risk_reason = "Commerce API returned zero buy and sell prices; likely untradable or inactive."
             warnings.append(
                 ValuationWarningModel(
                     warning_type="no_price",
@@ -97,6 +115,7 @@ def apply_prices(
             sell_price=sell_price,
             buy_qty=details.get("buy_quantity", 0),
             sell_qty=details.get("sell_quantity", 0),
+            fetched_at=details.get("fetched_at"),
         )
         h.quality_status = quality["quality_status"]
         h.liquidity_score = quality["liquidity_score"]
@@ -104,6 +123,11 @@ def apply_prices(
         h.spread_ratio = quality["spread_ratio"]
         h.buy_quantity = details.get("buy_quantity", 0)
         h.sell_quantity = details.get("sell_quantity", 0)
+        h.confidence = quality["confidence"]
+        h.data_sources = quality["data_sources"]
+        h.price_timestamp = quality["price_timestamp"]
+        h.liquidity_reason = quality["liquidity_reason"]
+        h.risk_reason = quality["risk_reason"]
 
         if h.quality_status == "illiquid":
             warnings.append(
@@ -146,6 +170,18 @@ def compute_summary(holdings: list[ItemHolding]) -> ValueSummary:
     reliable = [h for h in priced if h.quality_status in RELIABLE_STATUSES]
     risky = [h for h in priced if h.quality_status in RISKY_STATUSES]
     low_liq = [h for h in priced if h.liquidity_score in ("low", "illiquid")]
+    stale_prices = [h for h in priced if h.quality_status == "stale_price"]
+    data_sources = sorted({source for h in holdings for source in h.data_sources})
+    timestamps = [h.price_timestamp for h in priced if h.price_timestamp]
+    confidence = round(sum(h.value_buy * h.confidence for h in priced) / total_buy, 4) if total_buy else 0.0
+    risk_parts = []
+    if risky:
+        risk_parts.append(f"{len(risky)} priced holdings need liquidity/spread review")
+    if unpriced:
+        risk_parts.append(f"{len(unpriced)} holdings are unpriced")
+    if account_bound:
+        risk_parts.append(f"{len(account_bound)} holdings are account-bound")
+    risk_reason = "; ".join(risk_parts) if risk_parts else "All priced holdings are reliable."
 
     return ValueSummary(
         total_value_buy=total_buy,
@@ -169,7 +205,11 @@ def compute_summary(holdings: list[ItemHolding]) -> ValueSummary:
         reliable_value=sum(h.value_buy for h in reliable),
         risky_value=sum(h.value_buy for h in risky),
         low_liquidity_count=len(low_liq),
-        stale_price_count=0,
+        stale_price_count=len(stale_prices),
+        confidence=confidence,
+        data_sources=data_sources,
+        price_timestamp=max(timestamps) if timestamps else "",
+        risk_reason=risk_reason,
     )
 
 
@@ -253,6 +293,13 @@ def compute_top_items(holdings: list[ItemHolding], limit: int = 20) -> list[TopI
             value_sell=h.value_sell,
             tradable=h.tradable,
             valuation_status=h.valuation_status,
+            quality_status=h.quality_status,
+            liquidity_score=h.liquidity_score,
+            liquidity_reason=h.liquidity_reason,
+            confidence=h.confidence,
+            data_sources=h.data_sources,
+            price_timestamp=h.price_timestamp,
+            risk_reason=h.risk_reason,
         )
         for h in priced[:limit]
     ]

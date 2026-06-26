@@ -1,6 +1,7 @@
 import logging
 import time
 from collections import OrderedDict
+from datetime import UTC, datetime
 from typing import Any
 
 import httpx
@@ -55,6 +56,24 @@ def _set_cached_price(data: PriceData):
 STALE_PRICE_SECONDS = 3600
 LIQUIDITY_THRESHOLDS = {"high": 5000, "medium": 500}
 
+QUALITY_CONFIDENCE = {
+    "reliable": 0.95,
+    "wide_spread": 0.65,
+    "low_liquidity": 0.55,
+    "missing_buy": 0.45,
+    "missing_sell": 0.45,
+    "illiquid": 0.20,
+}
+
+QUALITY_RISK_REASONS = {
+    "reliable": "Market depth and spread look healthy for a TP valuation.",
+    "wide_spread": "Buy and sell prices are far apart; liquidation value may differ from listing value.",
+    "low_liquidity": "Visible buy/sell depth is thin; large stacks may move the price.",
+    "missing_buy": "No buy order price is visible, so immediate liquidation value is uncertain.",
+    "missing_sell": "No sell listing price is visible, so replacement cost is uncertain.",
+    "illiquid": "No visible buy/sell depth; market value is speculative.",
+}
+
 
 def compute_price_quality(
     buy_price: int,
@@ -89,11 +108,21 @@ def compute_price_quality(
     else:
         quality_status = "reliable"
 
+    if liquidity_score == "illiquid":
+        liquidity_reason = "No visible buy or sell order depth."
+    else:
+        liquidity_reason = f"{total_qty} visible buy/sell order depth across the market."
+
     return {
         "quality_status": quality_status,
         "liquidity_score": liquidity_score,
         "spread": spread,
         "spread_ratio": spread_ratio,
+        "confidence": QUALITY_CONFIDENCE[quality_status],
+        "data_sources": ["gw2_commerce_prices"],
+        "price_timestamp": fetched_at or "",
+        "liquidity_reason": liquidity_reason,
+        "risk_reason": QUALITY_RISK_REASONS[quality_status],
     }
 
 
@@ -161,6 +190,7 @@ async def fetch_prices(item_ids: list[int]) -> dict[int, PriceData]:
                 try:
                     resp = await client.get(f"{GW2_BASE}/v2/commerce/prices?ids={ids_param}")
                     if resp.is_success:
+                        fetched_at = datetime.now(UTC).isoformat()
                         data: list[dict[str, Any]] = resp.json()
                         for entry in data:
                             item_id = entry.get("id")
@@ -172,7 +202,7 @@ async def fetch_prices(item_ids: list[int]) -> dict[int, PriceData]:
                                 buy_quantity=buys.get("quantity", 0),
                                 sell_unit_price=sells.get("unit_price", 0),
                                 sell_quantity=sells.get("quantity", 0),
-                                fetched_at="",
+                                fetched_at=fetched_at,
                             )
                             _set_cached_price(pd)
                             result[item_id] = pd

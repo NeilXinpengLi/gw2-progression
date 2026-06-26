@@ -51,7 +51,15 @@ async def run_full_analysis(api_key: str) -> ValueAnalyzeResponse:
     if unpriced_ids:
         price_data = await fetch_prices(unpriced_ids)
         prices = {item_id: (pd.buy_unit_price, pd.sell_unit_price) for item_id, pd in price_data.items()}
-        price_details = {item_id: {"buy_quantity": pd.buy_quantity, "sell_quantity": pd.sell_quantity} for item_id, pd in price_data.items()}
+        price_details = {
+            item_id: {
+                "buy_quantity": pd.buy_quantity,
+                "sell_quantity": pd.sell_quantity,
+                "fetched_at": getattr(pd, "fetched_at", ""),
+                "source": getattr(pd, "source", "gw2_commerce_prices"),
+            }
+            for item_id, pd in price_data.items()
+        }
 
     all_holdings, warnings = apply_prices(holdings, prices, price_details)
 
@@ -63,6 +71,9 @@ async def run_full_analysis(api_key: str) -> ValueAnalyzeResponse:
             if h.item_id in bound_flags and bound_flags[h.item_id] and h.valuation_status in ("unpriced", "no_price"):
                 h.valuation_status = "account_bound"
                 h.tradable = False
+                h.confidence = 1.0
+                h.data_sources = ["gw2_account_inventory", "gw2_items"]
+                h.risk_reason = "Item flags mark this as account-bound; no TP liquidation value."
                 warnings.append(
                     type(
                         "W",

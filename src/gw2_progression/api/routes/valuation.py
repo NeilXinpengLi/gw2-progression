@@ -52,6 +52,13 @@ def _holding_to_search(h: ItemHolding, snapshot_time: str = "") -> ItemSearchRes
         value_buy=h.value_buy,
         value_sell=h.value_sell,
         valuation_status=h.valuation_status,
+        quality_status=h.quality_status,
+        liquidity_score=h.liquidity_score,
+        liquidity_reason=h.liquidity_reason,
+        confidence=h.confidence,
+        data_sources=h.data_sources,
+        price_timestamp=h.price_timestamp,
+        risk_reason=h.risk_reason,
         snapshot_time=snapshot_time,
     )
 

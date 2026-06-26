@@ -85,3 +85,21 @@ def test_map_response_models_are_declared():
         assert model_name in components
         assert schema["type"] == "object"
         assert schema["additionalProperties"] == {"$ref": f"#/components/schemas/{model_name}"}
+
+
+def test_value_confidence_fields_are_exposed():
+    components = app.openapi()["components"]["schemas"]
+    confidence_fields = {
+        "confidence",
+        "data_sources",
+        "price_timestamp",
+        "liquidity_reason",
+        "risk_reason",
+    }
+
+    for model_name in ("ItemHolding", "TopItem", "ItemSearchResult"):
+        properties = components[model_name]["properties"]
+        assert confidence_fields.issubset(properties)
+
+    summary_properties = components["ValueSummary"]["properties"]
+    assert {"confidence", "data_sources", "price_timestamp", "risk_reason"}.issubset(summary_properties)
