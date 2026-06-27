@@ -171,11 +171,9 @@ async def fetch_all(api_key: str) -> AccountContents:
     contents.errors = errors
 
     try:
-        from .database import _pool
-        if _pool is not None:
-            from .ontology.account_mapper import sync_account_to_ontology
-            await sync_account_to_ontology(api_key, contents.account_name or "unknown")
-    except Exception as e:
-        contents.errors["ontology"] = str(e)
+        from .services.event_bus import EventType, emit
+        emit(EventType.ONTOLOGY, payload={"api_key": api_key, "account_name": contents.account_name or "unknown"}, source="analyzer")
+    except Exception:
+        pass
 
     return contents

@@ -18,6 +18,8 @@ from gw2_progression.gw2_client import _close_client as close_gw2_client
 from gw2_progression.logging_config import setup_logging
 from gw2_progression.metrics import metrics
 from gw2_progression.services.auth_service import SESSION_TTL, create_session, delete_session, get_api_key, list_sessions
+from gw2_progression.services.event_bus import start as start_event_bus
+from gw2_progression.services.event_bus import stop as stop_event_bus
 from gw2_progression.services.price_service import close_client as close_price_client
 from gw2_progression.services.price_service import warmup_price_cache
 from gw2_progression.services.product_service import seed_products
@@ -76,8 +78,16 @@ async def lifespan(app: FastAPI):
         await process_pending_deliveries()
     except Exception as e:
         logger.warning("Delivery processing failed: %s", e)
+    # Auto-import event handlers so they register
+    try:
+        from gw2_progression.services.handlers import ontology_handler  # noqa: F401
+    except Exception:
+        pass
+    # Start event bus worker
+    start_event_bus()
     yield
     logger.info("Shutting down GW2 Progression")
+    await stop_event_bus()
     await close_gw2_client()
     await close_price_client()
     await close_pool()
@@ -98,13 +108,20 @@ app.add_middleware(
 
 @app.middleware("http")
 async def security_headers_middleware(request: Request, call_next):
-    response = await call_next(request)
-    response.headers["X-Content-Type-Options"] = "nosniff"
-    response.headers["X-Frame-Options"] = "DENY"
-    response.headers["X-XSS-Protection"] = "1; mode=block"
-    response.headers["Referrer-Policy"] = "no-referrer-when-downgrade"
-    if os.environ.get("ENV", "development") == "production":
-        response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
+    try:
+        response = await call_next(request)
+    except Exception:
+        raise
+    finally:
+        try:
+            response.headers["X-Content-Type-Options"] = "nosniff"
+            response.headers["X-Frame-Options"] = "DENY"
+            response.headers["X-XSS-Protection"] = "1; mode=block"
+            response.headers["Referrer-Policy"] = "no-referrer-when-downgrade"
+            if os.environ.get("ENV", "development") == "production":
+                response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
+        except Exception:
+            pass
     return response
 
 
