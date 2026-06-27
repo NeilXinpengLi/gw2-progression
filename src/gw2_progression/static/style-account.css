@@ -12,7 +12,7 @@
 
 .kpi-card {
   background: var(--gw2-bg-card);
-  padding: 20px 14px;
+  padding: 22px 14px;
   text-align: center;
   transition: background .2s;
   position: relative;
@@ -26,7 +26,6 @@
   border-left: none;
 }
 
-/* Per-metric theming */
 .kpi-card[data-metric="account_value"] .kpi-value { color: var(--gw2-gold-light); }
 .kpi-card[data-metric="hidden_wealth"] .kpi-value { color: var(--gw2-mystic); }
 .kpi-card[data-metric="legendary_progress"] .kpi-value { color: var(--gw2-legendary); }
@@ -36,7 +35,7 @@
 
 .kpi-label {
   color: var(--gw2-text-dim);
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 500;
   text-transform: uppercase;
   letter-spacing: 1.5px;
@@ -45,7 +44,7 @@
 
 .kpi-value {
   font-family: var(--gw2-font-display);
-  font-size: 22px;
+  font-size: 24px;
   font-weight: 700;
   color: var(--gw2-text-bright);
   margin-bottom: 4px;
@@ -54,13 +53,13 @@
 
 .kpi-sub {
   color: var(--gw2-text-dim);
-  font-size: 10px;
+  font-size: 11px;
 }
 
 /* API Badge */
 .api-badge {
-  font-size: 11px;
-  padding: 3px 12px;
+  font-size: 12px;
+  padding: 4px 14px;
   border-radius: 2px;
   font-weight: 500;
   font-family: var(--gw2-font-body);
@@ -88,7 +87,7 @@
 .asset-table, .char-table {
   width: 100%;
   border-collapse: collapse;
-  font-size: 13px;
+  font-size: 14px;
 }
 
 .asset-table th, .char-table th {
@@ -98,12 +97,12 @@
   font-weight: 500;
   text-transform: uppercase;
   letter-spacing: 1.5px;
-  padding: 10px 14px;
+  padding: 12px 14px;
   border-bottom: 1px solid var(--gw2-border);
 }
 
 .asset-table td, .char-table td {
-  padding: 10px 14px;
+  padding: 12px 14px;
   border-bottom: 1px solid #1a1917;
 }
 
@@ -116,12 +115,12 @@
   text-align: right;
   font-variant-numeric: tabular-nums;
   font-family: var(--gw2-font-mono);
-  font-size: 12px;
+  font-size: 13px;
 }
 
 /* Risk indicator */
 .risk-dot {
-  font-size: 11px;
+  font-size: 12px;
 }
 .risk-dot[data-risk="low"] { color: var(--gw2-green); }
 .risk-dot[data-risk="medium"] { color: var(--gw2-legendary); }
@@ -139,12 +138,12 @@
 
 .status-item {
   background: var(--gw2-bg-card);
-  padding: 14px 16px;
+  padding: 16px 18px;
 }
 
 .status-label {
   display: block;
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 500;
   color: var(--gw2-text-dim);
   text-transform: uppercase;
@@ -153,7 +152,7 @@
 }
 
 .status-value {
-  font-size: 13px;
+  font-size: 14px;
   color: var(--gw2-text);
 }
 
