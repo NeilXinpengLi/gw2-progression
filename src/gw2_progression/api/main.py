@@ -197,17 +197,23 @@ app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 
 
 @app.post("/auth/session")
-async def create_session_endpoint(api_key: str = Body(...)):
+async def create_session_endpoint(api_key: str = Body(..., embed=True)):
     from gw2_progression.analyzer import fetch_all
     from gw2_progression.services.audit_service import record_audit
 
     try:
         contents = await fetch_all(api_key)
         token = await create_session(api_key, contents.account_name or "unknown")
-        await record_audit(actor=contents.account_name or "unknown", action="session.create", resource="auth", detail="Session created", success=True)
+        try:
+            await record_audit(actor=contents.account_name or "unknown", action="session.create", resource="auth", detail="Session created", success=True)
+        except Exception:
+            pass
         return {"token": token, "account_name": contents.account_name, "expires_in": SESSION_TTL}
     except Gw2ApiError as e:
-        await record_audit(action="session.create", resource="auth", detail=f"Failed: {e.message}", success=False)
+        try:
+            await record_audit(action="session.create", resource="auth", detail=f"Failed: {e.message}", success=False)
+        except Exception:
+            pass
         raise HTTPException(status_code=401, detail=e.message)
 
 
@@ -272,6 +278,11 @@ async def index() -> FileResponse:
 @app.get("/account")
 async def account_page() -> FileResponse:
     return FileResponse(STATIC_DIR / "account.html")
+
+
+@app.get("/plan")
+async def plan_page() -> FileResponse:
+    return FileResponse(STATIC_DIR / "plan.html")
 
 
 @app.get("/metrics")

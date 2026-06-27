@@ -35,14 +35,17 @@ async def _create_connection() -> aiosqlite.Connection:
     return conn
 
 
-async def get_db() -> aiosqlite.Connection:
+async def get_db(timeout: float = 30.0) -> aiosqlite.Connection:
     global _pool
     if _pool is None:
         _pool = asyncio.Queue(DB_POOL_SIZE)
         for _ in range(DB_POOL_SIZE):
             conn = await _create_connection()
             await _pool.put(conn)
-    return await _pool.get()
+    try:
+        return await asyncio.wait_for(_pool.get(), timeout=timeout)
+    except asyncio.TimeoutError:
+        raise RuntimeError(f"DB pool exhausted: all {DB_POOL_SIZE} connections in use for >{timeout}s")
 
 
 async def release_db(conn: aiosqlite.Connection):
@@ -65,13 +68,30 @@ async def close_pool():
 
 @asynccontextmanager
 async def using_db():
-    """Async context manager that acquires and releases a DB connection."""
+    """Async context manager that acquires and releases a DB connection.
+
+    Automatically detects stale connections (closed by pool timeout during
+    long-running operations) and replaces them with a fresh connection.
+    """
     conn = await get_db()
     try:
+        # Health check: verify connection is still alive
+        try:
+            await conn.execute("SELECT 1")
+        except Exception:
+            # Connection is stale — replace it
+            try:
+                await conn.close()
+            except Exception:
+                pass
+            conn = await _create_connection()
         yield conn
         await conn.commit()
     except Exception:
-        await conn.rollback()
+        try:
+            await conn.rollback()
+        except Exception:
+            pass
         raise
     finally:
         await release_db(conn)
