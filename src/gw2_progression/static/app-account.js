@@ -47,7 +47,7 @@ document.addEventListener('DOMContentLoaded', () => {
       _sessionToken = saved;
       document.getElementById('key-input').value = saved;
       // Validate the saved session by checking if it still works
-      fetch('/api/account/overview?api_key=' + encodeURIComponent(saved), { signal: AbortSignal.timeout(5000) })
+      fetch('/api/account/overview?api_key=' + encodeURIComponent(saved))
         .then(r => {
           if (r.ok) runAnalyze();
           else {
