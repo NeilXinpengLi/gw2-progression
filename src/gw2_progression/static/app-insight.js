@@ -8,8 +8,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     const btn = e.target.closest('button[data-nav]');
     if (!btn) return;
     const page = btn.dataset.nav;
-    if (page === 'account') window.location.href = '/account';
-    else if (page === 'plan') window.location.href = '/plan';
+    const urls = { account: '/account', insight: '/insight', plan: '/plan', report: '/report' };
+    if (urls[page]) window.location.href = urls[page];
   });
 
   const token = await initSession();

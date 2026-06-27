@@ -35,21 +35,13 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
   });
 
-  // OS nav
+  // OS nav — navigate between pages
   document.getElementById('os-nav')?.addEventListener('click', e => {
     const btn = e.target.closest('button[data-nav]');
     if (!btn) return;
-    document.querySelectorAll('#os-nav button').forEach(b => {
-      b.classList.remove('active');
-      b.style.color = 'var(--text-dim)';
-      b.style.borderTop = 'none';
-    });
-    document.querySelectorAll('.page-section').forEach(p => p.classList.remove('active'));
-    btn.classList.add('active');
-    btn.style.color = 'var(--gold)';
-    btn.style.borderTop = '2px solid var(--gold)';
-    const page = document.getElementById('page-' + btn.dataset.nav);
-    if (page) page.classList.add('active');
+    const page = btn.dataset.nav;
+    const urls = { account: '/account', insight: '/insight', plan: '/plan', report: '/report' };
+    if (urls[page]) window.location.href = urls[page];
   });
 
   // Restore session
