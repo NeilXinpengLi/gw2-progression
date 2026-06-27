@@ -18,8 +18,8 @@
 
 <nav class="nav-os" id="os-nav" role="tablist">
   <button class="active" data-nav="account" role="tab">📊 Account</button>
+  <button data-nav="insight" role="tab">💡 Insight</button>
   <button data-nav="plan" role="tab">🎯 Plan</button>
-  <button data-nav="tools" role="tab">🔧 Tools</button>
 </nav>
 
 <main>
@@ -150,19 +150,6 @@
       <div id="guild-list"></div>
     </div>
 
-    <!-- ── AI Insight Preview ── -->
-    <div id="insight-preview" class="hidden">
-      <div class="section-title" style="margin-top:24px">Next Best Actions</div>
-      <div class="insight-preview-card">
-        <div id="insight-actions" style="display:flex;flex-direction:column;gap:8px"></div>
-        <div style="margin-top:12px;text-align:right">
-          <button class="btn-sm" onclick="switchPage('plan')" style="background:var(--gold);border:none;color:#111;padding:8px 20px;font-weight:600;cursor:pointer">
-            Go to Full Plan →
-          </button>
-        </div>
-      </div>
-    </div>
-
     <!-- ── Privacy / Data Status ── -->
     <div id="status-panel" class="hidden">
       <div class="section-title" style="margin-top:24px">Data Status</div>
@@ -197,6 +184,18 @@
 
   </div>
 
+  <!-- ═══ INSIGHT PAGE ═══ -->
+  <div class="page-section" id="page-insight">
+    <div style="font-size:18px;font-weight:700;color:var(--gold);margin-bottom:4px">💡 AI Insights</div>
+    <div style="font-size:12px;color:var(--text-dim);margin-bottom:16px">Smart analysis layered over your account data.</div>
+    <div id="insight-content">
+      <div style="text-align:center;padding:60px 0;color:var(--text-dim)">
+        <div style="font-size:48px;margin-bottom:12px">💡</div>
+        <div>Analyze your account first, then view AI insights here.</div>
+      </div>
+    </div>
+  </div>
+
   <!-- ═══ PLAN PAGE ═══ -->
   <div class="page-section" id="page-plan">
     <div style="font-size:18px;font-weight:700;color:var(--gold);margin-bottom:4px">🎯 Your Progression Plan</div>
@@ -204,34 +203,8 @@
     <div id="plan-content">
       <div style="text-align:center;padding:60px 0;color:var(--text-dim)">
         <div style="font-size:48px;margin-bottom:12px">🎯</div>
-        <div>Analyze your account first, then generate a plan.</div>
+        <div>Analyze your account, then generate a plan.</div>
       </div>
-    </div>
-  </div>
-
-  <!-- ═══ TOOLS PAGE ═══ -->
-  <div class="page-section" id="page-tools">
-    <div style="font-size:18px;font-weight:700;color:var(--gold);margin-bottom:4px">🔧 Advanced Tools</div>
-    <div style="font-size:12px;color:var(--text-dim);margin-bottom:16px">Full analysis suite.</div>
-    <nav id="nav-tabs" class="hidden" role="tablist">
-      <button class="active" data-tab="value">💰 Value</button>
-      <button data-tab="characters">👤 Characters</button>
-      <button data-tab="builds">⚔ Builds</button>
-      <button data-tab="crafting">🔨 Crafting</button>
-      <button data-tab="goals">🏆 Goals</button>
-      <button data-tab="items">🔍 Items</button>
-      <button data-tab="wallet">🪙 Wallet</button>
-      <button data-tab="guild">👥 Guild</button>
-    </nav>
-    <div id="results" class="hidden">
-      <div class="tab-panel active" id="tab-value"></div>
-      <div class="tab-panel" id="tab-characters"></div>
-      <div class="tab-panel" id="tab-builds"></div>
-      <div class="tab-panel" id="tab-crafting"></div>
-      <div class="tab-panel" id="tab-goals"></div>
-      <div class="tab-panel" id="tab-items"></div>
-      <div class="tab-panel" id="tab-wallet"></div>
-      <div class="tab-panel" id="tab-guild"></div>
     </div>
   </div>
 

@@ -109,16 +109,6 @@ async function runAnalyze() {
     showLoading(false);
     renderDashboard(_overviewData);
     loadChart();
-
-    if (_accountData) {
-      // Resolve item names for assets
-      const ids = [];
-      for (const row of _overviewData.assets || []) {
-        // No item IDs in overview yet
-      }
-      renderInsightPreview();
-    }
-
     showStatusBadge('active');
   } catch (e) {
     if (e.name === 'AbortError') return;
@@ -245,30 +235,6 @@ function loadChart() {
   document.getElementById('chart-section').classList.remove('hidden');
 }
 
-// ── Insight Preview ──
-
-function renderInsightPreview() {
-  const container = document.getElementById('insight-actions');
-  container.innerHTML = '';
-
-  const actions = [
-    { action: 'Review High-Value Items', reward: '+', reason: 'Top items drive account value' },
-    { action: 'Check Trading Post', reward: '+', reason: 'Active orders may have profit opportunities' },
-  ];
-
-  for (const a of actions) {
-    const div = document.createElement('div');
-    div.className = 'insight-action';
-    div.innerHTML = `
-      <span style="font-size:13px;font-weight:600;color:var(--gold-light)">${a.action}</span>
-      <span class="reason">${a.reason}</span>
-    `;
-    container.appendChild(div);
-  }
-
-  document.getElementById('insight-preview').classList.remove('hidden');
-}
-
 // ── Helpers ──
 
 function setKpi(id, value) {
@@ -295,7 +261,7 @@ function showStatusBadge(status) {
 
 function hideAllSections() {
   ['account-header', 'kpi-section', 'chart-section', 'asset-section',
-   'character-section', 'guild-section', 'insight-preview', 'status-panel',
+    'character-section', 'guild-section', 'status-panel',
    'loading-state', 'error-state'].forEach(id => {
     const el = document.getElementById(id);
     if (el) el.classList.add('hidden');
