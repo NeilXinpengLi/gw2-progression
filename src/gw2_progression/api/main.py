@@ -229,14 +229,15 @@ async def delete_session_endpoint(token: str):
 # Inject API key from session token into requests
 @app.middleware("http")
 async def session_middleware(request: Request, call_next):
-    if request.url.path in ("/analyze", "/value/analyze") and request.method == "POST":
+    if request.method in ("POST", "PUT", "PATCH"):
         try:
             body = await request.json()
             key = body.get("api_key", "")
-            resolved = await get_api_key(key)
-            if resolved != key:
-                body["api_key"] = resolved
-                request._body = json.dumps(body).encode()
+            if key:
+                resolved = await get_api_key(key)
+                if resolved != key:
+                    body["api_key"] = resolved
+                    request._body = json.dumps(body).encode()
         except Exception:
             pass
     return await call_next(request)
