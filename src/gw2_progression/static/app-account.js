@@ -64,6 +64,12 @@ async function runAnalyze() {
 
   let useKey = rawKey;
 
+  // If user entered a new key (different from cached token), force re-auth
+  if (_sessionToken && rawKey !== _sessionToken && rawKey.length > 40) {
+    _sessionToken = null;
+    localStorage.removeItem('gw2_session');
+  }
+
   // Create session if needed
   if (!_sessionToken) {
     try {
