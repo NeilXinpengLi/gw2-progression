@@ -108,29 +108,35 @@
   margin-right: auto;
 }
 
-.hero-input-row {
+.hero-pillars {
   display: flex;
-  gap: 0;
-  max-width: 560px;
-  margin: 0 auto 12px;
-  border: 1px solid #2a2a2a;
-  transition: border-color .3s, box-shadow .3s;
+  justify-content: center;
+  gap: 20px;
+  margin-bottom: 36px;
+  flex-wrap: wrap;
 }
 
-.hero-input-row:focus-within {
-  border-color: #d4a24c;
-  box-shadow: 0 0 24px rgba(212,162,76,0.12);
-}
-
-.hero-input-row input {
-  flex: 1;
-  background: #141419;
-  border: none;
-  color: #ededed;
+.hero-pillar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
   font-size: 14px;
-  padding: 16px 20px;
-  outline: none;
-  font-family: var(--gw2-font-mono);
+  color: #d0d0d0;
+  padding: 8px 16px;
+  border: 1px solid rgba(212,162,76,0.12);
+  background: rgba(20,20,25,0.6);
+}
+
+.pillar-icon {
+  color: #d4a24c;
+  flex-shrink: 0;
+}
+
+.hero-actions {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
 }
 
 .btn-hero {
@@ -138,9 +144,9 @@
   border: none;
   color: #0b0b0d;
   cursor: pointer;
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 600;
-  padding: 16px 28px;
+  padding: 16px 32px;
   white-space: nowrap;
   transition: all .3s;
   letter-spacing: 0.8px;
@@ -150,14 +156,6 @@
 .btn-hero:hover {
   background: #e0b050;
   box-shadow: 0 0 40px rgba(212,162,76,0.35);
-}
-
-.hero-demo-row {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 12px;
-  margin-top: 10px;
 }
 
 .btn-demo {
@@ -177,18 +175,14 @@
 }
 
 .hero-trust {
-  margin-top: 28px;
+  margin-top: 20px;
   font-size: 12px;
   color: #666;
   letter-spacing: 0.3px;
 }
 
 /* ── VALUE PROPOSITION ── */
-.value-grid {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 24px;
-}
+/* (moved to 4-column grid below) */
 
 .value-card {
   background: #141419;
@@ -233,6 +227,13 @@
   font-size: 14px;
   color: #a0a0a0;
   line-height: 1.65;
+}
+
+/* ── VALUE PROOF (4 cards) ── */
+.value-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 20px;
 }
 
 /* ── DEMO SNAPSHOT ── */
@@ -350,59 +351,6 @@
   margin-left: 24px;
 }
 
-/* ── AI CAPABILITY (Glass card) ── */
-.capability-card {
-  background: linear-gradient(135deg, rgba(20,20,25,0.95) 0%, rgba(24,24,31,0.9) 100%);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border: 1px solid rgba(212,162,76,0.12);
-  padding: 44px;
-  max-width: 640px;
-  margin: 0 auto;
-  position: relative;
-  box-shadow: 0 0 30px rgba(212,162,76,0.04);
-}
-
-.capability-card::before {
-  content: '';
-  position: absolute;
-  top: 0; left: 0; right: 0;
-  height: 1px;
-  background: linear-gradient(90deg, transparent, rgba(212,162,76,0.3), transparent);
-}
-
-.capability-list {
-  list-style: none;
-  padding: 0;
-}
-
-.capability-list li {
-  padding: 14px 0;
-  font-size: 15px;
-  color: #ededed;
-  display: flex;
-  align-items: center;
-  gap: 14px;
-  border-bottom: 1px solid rgba(255,255,255,0.04);
-}
-
-.capability-list li:last-child { border-bottom: none; }
-
-.cap-icon {
-  font-size: 18px;
-  width: 28px;
-  text-align: center;
-}
-
-.capability-footer {
-  font-size: 11px;
-  color: #666;
-  margin-top: 24px;
-  text-align: center;
-  letter-spacing: 2px;
-  text-transform: uppercase;
-}
-
 /* ── TRUST ── */
 .trust-grid {
   display: grid;
@@ -513,7 +461,7 @@
 
 /* ── Responsive ── */
 @media (max-width: 800px) {
-  .value-grid { grid-template-columns: 1fr; }
+  .value-grid { grid-template-columns: repeat(2, 1fr); }
   .demo-grid { grid-template-columns: repeat(2, 1fr); }
   .trust-grid { grid-template-columns: 1fr; }
   .hero-title { font-size: 28px; }

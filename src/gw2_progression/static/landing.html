@@ -26,45 +26,48 @@
 
 <main class="landing">
 
-  <!-- ═══ FRAME 01: HERO ═══ -->
+  <!-- ═══ FRAME 01: HERO — value only, no input ═══ -->
   <section class="frame hero">
     <div class="hero-glow"></div>
     <div class="hero-content">
       <div class="hero-badge">GW2 Progression OS</div>
       <h1 class="hero-title">Your Guild Wars 2<br>Account, <span class="gold-text">Reimagined</span></h1>
       <p class="hero-sub">Turn your GW2 account into a progression intelligence system.<br>AI-powered insights. Actionable plans. Legendary results.</p>
-      <div class="hero-input-row">
-        <input id="landing-key-input" type="text" placeholder="Paste your GW2 API key…" spellcheck="false" />
-        <button id="landing-analyze-btn" class="btn-hero">Analyze My Account</button>
+      <div class="hero-pillars">
+        <div class="hero-pillar"><svg width="20" height="20" aria-hidden="true" class="pillar-icon"><use href="#sym-kpi-hidden-wealth"/></svg> Hidden Wealth Detection</div>
+        <div class="hero-pillar"><svg width="20" height="20" aria-hidden="true" class="pillar-icon"><use href="#sym-insight-build-ready"/></svg> Build Optimization</div>
+        <div class="hero-pillar"><svg width="20" height="20" aria-hidden="true" class="pillar-icon"><use href="#sym-kpi-legendary"/></svg> Legendary Path Planning</div>
       </div>
-      <div class="hero-demo-row">
-        <span class="dim">or</span>
-        <button id="landing-demo-btn" class="btn-demo">Try Demo Account</button>
-      </div>
-      <div class="hero-trust">
-        <span>🔒 Read-only · Session-based · Revocable anytime</span>
+      <div class="hero-actions">
+        <button id="hero-analyze-btn" class="btn-hero">Analyze Your Account</button>
+        <button id="hero-demo-btn" class="btn-demo">Try Demo</button>
       </div>
     </div>
   </section>
 
-  <!-- ═══ FRAME 02: VALUE PROPOSITION ═══ -->
+  <!-- ═══ FRAME 02: VALUE PROOF — 4 pillars ═══ -->
   <section class="frame value-prop">
-    <h2 class="section-title">What GW2 Progression Does</h2>
+    <h2 class="section-title">Why Players Use GW2 Progression</h2>
     <div class="value-grid">
       <div class="value-card">
         <svg width="32" height="32" aria-hidden="true" class="value-icon"><use href="#sym-kpi-hidden-wealth"/></svg>
-        <h3>Hidden Wealth Detection</h3>
-        <p>Find unused gold and materials buried in your account. We surface value you didn't know existed.</p>
+        <h3>Find Hidden Gold</h3>
+        <p>Surface dormant value in your materials, bank, and inventory that you didn't know existed.</p>
       </div>
       <div class="value-card">
         <svg width="32" height="32" aria-hidden="true" class="value-icon"><use href="#sym-insight-build-ready"/></svg>
-        <h3>Build Optimization</h3>
-        <p>Compare your gear against curated meta builds. See exactly what you're missing and how to fix it.</p>
+        <h3>Fix Weak Builds</h3>
+        <p>Compare your gear against curated meta builds. See exactly what's missing and how to fix it.</p>
       </div>
       <div class="value-card">
         <svg width="32" height="32" aria-hidden="true" class="value-icon"><use href="#sym-kpi-legendary"/></svg>
         <h3>Legendary Path</h3>
-        <p>Get the fastest route to your next legendary. Track progress, identify blockers, never waste a step.</p>
+        <p>Get the fastest route to your next legendary. Track blockers, time-gates, and material gaps.</p>
+      </div>
+      <div class="value-card">
+        <svg width="32" height="32" aria-hidden="true" class="value-icon"><use href="#sym-strategy-gold"/></svg>
+        <h3>Market Optimization</h3>
+        <p>Smart sell and buy signals. Know what to liquidate and what to hold for maximum profit.</p>
       </div>
     </div>
   </section>
@@ -125,21 +128,7 @@
     </div>
   </section>
 
-  <!-- ═══ FRAME 05: AI CAPABILITY ═══ -->
-  <section class="frame ai-capability">
-    <h2 class="section-title">AI Intelligence System</h2>
-    <div class="capability-card">
-      <ul class="capability-list">
-        <li><span class="cap-icon">🔮</span> Hidden Wealth Detection — find dormant value</li>
-        <li><span class="cap-icon">⚔</span> Build Readiness Engine — compare vs meta</li>
-        <li><span class="cap-icon">🏆</span> Legendary Path Prediction — optimal route</li>
-        <li><span class="cap-icon">📊</span> Market Optimization — smart sell/buy signals</li>
-      </ul>
-      <p class="capability-footer">Powered by GW2 Progression Decision Engine</p>
-    </div>
-  </section>
-
-  <!-- ═══ FRAME 06: TRUST & SAFETY ═══ -->
+  <!-- ═══ FRAME 05: TRUST & SAFETY ═══ -->
   <section class="frame trust">
     <h2 class="section-title">Safety First</h2>
     <div class="trust-grid">
@@ -150,16 +139,19 @@
     </div>
   </section>
 
-  <!-- ═══ FRAME 07: FINAL CTA ═══ -->
+  <!-- ═══ FRAME 06: FINAL CTA — this is where the input lives ═══ -->
   <section class="frame final-cta">
     <div class="cta-card">
       <h2>Start Your GW2 Progression Journey</h2>
-      <p>Join players who already use AI-powered progression planning.</p>
+      <p>Enter your API key and see what your account is truly worth.</p>
       <div class="cta-input-row">
-        <input id="cta-key-input" type="text" placeholder="Paste your GW2 API key…" spellcheck="false" />
-        <button id="cta-analyze-btn" class="btn-hero">Analyze My Account</button>
+        <input id="landing-key-input" type="text" placeholder="Paste your GW2 API key…" spellcheck="false" />
+        <button id="landing-analyze-btn" class="btn-hero">Analyze My Account</button>
       </div>
-      <button class="btn-demo" id="cta-demo-btn">Try Demo Instead</button>
+      <button class="btn-demo" id="landing-demo-btn">Try Demo Instead</button>
+      <div class="hero-trust">
+        <span>🔒 Read-only · Session-based · Revocable anytime · No password needed</span>
+      </div>
     </div>
   </section>
 
