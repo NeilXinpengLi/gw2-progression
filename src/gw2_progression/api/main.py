@@ -292,8 +292,9 @@ async def health():
 
 
 @app.get("/")
-async def index() -> FileResponse:
-    return FileResponse(STATIC_DIR / "index.html")
+async def index():
+    from fastapi.responses import RedirectResponse
+    return RedirectResponse(url="/account")
 
 
 @app.get("/account")
