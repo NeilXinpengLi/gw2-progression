@@ -170,23 +170,23 @@ class TestSvgIcons:
     def test_all_icons_in_account_page(self, client):
         resp = client.get("/account")
         for icon_id in self.REQUIRED_ICONS:
-            assert f'symbol id="{icon_id}"' in resp.text, f"Missing icon: {icon_id}"
+            assert f'symbol id="sym-{icon_id}"' in resp.text, f"Missing icon: {icon_id}"
 
     def test_icons_used_in_nav(self, client):
         resp = client.get("/account")
-        assert 'href="#nav-account"' in resp.text
-        assert 'href="#nav-insight"' in resp.text
-        assert 'href="#nav-plan"' in resp.text
+        assert 'href="#sym-nav-account"' in resp.text
+        assert 'href="#sym-nav-insight"' in resp.text
+        assert 'href="#sym-nav-plan"' in resp.text
 
     def test_icons_used_in_kpi(self, client):
         resp = client.get("/account")
-        assert 'href="#kpi-account-value"' in resp.text
-        assert 'href="#kpi-hidden-wealth"' in resp.text
+        assert 'href="#sym-kpi-account-value"' in resp.text
+        assert 'href="#sym-kpi-hidden-wealth"' in resp.text
 
     def test_strategy_icons_in_plan(self, client):
         resp = client.get("/plan")
-        assert 'href="#strategy-balanced"' in resp.text
-        assert 'href="#strategy-gold"' in resp.text
+        assert 'href="#sym-strategy-balanced"' in resp.text
+        assert 'href="#sym-strategy-gold"' in resp.text
 
 
 # ═══════════════════════════════════════════════════════

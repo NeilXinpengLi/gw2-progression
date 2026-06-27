@@ -79,23 +79,23 @@ def test_plan_page_served(client):
 
 def test_svg_sprite_inlined_in_account(client):
     resp = client.get("/account")
-    assert '<symbol id="nav-account"' in resp.text
-    assert '<symbol id="kpi-account-value"' in resp.text
-    assert '<symbol id="insight-hidden-wealth"' in resp.text
+    assert '<symbol id="sym-nav-account"' in resp.text
+    assert '<symbol id="sym-kpi-account-value"' in resp.text
+    assert '<symbol id="sym-insight-hidden-wealth"' in resp.text
 
 
 def test_svg_sprite_inlined_in_insight(client):
     resp = client.get("/insight")
-    assert '<symbol id="nav-insight"' in resp.text
-    assert '<symbol id="insight-hidden-wealth"' in resp.text
-    assert '<symbol id="strategy-balanced"' in resp.text
+    assert '<symbol id="sym-nav-insight"' in resp.text
+    assert '<symbol id="sym-insight-hidden-wealth"' in resp.text
+    assert '<symbol id="sym-strategy-balanced"' in resp.text
 
 
 def test_svg_sprite_inlined_in_plan(client):
     resp = client.get("/plan")
-    assert '<symbol id="nav-plan"' in resp.text
-    assert '<symbol id="strategy-gold"' in resp.text
-    assert '<symbol id="kpi-legendary"' in resp.text
+    assert '<symbol id="sym-nav-plan"' in resp.text
+    assert '<symbol id="sym-strategy-gold"' in resp.text
+    assert '<symbol id="sym-kpi-legendary"' in resp.text
 
 
 # ── Static Files ──
