@@ -46,10 +46,11 @@ def test_health_ok(client):
 
 # ── Redirect ──
 
-def test_root_redirects_to_account(client):
-    resp = client.get("/", follow_redirects=False)
-    assert resp.status_code in (302, 307)
-    assert "/account" in resp.headers.get("location", "")
+def test_root_serves_landing(client):
+    resp = client.get("/")
+    assert resp.status_code == 200
+    assert "GW2 Progression" in resp.text
+    assert "Reimagined" in resp.text
 
 
 # ── Static Pages ──

@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>GW2 Progression — Your GW2 Decision Engine</title>
+  <link rel="stylesheet" href="/static/style.css?v=20260627" />
+  <link rel="stylesheet" href="/static/style-landing.css?v=20260627" />
+  <meta name="theme-color" content="#d4a24c" />
+</head>
+<body class="landing-body">
+
+<svg xmlns="http://www.w3.org/2000/svg" style="display:none">
+  <symbol id="sym-nav-account" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="7"/><path d="M12 3v3M12 18v3M3 12h3M18 12h3"/><path d="M8 16l2.6-5.4L16 8l-2.6 5.4L8 16z"/><path d="M10 10l4 4"/></g></symbol>
+  <symbol id="sym-nav-insight" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12s3-5 8-5 8 5 8 5-3 5-8 5-8-5-8-5z"/><circle cx="12" cy="12" r="2.5"/><path d="M12 3v2M12 19v2M5 5l1.5 1.5M17.5 17.5L19 19"/><path d="M18.5 5.5L17 7"/></g></symbol>
+  <symbol id="sym-nav-plan" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="7"/><circle cx="12" cy="12" r="3"/><path d="M12 2v4M12 18v4M2 12h4M18 12h4"/><path d="M12 5l1.4 4.1L18 12l-4.6 2.9L12 19l-1.4-4.1L6 12l4.6-2.9L12 5z"/></g></symbol>
+  <symbol id="sym-action-key" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 7a4 4 0 11-8 0 4 4 0 018 0z"/><path d="M7.5 10.5L3 15v3h3v-2h2v-2h2l1.5-1.5"/></g></symbol>
+  <symbol id="sym-nav-insight" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12s3-5 8-5 8 5 8 5-3 5-8 5-8-5-8-5z"/><circle cx="12" cy="12" r="2.5"/></g></symbol>
+  <symbol id="sym-nav-plan" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="7"/><circle cx="12" cy="12" r="3"/><path d="M12 5l1.4 4.1L18 12l-4.6 2.9L12 19l-1.4-4.1L6 12l4.6-2.9L12 5z"/></g></symbol>
+  <symbol id="sym-action-export" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12M8 7l4-4 4 4"/><path d="M4 14v5a2 2 0 002 2h12a2 2 0 002-2v-5"/></g></symbol>
+  <symbol id="sym-strategy-gold" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="7"/><path d="M12 8v8M8 12h8"/></g></symbol>
+  <symbol id="sym-insight-build-ready" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3c-2 0-4 2-4 4v1c0 2 1 3 2 4l-1 7h6l-1-7c1-1 2-2 2-4V7c0-2-2-4-4-4z"/></g></symbol>
+  <symbol id="sym-kpi-legendary" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15 9 22 9 16 14 18 22 12 17 6 22 8 14 2 9 9 9 12 2"/></g></symbol>
+  <symbol id="sym-kpi-hidden-wealth" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="2"/><path d="M12 2v4M12 18v4M2 12h4M18 12h4"/></g></symbol>
+</svg>
+
+<main class="landing">
+
+  <!-- ═══ FRAME 01: HERO ═══ -->
+  <section class="frame hero">
+    <div class="hero-glow"></div>
+    <div class="hero-content">
+      <div class="hero-badge">GW2 Progression OS</div>
+      <h1 class="hero-title">Your Guild Wars 2<br>Account, <span class="gold-text">Reimagined</span></h1>
+      <p class="hero-sub">Turn your GW2 account into a progression intelligence system.<br>AI-powered insights. Actionable plans. Legendary results.</p>
+      <div class="hero-input-row">
+        <input id="landing-key-input" type="text" placeholder="Paste your GW2 API key…" spellcheck="false" />
+        <button id="landing-analyze-btn" class="btn-hero">Analyze My Account</button>
+      </div>
+      <div class="hero-demo-row">
+        <span class="dim">or</span>
+        <button id="landing-demo-btn" class="btn-demo">Try Demo Account</button>
+      </div>
+      <div class="hero-trust">
+        <span>🔒 Read-only · Session-based · Revocable anytime</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══ FRAME 02: VALUE PROPOSITION ═══ -->
+  <section class="frame value-prop">
+    <h2 class="section-title">What GW2 Progression Does</h2>
+    <div class="value-grid">
+      <div class="value-card">
+        <svg width="32" height="32" aria-hidden="true" class="value-icon"><use href="#sym-kpi-hidden-wealth"/></svg>
+        <h3>Hidden Wealth Detection</h3>
+        <p>Find unused gold and materials buried in your account. We surface value you didn't know existed.</p>
+      </div>
+      <div class="value-card">
+        <svg width="32" height="32" aria-hidden="true" class="value-icon"><use href="#sym-insight-build-ready"/></svg>
+        <h3>Build Optimization</h3>
+        <p>Compare your gear against curated meta builds. See exactly what you're missing and how to fix it.</p>
+      </div>
+      <div class="value-card">
+        <svg width="32" height="32" aria-hidden="true" class="value-icon"><use href="#sym-kpi-legendary"/></svg>
+        <h3>Legendary Path</h3>
+        <p>Get the fastest route to your next legendary. Track progress, identify blockers, never waste a step.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══ FRAME 03: LIVE DEMO ═══ -->
+  <section class="frame demo">
+    <div class="demo-card">
+      <div class="demo-label">Account Snapshot</div>
+      <div class="demo-grid">
+        <div class="demo-metric">
+          <div class="demo-value">3,608<span class="demo-unit">g</span></div>
+          <div class="demo-desc">Total Account Value</div>
+        </div>
+        <div class="demo-metric">
+          <div class="demo-value">1,847<span class="demo-unit">g</span></div>
+          <div class="demo-desc">Hidden Wealth</div>
+        </div>
+        <div class="demo-metric">
+          <div class="demo-value">7/9</div>
+          <div class="demo-desc">Build Ready</div>
+        </div>
+        <div class="demo-metric">
+          <div class="demo-value">67<span class="demo-unit">%</span></div>
+          <div class="demo-desc">Legendary Progress</div>
+        </div>
+      </div>
+      <p class="demo-caption">Real data from a real GW2 account. Yours will look similar.</p>
+    </div>
+  </section>
+
+  <!-- ═══ FRAME 04: HOW IT WORKS ═══ -->
+  <section class="frame how-it-works">
+    <h2 class="section-title">How It Works</h2>
+    <div class="steps">
+      <div class="step">
+        <div class="step-number">1</div>
+        <div class="step-content">
+          <h3>Connect Your API Key</h3>
+          <p>Paste your GW2 API key. Read-only access, session-only storage, revocable anytime.</p>
+        </div>
+      </div>
+      <div class="step-connector"></div>
+      <div class="step">
+        <div class="step-number">2</div>
+        <div class="step-content">
+          <h3>Analyze Your Account</h3>
+          <p>Our engine scans wallet, bank, materials, characters, and trading post — all in seconds.</p>
+        </div>
+      </div>
+      <div class="step-connector"></div>
+      <div class="step">
+        <div class="step-number">3</div>
+        <div class="step-content">
+          <h3>Get Your Progression Plan</h3>
+          <p>AI-powered recommendations, 7-day timeline, build analysis, and legendary path planning.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══ FRAME 05: AI CAPABILITY ═══ -->
+  <section class="frame ai-capability">
+    <h2 class="section-title">AI Intelligence System</h2>
+    <div class="capability-card">
+      <ul class="capability-list">
+        <li><span class="cap-icon">🔮</span> Hidden Wealth Detection — find dormant value</li>
+        <li><span class="cap-icon">⚔</span> Build Readiness Engine — compare vs meta</li>
+        <li><span class="cap-icon">🏆</span> Legendary Path Prediction — optimal route</li>
+        <li><span class="cap-icon">📊</span> Market Optimization — smart sell/buy signals</li>
+      </ul>
+      <p class="capability-footer">Powered by GW2 Progression Decision Engine</p>
+    </div>
+  </section>
+
+  <!-- ═══ FRAME 06: TRUST & SAFETY ═══ -->
+  <section class="frame trust">
+    <h2 class="section-title">Safety First</h2>
+    <div class="trust-grid">
+      <div class="trust-item"><span class="trust-check">✓</span> Read-only API access — we never modify your account</div>
+      <div class="trust-item"><span class="trust-check">✓</span> Session-based storage — your key is never saved</div>
+      <div class="trust-item"><span class="trust-check">✓</span> Fully revocable — delete the key anytime from ArenaNet</div>
+      <div class="trust-item"><span class="trust-check">✓</span> No password required — API key only</div>
+    </div>
+  </section>
+
+  <!-- ═══ FRAME 07: FINAL CTA ═══ -->
+  <section class="frame final-cta">
+    <div class="cta-card">
+      <h2>Start Your GW2 Progression Journey</h2>
+      <p>Join players who already use AI-powered progression planning.</p>
+      <div class="cta-input-row">
+        <input id="cta-key-input" type="text" placeholder="Paste your GW2 API key…" spellcheck="false" />
+        <button id="cta-analyze-btn" class="btn-hero">Analyze My Account</button>
+      </div>
+      <button class="btn-demo" id="cta-demo-btn">Try Demo Instead</button>
+    </div>
+  </section>
+
+  <!-- Footer -->
+  <footer class="landing-footer">
+    <span>GW2 Progression OS</span>
+    <span class="dim">Not affiliated with ArenaNet or NCSoft</span>
+  </footer>
+
+</main>
+
+<script type="module" src="/static/app-landing.v2.js"></script>
+</body>
+</html>

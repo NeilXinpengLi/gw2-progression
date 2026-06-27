@@ -281,6 +281,42 @@ class TestInsightAPI:
 # ═══════════════════════════════════════════════════════
 
 
+class TestLandingPage:
+    """Landing page must serve and contain key elements."""
+
+    def test_landing_served(self, client):
+        resp = client.get("/")
+        assert resp.status_code == 200
+        assert "Reimagined" in resp.text
+
+    def test_landing_has_api_input(self, client):
+        resp = client.get("/")
+        assert "landing-key-input" in resp.text
+
+    def test_landing_has_demo_button(self, client):
+        resp = client.get("/")
+        assert "Try Demo" in resp.text or "btn-demo" in resp.text
+
+    def test_landing_has_value_cards(self, client):
+        resp = client.get("/")
+        for card in ["Hidden Wealth", "Build Optimization", "Legendary Path"]:
+            assert card in resp.text
+
+    def test_landing_has_how_it_works(self, client):
+        resp = client.get("/")
+        assert "How It Works" in resp.text
+        assert "Connect" in resp.text
+        assert "Analyze" in resp.text
+
+    def test_landing_has_trust_section(self, client):
+        resp = client.get("/")
+        assert "Read-only" in resp.text or "Safety" in resp.text
+
+    def test_landing_has_final_cta(self, client):
+        resp = client.get("/")
+        assert "Start Your" in resp.text or "Journey" in resp.text
+
+
 class TestSessionIntegration:
     """Session creation and token resolution end-to-end."""
 
