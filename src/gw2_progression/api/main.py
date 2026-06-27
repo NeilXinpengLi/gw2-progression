@@ -120,6 +120,10 @@ async def security_headers_middleware(request: Request, call_next):
             response.headers["Referrer-Policy"] = "no-referrer-when-downgrade"
             if os.environ.get("ENV", "development") == "production":
                 response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
+            # Disable caching for all responses to ensure fresh JS/CSS
+            response.headers["Cache-Control"] = "no-store, must-revalidate"
+            response.headers["Pragma"] = "no-cache"
+            response.headers["Expires"] = "0"
         except Exception:
             pass
     return response
