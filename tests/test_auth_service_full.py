@@ -83,6 +83,35 @@ class TestGetSession:
         delete_calls = [c for c in mock_db.execute.call_args_list if "DELETE" in str(c)]
         assert len(delete_calls) > 0
 
+    @pytest.mark.asyncio
+    async def test_get_session_near_expiry_boundary(self, mock_db):
+        """Session created just under TTL seconds ago should still be valid."""
+        import time
+        from datetime import datetime, timezone
+
+        now_ts = time.time()
+        near_expiry_ts = now_ts - 86399  # 1 second before TTL expiry
+        near_expiry = datetime.fromtimestamp(near_expiry_ts, tz=timezone.utc).isoformat()
+        mock_db.execute.return_value.fetchone = AsyncMock(return_value=_fake_row(api_key="near-key", account_name="Near.Player", created_at=near_expiry))
+        with patch("gw2_progression.services.auth_service.get_db", AsyncMock(return_value=mock_db)), patch("gw2_progression.services.auth_service.release_db", AsyncMock()):
+            result = await get_session("near-expiry-token")
+        assert result is not None
+        assert result["api_key"] == "near-key"
+
+    @pytest.mark.asyncio
+    async def test_get_session_just_past_expiry(self, mock_db):
+        """Session created just past TTL seconds ago should return None."""
+        import time
+        from datetime import datetime, timezone
+
+        now_ts = time.time()
+        expired_ts = now_ts - 86401  # 1 second past TTL
+        expired_time = datetime.fromtimestamp(expired_ts, tz=timezone.utc).isoformat()
+        mock_db.execute.return_value.fetchone = AsyncMock(return_value=_fake_row(api_key="expired-key", account_name="Expired.Player", created_at=expired_time))
+        with patch("gw2_progression.services.auth_service.get_db", AsyncMock(return_value=mock_db)), patch("gw2_progression.services.auth_service.release_db", AsyncMock()):
+            result = await get_session("just-expired-token")
+        assert result is None
+
 
 class TestGetApiKey:
     @pytest.mark.asyncio
@@ -106,6 +135,42 @@ class TestGetApiKey:
         with patch("gw2_progression.services.auth_service.get_db", AsyncMock(return_value=mock_db)), patch("gw2_progression.services.auth_service.release_db", AsyncMock()):
             key = await get_api_key("a" * 48)
         assert key == "resolved-key"
+
+    @pytest.mark.asyncio
+    async def test_40_char_threshold_passthrough(self):
+        """Exactly 40 chars triggers session lookup; 39 chars does not."""
+        key_39 = await get_api_key("a" * 39)
+        assert key_39 == "a" * 39
+
+    @pytest.mark.asyncio
+    async def test_40_char_threshold_triggers_lookup(self, mock_db):
+        """40 chars reaches the session lookup branch (no session found = passthrough)."""
+        mock_db.execute.return_value.fetchone = AsyncMock(return_value=None)
+        with patch("gw2_progression.services.auth_service.get_db", AsyncMock(return_value=mock_db)), patch("gw2_progression.services.auth_service.release_db", AsyncMock()):
+            key = await get_api_key("a" * 40)
+        assert key == "a" * 40
+
+    @pytest.mark.asyncio
+    async def test_48_char_nonexistent_token_passthrough(self, mock_db):
+        """A 48-char string that is not a valid session should pass through as-is."""
+        mock_db.execute.return_value.fetchone = AsyncMock(return_value=None)
+        with patch("gw2_progression.services.auth_service.get_db", AsyncMock(return_value=mock_db)), patch("gw2_progression.services.auth_service.release_db", AsyncMock()):
+            key = await get_api_key("b" * 48)
+        assert key == "b" * 48
+
+    @pytest.mark.asyncio
+    async def test_bearer_with_48_char_passthrough(self):
+        """'Bearer <48-char>' should NOT trigger session lookup."""
+        key = await get_api_key("Bearer " + "c" * 48)
+        assert key == "Bearer " + "c" * 48
+
+    @pytest.mark.asyncio
+    async def test_malformed_48_char_passthrough(self, mock_db):
+        """48-char with invalid hex chars (spaces) — still >= 40, triggers lookup, no session = passthrough."""
+        mock_db.execute.return_value.fetchone = AsyncMock(return_value=None)
+        with patch("gw2_progression.services.auth_service.get_db", AsyncMock(return_value=mock_db)), patch("gw2_progression.services.auth_service.release_db", AsyncMock()):
+            key = await get_api_key("x x x x x x x x x x x x x x x x x x x x x x x x")
+        assert key == "x x x x x x x x x x x x x x x x x x x x x x x x"
 
 
 class TestListSessions:

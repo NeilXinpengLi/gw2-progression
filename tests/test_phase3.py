@@ -321,7 +321,46 @@ class TestAgent:
 
 
 class TestAuthService:
-    @pytest.mark.skip(reason="requires DB init (integration test)")
+    @pytest.fixture(autouse=True)
+    async def _init_db(self):
+        """Set up temp file DB before each test (persists across connections)."""
+        import os
+        import tempfile
+
+        import gw2_progression.database as db_mod
+
+        tmpdir = tempfile.mkdtemp()
+        db_path = os.path.join(tmpdir, "test.db")
+
+        old_url = db_mod._TEST_DB_URL
+        old_pool = db_mod._pool
+
+        # Close old pool connections
+        if old_pool is not None:
+            db_mod._pool = None
+            try:
+                while not old_pool.empty():
+                    c = old_pool.get_nowait()
+                    await c.close()
+            except Exception:
+                pass
+
+        db_mod._TEST_DB_URL = db_path
+
+        from gw2_progression.database import init_db
+
+        await init_db()
+        yield
+        # Close pool created during test & restore
+        from gw2_progression.database import close_pool
+
+        try:
+            await close_pool()
+        except Exception:
+            pass
+        db_mod._pool = None
+        db_mod._TEST_DB_URL = old_url
+
     @pytest.mark.asyncio
     async def test_create_and_get_session(self):
         from gw2_progression.services.auth_service import create_session, get_session
@@ -333,7 +372,6 @@ class TestAuthService:
         assert session["api_key"] == "test-api-key"
         assert session["account_name"] == "Player.1234"
 
-    @pytest.mark.skip(reason="requires DB init (integration test)")
     @pytest.mark.asyncio
     async def test_get_api_key_from_token(self):
         from gw2_progression.services.auth_service import create_session, get_api_key
