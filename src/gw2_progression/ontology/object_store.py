@@ -244,6 +244,66 @@ def count_relations(relation_type: str | None = None) -> int:
     return len(_relations)
 
 
+# ── DGSK: Search & Trace ───────────────────────────────────────────────
+
+
+def search(query: str, class_name: str | None = None, max_results: int = 50) -> list[OntologyObject]:
+    """Text search across object IDs, class names, account names, and property values."""
+    q = query.lower()
+    results: list[OntologyObject] = []
+    pool = _objects_by_class.get(class_name, {}) if class_name else _objects
+    for obj in pool.values():
+        if len(results) >= max_results:
+            break
+        if q in obj.object_id.lower() or q in obj.class_name.lower() or q in obj.account_name.lower():
+            results.append(obj)
+            continue
+        for v in obj.properties.values():
+            if q in str(v).lower():
+                results.append(obj)
+                break
+    return results
+
+
+def trace(eid: str, depth: int = 3, max_results: int = 200) -> dict:
+    """Recursive relation trace. Returns a tree:
+    { "object": OntologyObject, "relations": [{"relation": ..., "direction": "out/in", "target": {...}}, ...] }
+    """
+    visited: set[str] = set()
+    results: list[dict] = []
+    limit = [0]
+
+    def _walk(current_id: str, remaining: int) -> dict | None:
+        if current_id in visited or remaining < 0:
+            return None
+        if limit[0] >= max_results:
+            return None
+        visited.add(current_id)
+        obj = _objects.get(current_id)
+        if not obj:
+            return None
+        limit[0] += 1
+        node: dict = {
+            "object_id": obj.object_id,
+            "class_name": obj.class_name,
+            "account_name": obj.account_name,
+            "properties": dict(obj.properties),
+            "relations": [],
+        }
+        for rel in _relations_by_source.get(current_id, []):
+            target = _walk(rel.target_id, remaining - 1)
+            if target:
+                node["relations"].append({"direction": "out", "relation_type": rel.relation_type, "target": target})
+        for rel in _relations_by_target.get(current_id, []):
+            source = _walk(rel.source_id, remaining - 1)
+            if source:
+                node["relations"].append({"direction": "in", "relation_type": rel.relation_type, "source": source})
+        return node
+
+    root = _walk(eid, depth)
+    return {"root": root, "visited_count": len(visited)}
+
+
 # ── Performance: Property Index ───────────────────────────────────────
 
 _prop_index: dict[tuple[str, str, str], list[OntologyObject]] = {}

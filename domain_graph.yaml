@@ -1,0 +1,318 @@
+domain: "gw2-progression"
+version: "1.0"
+description: "Guild Wars 2 account progression ontology — wealth, crafting, builds, and legendary goals."
+
+nodes:
+  - type: "account_snapshot"
+    description: "Point-in-time account data snapshot"
+    properties:
+      - name: "account_name (string, required)"
+      - name: "snapshot_id (int, required)"
+      - name: "total_holdings (int)"
+      - name: "resync_at (string)"
+    constraints:
+      - "snapshot_id must be unique per account"
+    qa_checks: ["snapshot_exists", "snapshot_freshness"]
+    privacy_scope: "private"
+
+  - type: "account_asset"
+    description: "An item holding owned by an account"
+    properties:
+      - name: "item_id (int, required)"
+      - name: "count (int, required)"
+      - name: "location (string, required)"
+      - name: "tradable (bool)"
+      - name: "value_buy (int)"
+      - name: "value_sell (int)"
+    constraints:
+      - "count must be >= 0"
+    qa_checks: ["item_id_valid", "count_non_negative"]
+    privacy_scope: "private"
+
+  - type: "legendary_goal"
+    description: "A tracked legendary goal (active/paused/completed)"
+    properties:
+      - name: "template_id (string, required)"
+      - name: "target_item_id (int, required)"
+      - name: "status (enum: active/paused/completed, required)"
+      - name: "priority (enum: high/normal/low)"
+    qa_checks: ["goal_template_exists", "goal_status_valid"]
+    privacy_scope: "private"
+
+  - type: "goal_requirement"
+    description: "A material/currency/achievement required by a goal"
+    properties:
+      - name: "template_id (string, required)"
+      - name: "item_id (int, required)"
+      - name: "required_count (int, required)"
+      - name: "owned_count (int, required)"
+      - name: "time_gated (bool)"
+    constraints:
+      - "required_count must be positive"
+    qa_checks: ["requirement_count_valid"]
+    privacy_scope: "private"
+
+  - type: "reserved_asset"
+    description: "An asset quantity reserved for a specific goal"
+    properties:
+      - name: "item_id (int, required)"
+      - name: "reserved_count (int, required)"
+      - name: "goal_id (string, required)"
+      - name: "goal_name (string)"
+    constraints:
+      - "reserved_count must be positive"
+    qa_checks: ["reserved_count_positive"]
+    privacy_scope: "private"
+
+  - type: "safe_surplus"
+    description: "Computed safe-to-sell quantity for an asset"
+    properties:
+      - name: "item_id (int, required)"
+      - name: "total_owned (int, required)"
+      - name: "total_reserved (int, required)"
+      - name: "safe_surplus (int, required)"
+    constraints:
+      - "safe_surplus must be >= 0"
+    qa_checks: ["surplus_non_negative"]
+    privacy_scope: "private"
+
+  - type: "build"
+    description: "A curated or user-imported build template"
+    properties:
+      - name: "build_id (string, required)"
+      - name: "source (string, required)"
+      - name: "profession (string, required)"
+      - name: "patch_version (string)"
+      - name: "review_status (enum: reviewed/unreviewed/outdated/deprecated)"
+    qa_checks: ["build_source_reviewed", "patch_freshness_ok"]
+    privacy_scope: "shared"
+
+  - type: "build_readiness"
+    description: "Account readiness evaluation for a specific build"
+    properties:
+      - name: "build_id (string, required)"
+      - name: "readiness_score (float, required)"
+      - name: "gear_completion_percent (float)"
+      - name: "missing_items_count (int)"
+    constraints:
+      - "readiness_score must be 0..1"
+    qa_checks: ["readiness_score_valid"]
+    privacy_scope: "private"
+
+  - type: "report"
+    description: "A generated progression report"
+    properties:
+      - name: "report_id (int, required)"
+      - name: "report_type (string, required)"
+      - name: "access_level (string, required)"
+      - name: "snapshot_time (string)"
+    qa_checks: ["report_qa_pass", "no_private_data_leak", "no_api_key_leak"]
+    privacy_scope: "shared"
+
+  - type: "evidence"
+    description: "A piece of evidence cited by a report or recommendation"
+    properties:
+      - name: "evidence_type (string, required)"
+      - name: "source (string, required)"
+      - name: "object_id (string, required)"
+    constraints:
+      - "source must be non-empty"
+    qa_checks: ["evidence_source_valid"]
+    privacy_scope: "private"
+
+  - type: "action_record"
+    description: "Record of a controlled action execution"
+    properties:
+      - name: "action_type (string, required)"
+      - name: "status (string, required)"
+      - name: "error (string)"
+      - name: "qa_status (string)"
+    qa_checks: ["action_has_preconditions"]
+    privacy_scope: "private"
+
+  - type: "sell_candidate"
+    description: "A TP sell candidate signal"
+    properties:
+      - name: "item_id (int, required)"
+      - name: "confidence (float)"
+      - name: "price_stale (bool)"
+    privacy_scope: "private"
+
+  - type: "guild_workspace"
+    description: "A guild workspace with members and shared goals"
+    properties:
+      - name: "guild_id (int, required)"
+      - name: "name (string)"
+      - name: "member_count (int)"
+    privacy_scope: "shared"
+
+  - type: "guild_member"
+    description: "A member of a guild workspace"
+    properties:
+      - name: "guild_id (int, required)"
+      - name: "role (string)"
+    privacy_scope: "shared"
+
+  - type: "guild_goal"
+    description: "A shared goal across multiple guild members"
+    properties:
+      - name: "template_id (string, required)"
+      - name: "member_count (int)"
+      - name: "avg_progress (float)"
+    privacy_scope: "shared"
+
+edges:
+  - type: "owns"
+    description: "Account owns an asset"
+    source: ["account_snapshot"]
+    target: ["account_asset"]
+    cardinality: "1:N"
+
+  - type: "requires"
+    description: "Goal requires a material/currency"
+    source: ["legendary_goal"]
+    target: ["goal_requirement"]
+    cardinality: "N:N"
+
+  - type: "reserved_for"
+    description: "Asset quantity is reserved for a goal"
+    source: ["reserved_asset"]
+    target: ["legendary_goal"]
+    cardinality: "N:1"
+
+  - type: "safe_surplus_for"
+    description: "Computed surplus applies to an asset"
+    source: ["safe_surplus"]
+    target: ["account_asset"]
+    cardinality: "1:1"
+
+  - type: "validates"
+    description: "QA report validates an object"
+    source: ["evidence"]
+    target: ["account_asset"]
+    cardinality: "N:N"
+
+  - type: "generated_from"
+    description: "Report generated from a snapshot"
+    source: ["report"]
+    target: ["account_snapshot"]
+    cardinality: "N:1"
+
+  - type: "evaluates"
+    description: "Build readiness evaluates a build template"
+    source: ["build_readiness"]
+    target: ["build"]
+    cardinality: "N:1"
+
+  - type: "affects"
+    description: "An action affects an object"
+    source: ["action_record"]
+    target: ["account_asset", "report", "legendary_goal"]
+    cardinality: "N:N"
+
+  - type: "member_of"
+    description: "A member belongs to a guild"
+    source: ["guild_member"]
+    target: ["guild_workspace"]
+    cardinality: "N:1"
+
+  - type: "contributes_to"
+    description: "A guild goal contributes to the guild"
+    source: ["guild_goal"]
+    target: ["guild_workspace"]
+    cardinality: "N:1"
+
+  - type: "progresses"
+    description: "A quest progresses a goal"
+    source: ["quest"]
+    target: ["legendary_goal"]
+    cardinality: "N:N"
+
+events:
+  - name: "account_analyzed"
+    description: "Account data fetched and snapshot created"
+    source: "account_snapshot"
+    triggers: ["sync_account_to_ontology"]
+    produces: ["account_asset"]
+
+  - name: "goal_created"
+    description: "A new legendary goal is tracked"
+    source: "legendary_goal"
+    triggers: ["map_goal_to_ontology", "sync_goal_reservations"]
+    produces: ["goal_requirement", "reserved_asset"]
+
+  - name: "goal_refreshed"
+    description: "Goal progress recalculated against latest account data"
+    source: "legendary_goal"
+    triggers: ["recalculate_progress", "sync_goal_reservations"]
+    produces: []
+
+  - name: "report_generated"
+    description: "A progression report is generated"
+    source: "report"
+    triggers: ["map_report_to_evidence", "check_publication_requirements"]
+    produces: ["evidence"]
+
+  - name: "report_published"
+    description: "Report passes QA gate and becomes public"
+    source: "report"
+    triggers: ["check_report_publishable", "notify_user"]
+    produces: []
+
+  - name: "item_sold"
+    description: "Player sells an item quantity"
+    source: "account_asset"
+    triggers: ["analyze_sell_impact", "recompute_safe_surplus"]
+    produces: ["safe_surplus"]
+
+  - name: "build_evaluated"
+    description: "Build readiness evaluated against account"
+    source: "build_readiness"
+    triggers: ["register_ontology_build_readiness"]
+    produces: []
+
+rules:
+  - name: "api_key_required"
+    description: "API key must be present and valid for account operations"
+    rule: "action_record.params.api_key must be non-empty and match hex-dash format"
+    severity: "error"
+
+  - name: "legendary_requires_requirements"
+    description: "Every legendary goal must have at least one requirement"
+    rule: "legendary_goal must be connected via requires to >= 1 goal_requirement"
+    severity: "error"
+
+  - name: "snapshot_freshness"
+    description: "Snapshot must be less than 24h old for recommendations"
+    rule: "account_snapshot.created_at must be within 24 hours"
+    severity: "warning"
+
+  - name: "report_requires_snapshot"
+    description: "Every report must cite a snapshot timestamp"
+    rule: "report.snapshot_time must be non-empty"
+    severity: "error"
+
+  - name: "no_api_key_in_report"
+    description: "Report data must not contain API keys"
+    rule: "report.properties must not match API key pattern"
+    severity: "error"
+
+  - name: "surplus_non_negative"
+    description: "Safe surplus must never be negative"
+    rule: "safe_surplus.safe_surplus must be >= 0"
+    severity: "error"
+
+  - name: "reserved_count_positive"
+    description: "Reserved quantity must be positive"
+    rule: "reserved_asset.reserved_count must be > 0"
+    severity: "error"
+
+  - name: "build_source_reviewed"
+    description: "Build source must be reviewed for strong recommendations"
+    rule: "build.review_status must be 'reviewed' for recommendation_strength=strong"
+    severity: "warning"
+
+  - name: "goal_status_valid"
+    description: "Goal status must be one of active/paused/completed"
+    rule: "legendary_goal.status must be in [active, paused, completed]"
+    severity: "error"
