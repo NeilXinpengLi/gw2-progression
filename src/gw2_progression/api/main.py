@@ -24,6 +24,7 @@ from gw2_progression.services.product_service import seed_products
 from gw2_progression.services.progression_service import seed_templates
 from gw2_progression.services.provider_service import seed_providers
 
+from .routes.account import router as account_router
 from .routes.affiliates import router as affiliates_router
 from .routes.agent import router as agent_router
 from .routes.analyze import router as analyze_router
@@ -166,6 +167,7 @@ async def rate_limit_middleware(request: Request, call_next):
     return await call_next(request)
 
 
+app.include_router(account_router)
 app.include_router(analyze_router)
 app.include_router(reports_router)
 app.include_router(resolve_router)
@@ -265,6 +267,11 @@ async def health():
 @app.get("/")
 async def index() -> FileResponse:
     return FileResponse(STATIC_DIR / "index.html")
+
+
+@app.get("/account")
+async def account_page() -> FileResponse:
+    return FileResponse(STATIC_DIR / "account.html")
 
 
 @app.get("/metrics")

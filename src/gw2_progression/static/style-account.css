@@ -1,0 +1,202 @@
+/* ── Account Overview specific styles ── */
+
+/* KPI Row */
+.kpi-row {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 12px;
+  margin-bottom: 24px;
+}
+
+.kpi-card {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 16px 12px;
+  text-align: center;
+}
+
+.kpi-label {
+  color: var(--text-dim);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  margin-bottom: 6px;
+}
+
+.kpi-value {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--gold-light);
+  margin-bottom: 2px;
+}
+
+.kpi-sub {
+  color: var(--text-dim);
+  font-size: 10px;
+}
+
+.api-badge {
+  font-size: 11px;
+  padding: 3px 10px;
+  border-radius: 10px;
+}
+
+.api-badge[data-status="active"] {
+  background: #1a3a1a;
+  color: #6bc46b;
+}
+
+.api-badge[data-status="stale"] {
+  background: #3a3a1a;
+  color: #d0a050;
+}
+
+.api-badge[data-status="error"] {
+  background: #3a1a1a;
+  color: #c06060;
+}
+
+/* Asset Table */
+.asset-table-wrap, .char-table-wrap {
+  overflow-x: auto;
+  margin-bottom: 20px;
+}
+
+table.asset-table, table.char-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+table.asset-table th, table.char-table th {
+  text-align: left;
+  color: var(--text-dim);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--border);
+}
+
+table.asset-table td, table.char-table td {
+  padding: 10px 12px;
+  border-bottom: 1px solid #222;
+}
+
+table.asset-table .num, table.char-table .num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+table.asset-table tbody tr:hover, table.char-table tbody tr:hover {
+  background: #181818;
+}
+
+/* Guild List */
+.guild-card {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 14px 18px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.guild-name {
+  font-weight: 600;
+  color: var(--text-bright);
+}
+
+.guild-tag {
+  color: var(--text-dim);
+  font-size: 11px;
+  background: var(--bg3);
+  padding: 2px 6px;
+  border-radius: 4px;
+  margin-left: 6px;
+}
+
+.guild-role {
+  color: var(--text-dim);
+  font-size: 12px;
+}
+
+.guild-activity {
+  font-size: 12px;
+}
+
+.guild-activity[data-level="High"] { color: #6bc46b; }
+.guild-activity[data-level="Medium"] { color: #d0a050; }
+.guild-activity[data-level="Low"] { color: var(--text-dim); }
+
+/* Insight Preview */
+.insight-preview-card {
+  background: linear-gradient(135deg, #1a2a1a, #2a1a2a);
+  border: 1px solid #3a2a3a;
+  border-radius: 12px;
+  padding: 20px;
+}
+
+.insight-action {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 12px 16px;
+}
+
+.insight-action .reward {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--gold-light);
+  white-space: nowrap;
+}
+
+.insight-action .reason {
+  flex: 1;
+  font-size: 12px;
+  color: var(--text-dim);
+}
+
+/* Status Grid */
+.status-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+}
+
+.status-item {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 12px 16px;
+}
+
+.status-label {
+  display: block;
+  font-size: 10px;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  margin-bottom: 4px;
+}
+
+.status-value {
+  font-size: 13px;
+  color: var(--text);
+}
+
+/* Mobile */
+@media (max-width: 900px) {
+  .kpi-row { grid-template-columns: repeat(3, 1fr); }
+  .status-grid { grid-template-columns: 1fr; }
+}
+
+@media (max-width: 600px) {
+  .kpi-row { grid-template-columns: repeat(2, 1fr); }
+}

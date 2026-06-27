@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Account Overview — GW2 Progression</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+  <link rel="stylesheet" href="/static/style.css" />
+  <link rel="stylesheet" href="/static/style-account.css" />
+  <meta name="theme-color" content="#c8956c" />
+</head>
+<body>
+
+<header>
+  <h1>GW2 Progression</h1>
+  <span>Account Intelligence</span>
+</header>
+
+<nav class="nav-os" id="os-nav" role="tablist">
+  <button class="active" data-nav="account" role="tab">📊 Account</button>
+  <button data-nav="plan" role="tab">🎯 Plan</button>
+  <button data-nav="tools" role="tab">🔧 Tools</button>
+</nav>
+
+<main>
+
+  <!-- ═══ ACCOUNT OVERVIEW PAGE ═══ -->
+  <div class="page-section active" id="page-account">
+
+    <!-- ── Key Input (shown when not connected) ── -->
+    <div id="key-section">
+      <div style="text-align:center;margin-bottom:12px">
+        <div style="font-size:26px;font-weight:700;color:var(--gold);margin-bottom:4px">Connect Your GW2 Account</div>
+        <div style="font-size:13px;color:var(--text-dim)">Enter your API key to analyze your account.</div>
+      </div>
+      <div id="key-row">
+        <input id="key-input" type="text" placeholder="Paste your GW2 API key…" autocomplete="off" spellcheck="false" />
+        <button id="analyze-btn">Analyze</button>
+        <select id="account-selector" class="hidden"></select>
+      </div>
+      <div id="status-msg" role="status"></div>
+    </div>
+
+    <!-- ── Header Section ── -->
+    <div id="account-header" class="hidden">
+      <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:20px">
+        <div>
+          <div style="font-size:22px;font-weight:700;color:var(--text-bright)" id="header-account-name">—</div>
+          <div style="font-size:12px;color:var(--text-dim)" id="header-last-sync">Last sync: —</div>
+        </div>
+        <div style="display:flex;gap:8px;align-items:center">
+          <span class="api-badge" id="api-status-badge" data-status="unknown">● Unknown</span>
+          <button class="btn-sm" id="btn-refresh">↻ Refresh</button>
+          <button class="btn-sm" id="btn-export">↓ Export</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── KPI Metric Row ── -->
+    <div id="kpi-section" class="hidden">
+      <div class="kpi-row" id="kpi-row">
+        <div class="kpi-card" data-metric="account_value">
+          <div class="kpi-label">Account Value</div>
+          <div class="kpi-value" id="kpi-account-value">—</div>
+          <div class="kpi-sub">total estimated wealth</div>
+        </div>
+        <div class="kpi-card" data-metric="liquid_sell">
+          <div class="kpi-label">Liquid Gold (Sell)</div>
+          <div class="kpi-value" id="kpi-liquid-sell">—</div>
+          <div class="kpi-sub">sell value after fee</div>
+        </div>
+        <div class="kpi-card" data-metric="liquid_buy">
+          <div class="kpi-label">Liquid Gold (Buy)</div>
+          <div class="kpi-value" id="kpi-liquid-buy">—</div>
+          <div class="kpi-sub">buy value</div>
+        </div>
+        <div class="kpi-card" data-metric="hidden_wealth">
+          <div class="kpi-label">Hidden Wealth</div>
+          <div class="kpi-value" id="kpi-hidden-wealth">—</div>
+          <div class="kpi-sub">unpriced items</div>
+        </div>
+        <div class="kpi-card" data-metric="legendary_progress">
+          <div class="kpi-label">Legendary Progress</div>
+          <div class="kpi-value" id="kpi-legendary">—</div>
+          <div class="kpi-sub">active goals</div>
+        </div>
+        <div class="kpi-card" data-metric="build_ready">
+          <div class="kpi-label">Build Ready</div>
+          <div class="kpi-value" id="kpi-build-ready">—</div>
+          <div class="kpi-sub">characters with builds</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Trend Chart ── -->
+    <div id="chart-section" class="hidden">
+      <div class="section-title">Value Trend (30 days)</div>
+      <div class="chart-container chart-wide">
+        <canvas id="trend-chart"></canvas>
+      </div>
+    </div>
+
+    <!-- ── Asset Matrix ── -->
+    <div id="asset-section" class="hidden">
+      <div class="section-title" style="display:flex;justify-content:space-between;align-items:center">
+        <span>Asset Breakdown</span>
+        <span class="dim" style="font-size:12px;font-weight:400" id="asset-total">0g total</span>
+      </div>
+      <div class="asset-table-wrap">
+        <table class="asset-table" id="asset-table">
+          <thead>
+            <tr>
+              <th>Category</th>
+              <th class="num">Total Value</th>
+              <th class="num">Sell Value</th>
+              <th class="num">Buy Value</th>
+              <th class="num">%</th>
+              <th>Risk</th>
+            </tr>
+          </thead>
+          <tbody id="asset-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- ── Character Summary ── -->
+    <div id="character-section" class="hidden">
+      <div class="section-title">Characters</div>
+      <div class="char-table-wrap">
+        <table class="char-table" id="char-table">
+          <thead>
+            <tr>
+              <th>Name</th>
+              <th>Profession</th>
+              <th class="num">Level</th>
+              <th class="num">Playtime</th>
+              <th class="num">Gear Value</th>
+              <th>Build Status</th>
+              <th>Last Login</th>
+            </tr>
+          </thead>
+          <tbody id="char-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- ── Guild Summary ── -->
+    <div id="guild-section" class="hidden">
+      <div class="section-title">Guilds</div>
+      <div id="guild-list"></div>
+    </div>
+
+    <!-- ── AI Insight Preview ── -->
+    <div id="insight-preview" class="hidden">
+      <div class="section-title" style="margin-top:24px">Next Best Actions</div>
+      <div class="insight-preview-card">
+        <div id="insight-actions" style="display:flex;flex-direction:column;gap:8px"></div>
+        <div style="margin-top:12px;text-align:right">
+          <button class="btn-sm" onclick="switchPage('plan')" style="background:var(--gold);border:none;color:#111;padding:8px 20px;font-weight:600;cursor:pointer">
+            Go to Full Plan →
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Privacy / Data Status ── -->
+    <div id="status-panel" class="hidden">
+      <div class="section-title" style="margin-top:24px">Data Status</div>
+      <div class="status-grid">
+        <div class="status-item">
+          <span class="status-label">API Key</span>
+          <span class="status-value" id="status-api">—</span>
+        </div>
+        <div class="status-item">
+          <span class="status-label">Data Freshness</span>
+          <span class="status-value" id="status-freshness">—</span>
+        </div>
+        <div class="status-item">
+          <span class="status-label">Permissions</span>
+          <span class="status-value" id="status-permissions">—</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Loading State ── -->
+    <div id="loading-state" class="hidden" style="text-align:center;padding:60px 0">
+      <div class="spinner" style="margin-bottom:12px"></div>
+      <div class="dim">Loading account data…</div>
+    </div>
+
+    <!-- ── Error State ── -->
+    <div id="error-state" class="hidden" style="text-align:center;padding:60px 0">
+      <div style="font-size:36px;margin-bottom:8px">⚠️</div>
+      <div class="dim" id="error-message">An error occurred.</div>
+      <button class="btn-sm" onclick="runAnalyze()" style="margin-top:12px">Retry</button>
+    </div>
+
+  </div>
+
+  <!-- ═══ PLAN PAGE ═══ -->
+  <div class="page-section" id="page-plan">
+    <div style="font-size:18px;font-weight:700;color:var(--gold);margin-bottom:4px">🎯 Your Progression Plan</div>
+    <div style="font-size:12px;color:var(--text-dim);margin-bottom:16px">AI-powered decisions based on your account.</div>
+    <div id="plan-content">
+      <div style="text-align:center;padding:60px 0;color:var(--text-dim)">
+        <div style="font-size:48px;margin-bottom:12px">🎯</div>
+        <div>Analyze your account first, then generate a plan.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ TOOLS PAGE ═══ -->
+  <div class="page-section" id="page-tools">
+    <div style="font-size:18px;font-weight:700;color:var(--gold);margin-bottom:4px">🔧 Advanced Tools</div>
+    <div style="font-size:12px;color:var(--text-dim);margin-bottom:16px">Full analysis suite.</div>
+    <nav id="nav-tabs" class="hidden" role="tablist">
+      <button class="active" data-tab="value">💰 Value</button>
+      <button data-tab="characters">👤 Characters</button>
+      <button data-tab="builds">⚔ Builds</button>
+      <button data-tab="crafting">🔨 Crafting</button>
+      <button data-tab="goals">🏆 Goals</button>
+      <button data-tab="items">🔍 Items</button>
+      <button data-tab="wallet">🪙 Wallet</button>
+      <button data-tab="guild">👥 Guild</button>
+    </nav>
+    <div id="results" class="hidden">
+      <div class="tab-panel active" id="tab-value"></div>
+      <div class="tab-panel" id="tab-characters"></div>
+      <div class="tab-panel" id="tab-builds"></div>
+      <div class="tab-panel" id="tab-crafting"></div>
+      <div class="tab-panel" id="tab-goals"></div>
+      <div class="tab-panel" id="tab-items"></div>
+      <div class="tab-panel" id="tab-wallet"></div>
+      <div class="tab-panel" id="tab-guild"></div>
+    </div>
+  </div>
+
+</main>
+
+<script type="module" src="/static/app-account.js"></script>
+</body>
+</html>
