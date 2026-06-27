@@ -16,9 +16,9 @@
 </header>
 
 <nav class="nav-os" id="os-nav" role="tablist">
-  <button data-nav="account" role="tab">📊 Account</button>
-  <button class="active" data-nav="insight" role="tab">💡 Insight</button>
-  <button data-nav="plan" role="tab">🎯 Plan</button>
+  <button data-nav="account" role="tab"><svg width="18" height="18" aria-hidden="true"><use href="#nav-account"/></svg> Account</button>
+  <button class="active" data-nav="insight" role="tab"><svg width="18" height="18" aria-hidden="true"><use href="#nav-insight"/></svg> Insight</button>
+  <button data-nav="plan" role="tab"><svg width="18" height="18" aria-hidden="true"><use href="#nav-plan"/></svg> Plan</button>
 </nav>
 
 <main>
@@ -36,6 +36,7 @@
 
     <!-- Hidden Wealth Card -->
     <div class="insight-card" id="card-hidden-wealth">
+      <svg width="24" height="24" aria-hidden="true" style="margin-bottom:8px;color:var(--gw2-green)"><use href="#insight-hidden-wealth"/></svg>
       <div class="insight-card-header">Hidden Wealth</div>
       <div class="insight-card-value" id="insight-hidden-wealth">—</div>
       <div class="insight-card-detail" id="insight-hidden-wealth-detail">Unpriced items that may hold significant value</div>
@@ -43,6 +44,7 @@
 
     <!-- Build Readiness Card -->
     <div class="insight-card" id="card-build-readiness">
+      <svg width="24" height="24" aria-hidden="true" style="margin-bottom:8px;color:var(--gw2-blue)"><use href="#insight-build-ready"/></svg>
       <div class="insight-card-header">Build Readiness</div>
       <div class="insight-card-value" id="insight-build-ready">—</div>
       <div class="insight-card-detail" id="insight-build-ready-detail">Characters with equipment data</div>
@@ -50,6 +52,7 @@
 
     <!-- Legendary Progress Card -->
     <div class="insight-card" id="card-legendary">
+      <svg width="24" height="24" aria-hidden="true" style="margin-bottom:8px;color:var(--gw2-legendary)"><use href="#insight-legendary"/></svg>
       <div class="insight-card-header">Legendary Progress</div>
       <div class="insight-card-value" id="insight-legendary">—</div>
       <div class="insight-card-detail" id="insight-legendary-detail">Active tracked goals</div>

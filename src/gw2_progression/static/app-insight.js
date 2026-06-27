@@ -1,10 +1,11 @@
 // ── Insight Page — AI Overlay Layer ──
 
-import { fmtCoin, fmtCoinShort } from './app-shared.js';
+import { fmtCoin, fmtCoinShort, loadIconSprite } from './app-shared.js';
 
 let _sessionToken = null;
 
 document.addEventListener('DOMContentLoaded', () => {
+  loadIconSprite();
   document.getElementById('os-nav')?.addEventListener('click', e => {
     const btn = e.target.closest('button[data-nav]');
     if (!btn) return;
