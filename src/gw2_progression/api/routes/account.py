@@ -3,9 +3,16 @@
 from fastapi import APIRouter, HTTPException, Query
 
 from gw2_progression.analyzer import fetch_all
-from gw2_progression.database import get_db, search_latest_holdings
 from gw2_progression.gw2_client import Gw2ApiError
 from gw2_progression.services.auth_service import get_api_key
+from gw2_progression.services.holdings_service import (
+    extract_bank_holdings,
+    extract_character_holdings,
+    extract_material_holdings,
+    extract_shared_inventory_holdings,
+    extract_tradingpost_holdings,
+    extract_wallet_holdings,
+)
 
 router = APIRouter(prefix="/api/account", tags=["account"])
 
@@ -13,29 +20,29 @@ router = APIRouter(prefix="/api/account", tags=["account"])
 @router.get("/overview")
 async def account_overview(api_key: str = Query(...)):
     """Structured account overview data for the dashboard."""
+    resolved_key = await get_api_key(api_key)
     try:
-        contents = await fetch_all(api_key)
+        contents = await fetch_all(resolved_key)
     except Gw2ApiError as e:
         raise HTTPException(status_code=401, detail=e.message)
 
     account_name = contents.account_name or "unknown"
     wallet_gold = sum(w.get("value", 0) for w in (contents.wallet or []) if w.get("id") == 1)
 
-    # Account value from valuation (or estimate from wallet + holdings)
-    db = await get_db()
-    try:
-        holdings = await search_latest_holdings(db, account_name, limit=500)
-    except Exception:
-        holdings = []
-    finally:
-        await db.close()
+    # Build holdings from raw account data (no DB snapshot needed)
+    raw_holdings = []
+    raw_holdings.extend(extract_wallet_holdings(contents.wallet))
+    raw_holdings.extend(extract_material_holdings(contents.materials))
+    raw_holdings.extend(extract_bank_holdings(contents.bank))
+    raw_holdings.extend(extract_character_holdings(contents.characters))
+    raw_holdings.extend(extract_shared_inventory_holdings(contents.shared_inventory))
+    raw_holdings.extend(extract_tradingpost_holdings(contents.tradingpost_buys, contents.tradingpost_sells))
 
-    total_value_sell = sum(h.value_sell for h in holdings)
-    total_value_buy = sum(h.value_buy for h in holdings)
-    unpriced_count = sum(1 for h in holdings if h.valuation_status == "unpriced")
+    total_value_sell = sum(h.value_sell for h in raw_holdings)
+    total_value_buy = sum(h.value_buy for h in raw_holdings)
 
-    # Per-category breakdown
-    categories = _categorize_holdings(holdings)
+    # Per-category breakdown from raw data
+    categories = _categorize_holdings(raw_holdings)
     category_rows = []
     for cat_name, cat_holdings in categories:
         cat_sell = sum(h.value_sell for h in cat_holdings)
@@ -74,7 +81,7 @@ async def account_overview(api_key: str = Query(...)):
             "account_value": total_value_sell,
             "liquid_sell": total_value_sell,
             "liquid_buy": total_value_buy,
-            "hidden_wealth": sum(h.value_sell for h in holdings if h.valuation_status == "unpriced"),
+            "hidden_wealth": sum(h.value_sell for h in raw_holdings if h.valuation_status == "unpriced"),
             "wallet_gold": wallet_gold,
             "character_count": len(contents.characters or []),
         },
