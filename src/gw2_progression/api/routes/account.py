@@ -1,10 +1,14 @@
 """Account Dashboard API — structured data for the Account Overview page."""
 
+import logging
+
 from fastapi import APIRouter, HTTPException, Query
 
 from gw2_progression.analyzer import fetch_all
 from gw2_progression.gw2_client import Gw2ApiError
 from gw2_progression.services.auth_service import get_api_key
+
+logger = logging.getLogger("gw2.api.account")
 from gw2_progression.services.holdings_service import (
     extract_bank_holdings,
     extract_character_holdings,
@@ -38,8 +42,34 @@ async def account_overview(api_key: str = Query(...)):
     raw_holdings.extend(extract_shared_inventory_holdings(contents.shared_inventory))
     raw_holdings.extend(extract_tradingpost_holdings(contents.tradingpost_buys, contents.tradingpost_sells))
 
+    # Enrich holdings with market prices
+    from gw2_progression.services.price_service import fetch_prices, compute_price_quality
+
+    item_ids = list({h.item_id for h in raw_holdings if h.item_id != 1})
+    if item_ids:
+        try:
+            prices = await fetch_prices(item_ids)
+            for h in raw_holdings:
+                price = prices.get(h.item_id)
+                if price:
+                    quality = compute_price_quality(price.buy_unit_price, price.sell_unit_price, price.buy_quantity, price.sell_quantity)
+                    h.price_buy = price.buy_unit_price
+                    h.price_sell = price.sell_unit_price
+                    h.value_buy = h.count * price.buy_unit_price
+                    h.value_sell = h.count * price.sell_unit_price
+                    h.valuation_status = "priced"
+                    h.liquidity_score = quality.get("liquidity_score", "unknown")
+                    h.data_sources = ["gw2_commerce_prices"]
+                    h.price_timestamp = price.fetched_at
+                    h.confidence = quality.get("confidence", 0.5)
+        except Exception as e:
+            logger.warning("Price enrichment failed (continuing): %s", e)
+
     total_value_sell = sum(h.value_sell for h in raw_holdings)
     total_value_buy = sum(h.value_buy for h in raw_holdings)
+    liquid_sell_after_fee = int(total_value_sell * 0.85)
+    unpriced_holdings = [h for h in raw_holdings if h.valuation_status == "unpriced"]
+    hidden_wealth = sum(h.count * (h.price_sell or 0) for h in unpriced_holdings)
 
     # Per-category breakdown from raw data
     categories = _categorize_holdings(raw_holdings)
@@ -80,8 +110,9 @@ async def account_overview(api_key: str = Query(...)):
         "kpis": {
             "account_value": total_value_sell,
             "liquid_sell": total_value_sell,
+            "liquid_sell_after_fee": liquid_sell_after_fee,
             "liquid_buy": total_value_buy,
-            "hidden_wealth": sum(h.value_sell for h in raw_holdings if h.valuation_status == "unpriced"),
+            "hidden_wealth": hidden_wealth,
             "wallet_gold": wallet_gold,
             "character_count": len(contents.characters or []),
         },
