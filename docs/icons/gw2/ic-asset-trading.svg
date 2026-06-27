@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" aria-hidden="true" role="img">
+  <title>asset-trading</title>
+  <g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M6 6h12"/>
+    <path d="M8 6l-4 7h8L8 6z"/>
+    <path d="M16 6l-4 7h8l-4-7z"/>
+    <path d="M12 6v14"/>
+    <path d="M8 20h8"/>
+  </g>
+</svg>

@@ -1,7 +1,7 @@
 # GW2 Progression — Icon System Specification
 
-> Version: 1.0  
-> Status: Draft  
+> Version: 1.1  
+> Status: Delivered  
 > Audience: Icon Designer / Frontend Engineer  
 > Scope: Complete icon set for GW2 Progression OS UI
 
@@ -13,9 +13,18 @@
 |-----------|-------------|
 | **GW2 Native** | Icons should feel native to the Guild Wars 2 UI language — clean, fantasy-crafted, silhouette-driven |
 | **Semantic Clarity** | Each icon must communicate its function at a glance (scanability < 1s) |
-| **Consistent Weight** | All icons use 2px stroke width, round caps, round joins |
+| **Consistent Weight** | All icons use 2px stroke width with round caps / joins, balanced by angular Tyrian silhouettes |
 | **Color Agnostic** | Icons are single-color (`currentColor`) and adapt to UI context via CSS |
 | **Grid Based** | All icons sit on a 24×24px viewBox with 2px padding |
+
+### Guild Wars 2 Style Direction
+
+The delivered icons use an original GW2-inspired visual language without copying official game marks or art assets:
+
+- **Tyrian geometry**: compass points, hexagonal crests, legendary starbursts, mystic crystals, vaults, coin stacks, parchment, and weapon silhouettes.
+- **Readable fantasy craft**: simple line icons with a slightly ceremonial profile, avoiding generic app-only shapes when a GW2-adjacent metaphor is clearer.
+- **Single-color production SVG**: every icon inherits `currentColor`, so the same SVG can read as gold, mystic purple, legendary orange, blue, red, or muted UI text.
+- **UI-ready restraint**: no raster textures, gradients, shadows, or official logos; the GW2 flavor comes from silhouette and motif.
 
 ---
 
@@ -31,6 +40,13 @@ Fill:        none (except status dots = fill)
 Format:      SVG sprite (symbols) or individual .svg files
 CSS:         `width: 1em; height: 1em; vertical-align: middle;`
 Color:       `currentColor` via `fill="none" stroke="currentColor"`
+```
+
+Delivered files:
+
+```text
+docs/icons/gw2/icons.svg
+docs/icons/gw2/ic-{icon-id}.svg
 ```
 
 ---
@@ -215,8 +231,8 @@ Icons inherit `currentColor` and adapt based on context:
 
 | Deliverable | Format | Quantity |
 |-------------|--------|----------|
-| SVG sprite | `icons.svg` (single file with `<symbol>` elements) | 1 file, ~40 icons |
-| Individual SVGs | `ic-{name}.svg` (one per icon) | ~40 files |
+| SVG sprite | [`docs/icons/gw2/icons.svg`](icons/gw2/icons.svg) (single file with `<symbol>` elements) | 1 file, 44 icons |
+| Individual SVGs | `docs/icons/gw2/ic-{icon-id}.svg` (one per icon) | 44 files |
 | React components | `{Name}Icon.tsx` (optional, for future frontend) | ~40 files |
 | Figma / Sketch library | Shared icon component set | 1 library |
 
@@ -233,7 +249,100 @@ Icons inherit `currentColor` and adapt based on context:
 
 ---
 
-## 8. Visual References
+## 8. Delivered SVG Index
+
+### Navigation
+
+| Icon | ID | SVG |
+|------|----|-----|
+| ![nav-account](icons/gw2/ic-nav-account.svg) | `nav-account` | [`ic-nav-account.svg`](icons/gw2/ic-nav-account.svg) |
+| ![nav-insight](icons/gw2/ic-nav-insight.svg) | `nav-insight` | [`ic-nav-insight.svg`](icons/gw2/ic-nav-insight.svg) |
+| ![nav-plan](icons/gw2/ic-nav-plan.svg) | `nav-plan` | [`ic-nav-plan.svg`](icons/gw2/ic-nav-plan.svg) |
+
+### KPI / Metric
+
+| Icon | ID | SVG |
+|------|----|-----|
+| ![kpi-account-value](icons/gw2/ic-kpi-account-value.svg) | `kpi-account-value` | [`ic-kpi-account-value.svg`](icons/gw2/ic-kpi-account-value.svg) |
+| ![kpi-liquid-sell](icons/gw2/ic-kpi-liquid-sell.svg) | `kpi-liquid-sell` | [`ic-kpi-liquid-sell.svg`](icons/gw2/ic-kpi-liquid-sell.svg) |
+| ![kpi-liquid-buy](icons/gw2/ic-kpi-liquid-buy.svg) | `kpi-liquid-buy` | [`ic-kpi-liquid-buy.svg`](icons/gw2/ic-kpi-liquid-buy.svg) |
+| ![kpi-hidden-wealth](icons/gw2/ic-kpi-hidden-wealth.svg) | `kpi-hidden-wealth` | [`ic-kpi-hidden-wealth.svg`](icons/gw2/ic-kpi-hidden-wealth.svg) |
+| ![kpi-legendary](icons/gw2/ic-kpi-legendary.svg) | `kpi-legendary` | [`ic-kpi-legendary.svg`](icons/gw2/ic-kpi-legendary.svg) |
+| ![kpi-build-ready](icons/gw2/ic-kpi-build-ready.svg) | `kpi-build-ready` | [`ic-kpi-build-ready.svg`](icons/gw2/ic-kpi-build-ready.svg) |
+
+### Assets
+
+| Icon | ID | SVG |
+|------|----|-----|
+| ![asset-wallet](icons/gw2/ic-asset-wallet.svg) | `asset-wallet` | [`ic-asset-wallet.svg`](icons/gw2/ic-asset-wallet.svg) |
+| ![asset-materials](icons/gw2/ic-asset-materials.svg) | `asset-materials` | [`ic-asset-materials.svg`](icons/gw2/ic-asset-materials.svg) |
+| ![asset-bank](icons/gw2/ic-asset-bank.svg) | `asset-bank` | [`ic-asset-bank.svg`](icons/gw2/ic-asset-bank.svg) |
+| ![asset-equipment](icons/gw2/ic-asset-equipment.svg) | `asset-equipment` | [`ic-asset-equipment.svg`](icons/gw2/ic-asset-equipment.svg) |
+| ![asset-inventory](icons/gw2/ic-asset-inventory.svg) | `asset-inventory` | [`ic-asset-inventory.svg`](icons/gw2/ic-asset-inventory.svg) |
+| ![asset-shared](icons/gw2/ic-asset-shared.svg) | `asset-shared` | [`ic-asset-shared.svg`](icons/gw2/ic-asset-shared.svg) |
+| ![asset-trading](icons/gw2/ic-asset-trading.svg) | `asset-trading` | [`ic-asset-trading.svg`](icons/gw2/ic-asset-trading.svg) |
+
+### Insights
+
+| Icon | ID | SVG |
+|------|----|-----|
+| ![insight-hidden-wealth](icons/gw2/ic-insight-hidden-wealth.svg) | `insight-hidden-wealth` | [`ic-insight-hidden-wealth.svg`](icons/gw2/ic-insight-hidden-wealth.svg) |
+| ![insight-build-ready](icons/gw2/ic-insight-build-ready.svg) | `insight-build-ready` | [`ic-insight-build-ready.svg`](icons/gw2/ic-insight-build-ready.svg) |
+| ![insight-legendary](icons/gw2/ic-insight-legendary.svg) | `insight-legendary` | [`ic-insight-legendary.svg`](icons/gw2/ic-insight-legendary.svg) |
+| ![insight-recommendation](icons/gw2/ic-insight-recommendation.svg) | `insight-recommendation` | [`ic-insight-recommendation.svg`](icons/gw2/ic-insight-recommendation.svg) |
+
+### Actions / Controls
+
+| Icon | ID | SVG |
+|------|----|-----|
+| ![action-key](icons/gw2/ic-action-key.svg) | `action-key` | [`ic-action-key.svg`](icons/gw2/ic-action-key.svg) |
+| ![action-refresh](icons/gw2/ic-action-refresh.svg) | `action-refresh` | [`ic-action-refresh.svg`](icons/gw2/ic-action-refresh.svg) |
+| ![action-export](icons/gw2/ic-action-export.svg) | `action-export` | [`ic-action-export.svg`](icons/gw2/ic-action-export.svg) |
+| ![action-search](icons/gw2/ic-action-search.svg) | `action-search` | [`ic-action-search.svg`](icons/gw2/ic-action-search.svg) |
+| ![action-settings](icons/gw2/ic-action-settings.svg) | `action-settings` | [`ic-action-settings.svg`](icons/gw2/ic-action-settings.svg) |
+| ![action-close](icons/gw2/ic-action-close.svg) | `action-close` | [`ic-action-close.svg`](icons/gw2/ic-action-close.svg) |
+| ![action-chevron-right](icons/gw2/ic-action-chevron-right.svg) | `action-chevron-right` | [`ic-action-chevron-right.svg`](icons/gw2/ic-action-chevron-right.svg) |
+
+### Status
+
+| Icon | ID | SVG |
+|------|----|-----|
+| ![status-active](icons/gw2/ic-status-active.svg) | `status-active` | [`ic-status-active.svg`](icons/gw2/ic-status-active.svg) |
+| ![status-stale](icons/gw2/ic-status-stale.svg) | `status-stale` | [`ic-status-stale.svg`](icons/gw2/ic-status-stale.svg) |
+| ![status-error](icons/gw2/ic-status-error.svg) | `status-error` | [`ic-status-error.svg`](icons/gw2/ic-status-error.svg) |
+| ![status-check](icons/gw2/ic-status-check.svg) | `status-check` | [`ic-status-check.svg`](icons/gw2/ic-status-check.svg) |
+| ![status-unchecked](icons/gw2/ic-status-unchecked.svg) | `status-unchecked` | [`ic-status-unchecked.svg`](icons/gw2/ic-status-unchecked.svg) |
+| ![status-spinner](icons/gw2/ic-status-spinner.svg) | `status-spinner` | [`ic-status-spinner.svg`](icons/gw2/ic-status-spinner.svg) |
+
+### Strategy
+
+| Icon | ID | SVG |
+|------|----|-----|
+| ![strategy-balanced](icons/gw2/ic-strategy-balanced.svg) | `strategy-balanced` | [`ic-strategy-balanced.svg`](icons/gw2/ic-strategy-balanced.svg) |
+| ![strategy-gold](icons/gw2/ic-strategy-gold.svg) | `strategy-gold` | [`ic-strategy-gold.svg`](icons/gw2/ic-strategy-gold.svg) |
+| ![strategy-build](icons/gw2/ic-strategy-build.svg) | `strategy-build` | [`ic-strategy-build.svg`](icons/gw2/ic-strategy-build.svg) |
+| ![strategy-legendary](icons/gw2/ic-strategy-legendary.svg) | `strategy-legendary` | [`ic-strategy-legendary.svg`](icons/gw2/ic-strategy-legendary.svg) |
+
+### Empty States
+
+| Icon | ID | SVG |
+|------|----|-----|
+| ![empty-account](icons/gw2/ic-empty-account.svg) | `empty-account` | [`ic-empty-account.svg`](icons/gw2/ic-empty-account.svg) |
+| ![empty-insight](icons/gw2/ic-empty-insight.svg) | `empty-insight` | [`ic-empty-insight.svg`](icons/gw2/ic-empty-insight.svg) |
+| ![empty-plan](icons/gw2/ic-empty-plan.svg) | `empty-plan` | [`ic-empty-plan.svg`](icons/gw2/ic-empty-plan.svg) |
+| ![empty-quest](icons/gw2/ic-empty-quest.svg) | `empty-quest` | [`ic-empty-quest.svg`](icons/gw2/ic-empty-quest.svg) |
+
+### Brand / Misc
+
+| Icon | ID | SVG |
+|------|----|-----|
+| ![brand-mark](icons/gw2/ic-brand-mark.svg) | `brand-mark` | [`ic-brand-mark.svg`](icons/gw2/ic-brand-mark.svg) |
+| ![brand-ai-sparkle](icons/gw2/ic-brand-ai-sparkle.svg) | `brand-ai-sparkle` | [`ic-brand-ai-sparkle.svg`](icons/gw2/ic-brand-ai-sparkle.svg) |
+| ![external-link](icons/gw2/ic-external-link.svg) | `external-link` | [`ic-external-link.svg`](icons/gw2/ic-external-link.svg) |
+
+---
+
+## 9. Visual References
 
 For the icon designer, please reference:
 
@@ -245,17 +354,17 @@ For the icon designer, please reference:
 
 ---
 
-## 9. Review Checklist
+## 10. Review Checklist
 
 Before final delivery, each icon should pass:
 
-- [ ] Fits within 24×24 viewBox with 2px padding
-- [ ] 2px stroke width throughout
-- [ ] Round caps and joins
+- [x] Fits within 24×24 viewBox with 2px padding
+- [x] 2px stroke width throughout
+- [x] Round caps and joins
 - [ ] Recognizable at 16×16px size
 - [ ] Recognizable at 32×32px size
 - [ ] No overlapping stroke artifacts
 - [ ] Consistent visual weight with sibling icons
-- [ ] Works in `currentColor` on dark backgrounds
+- [x] Works in `currentColor` on dark backgrounds
 - [ ] Passes accessibility contrast check
 - [ ] Approved by product team

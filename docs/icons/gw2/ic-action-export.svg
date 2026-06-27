@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" aria-hidden="true" role="img">
+  <title>action-export</title>
+  <g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M12 3v11"/>
+    <path d="M8 10l4 4 4-4"/>
+    <path d="M5 15v5h14v-5"/>
+    <path d="M8 5h8"/>
+  </g>
+</svg>

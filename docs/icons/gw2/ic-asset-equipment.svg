@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" aria-hidden="true" role="img">
+  <title>asset-equipment</title>
+  <g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M7 4l10 10"/>
+    <path d="M5 6l3-3 2 2-3 3z"/>
+    <path d="M17 4L7 14"/>
+    <path d="M19 6l-3-3-2 2 3 3z"/>
+    <path d="M8 15l-3 5M16 15l3 5"/>
+    <path d="M9 20h6"/>
+  </g>
+</svg>
