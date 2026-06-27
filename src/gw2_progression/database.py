@@ -77,7 +77,8 @@ async def using_db():
     try:
         # Health check: verify connection is still alive
         try:
-            await conn.execute("SELECT 1")
+            c = await conn.execute("SELECT 1")
+            await c.fetchone()
         except Exception:
             # Connection is stale — replace it
             try:

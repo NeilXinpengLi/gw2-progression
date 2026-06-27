@@ -3,6 +3,7 @@ import logging
 import os
 import time
 import uuid
+from datetime import datetime, timezone
 from collections import defaultdict
 from contextlib import asynccontextmanager
 from pathlib import Path
@@ -17,7 +18,7 @@ from gw2_progression.gw2_client import Gw2ApiError
 from gw2_progression.gw2_client import _close_client as close_gw2_client
 from gw2_progression.logging_config import setup_logging
 from gw2_progression.metrics import metrics
-from gw2_progression.services.auth_service import SESSION_TTL, create_session, delete_session, get_api_key, list_sessions
+from gw2_progression.services.auth_service import SESSION_TTL, create_session, delete_session, get_api_key, get_session, list_sessions
 from gw2_progression.services.event_bus import start as start_event_bus
 from gw2_progression.services.event_bus import stop as stop_event_bus
 from gw2_progression.services.price_service import close_client as close_price_client
@@ -248,8 +249,11 @@ async def list_sessions_endpoint():
 
 @app.get("/auth/session/validate")
 async def validate_session_endpoint(token: str = Query(...)):
-    """Check if a session token is still valid without resolving the API key."""
-    session = await get_session(token)
+    """Check if a session token is still valid."""
+    try:
+        session = await get_session(token)
+    except Exception as e:
+        raise HTTPException(status_code=503, detail=str(e))
     if not session:
         raise HTTPException(status_code=404, detail="Session not found or expired")
     return {"valid": True, "account_name": session["account_name"]}
