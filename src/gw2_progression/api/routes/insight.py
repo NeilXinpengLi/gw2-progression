@@ -106,6 +106,37 @@ async def insight_data(api_key: str = Query(...)):
         for h in top_materials
     ]
 
+    # 5. Legendary Progress — from tracked goals
+    legendary_goals = []
+    try:
+        from gw2_progression.services.goal_service import get_goals
+        tracked = await get_goals(account_name)
+        for g in tracked:
+            legendary_goals.append({
+                "goal_id": g.goal_id,
+                "target_item_id": g.target_item_id,
+                "completion_percent": g.completion_percent,
+                "status": g.status,
+                "priority": g.priority,
+            })
+    except Exception as e:
+        logger.warning("Goal fetch failed: %s", e)
+
+    # 6. Market Insight — sell/buy candidates
+    sell_candidates = []
+    buy_opportunities = []
+    try:
+        from gw2_progression.services.listing_service import fetch_listings, analyze_depth
+        sell_ids = [h.item_id for h in priced_holdings if h.tradable and h.location_type != "wallet"][:20]
+        if sell_ids:
+            listings = await fetch_listings(sell_ids)
+            for iid, listing in listings.items():
+                depth = analyze_depth(listing)
+                if depth.get("liquidity_score") == "high":
+                    sell_candidates.append({"item_id": iid, "spread_ratio": depth.get("spread_ratio")})
+    except Exception as e:
+        logger.warning("Market insight fetch failed: %s", e)
+
     return {
         "account_name": account_name,
         "hidden_wealth": {
@@ -118,6 +149,16 @@ async def insight_data(api_key: str = Query(...)):
             "equipped_chars": equipped_chars,
             "missing_gear_chars": max(0, missing_gear_chars),
             "summary": f"{equipped_chars}/{build_ready_chars} characters have equipment data",
+        },
+        "legendary_progress": {
+            "active_goals": [g for g in legendary_goals if g["status"] == "active"],
+            "total": len(legendary_goals),
+            "summary": f"{len([g for g in legendary_goals if g['status'] == 'active'])} active goals" if legendary_goals else "No tracked goals",
+        },
+        "market_insight": {
+            "sell_candidates": sell_candidates,
+            "buy_opportunities": buy_opportunities,
+            "summary": f"{len(sell_candidates)} high-liquidity sell candidates" if sell_candidates else "No market data",
         },
         "top_items": best_items_detail,
         "top_materials": material_detail,

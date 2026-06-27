@@ -144,8 +144,11 @@ function renderPlan(data, accountName) {
   renderPrioritySection('plan-p1', 'P1 — Growth', '#6bc46b', '#1a3a2a', p1);
   renderPrioritySection('plan-p2', 'P2 — Optional', '#5a9ece', '#1a2a3a', p2);
 
-  // Timeline
-  renderTimeline();
+  // Timeline (dynamic based on strategy)
+  renderTimeline(_currentStrategy, allActions);
+
+  // Explanation Panel
+  renderExplanation(allActions, _currentStrategy);
 
   // Quests
   renderQuests(accountName);
@@ -157,6 +160,7 @@ function renderPlan(data, accountName) {
   const meta = document.getElementById('plan-meta');
   meta.innerHTML = `
     Strategy: <strong>${data.strategy_name || _currentStrategy}</strong> ·
+    Actions: <strong>${allActions.length}</strong> ·
     Account: <strong>${accountName}</strong>
   `;
 }
@@ -192,29 +196,47 @@ function renderPrioritySection(containerId, title, color, bgColor, actions) {
   }
 }
 
-function renderTimeline() {
+function renderTimeline(strategy, actions) {
   const grid = document.getElementById('timeline-grid');
-  const days = ['Day 1','Day 2','Day 3','Day 4','Day 5','Day 6','Day 7'];
-  const tasks = [
-    'Sell & Liquidate',
-    'Goal Progress',
-    'Build Gear',
-    'Map Completion',
-    'Fractal Push',
-    'WvW / PvP',
-    'Review & Plan',
-  ];
-  const colors = ['#5a3a1a','#2a4a2a','#1a3a4a','#2a2a4a','#4a2a4a','#4a3a1a','#1a4a3a'];
+  const strategyTasks = {
+    gold:     ['Sell High-Value Items','Farm T4 Fractals','Convert Materials','Flip TP','Daily Fractals','World Boss Train','Review Profit'],
+    build:    ['Audit Gear','Farm Missing Items','Craft Upgrades','Farm Gold','WvW/PvP Dailies','Fractal Push','Review Builds'],
+    legendary:['Farm Time-Gated','Mystic Forge','Gift Prep','Material Farm','Currency Farm','Map Completion','Review Progress'],
+    hybrid:   ['Sell & Liquidate','Goal Progress','Build Gear','Map Completion','Fractal Push','WvW / PvP','Review & Plan'],
+  };
+  const tasks = strategyTasks[strategy] || strategyTasks.hybrid;
+  const palette = ['#5a3a1a','#2a4a2a','#1a3a4a','#2a2a4a','#4a2a4a','#4a3a1a','#1a4a3a'];
 
-  grid.innerHTML = days.map((day, i) => `
-    <div class="timeline-day" style="background:${colors[i]};border:1px solid var(--border)">
-      <div class="day-label">${day}</div>
-      <div class="day-task">${tasks[i]}</div>
+  grid.innerHTML = tasks.map((task, i) => `
+    <div class="timeline-day" style="background:${palette[i]};border:1px solid var(--gw2-border)">
+      <div class="day-label">Day ${i + 1}</div>
+      <div class="day-task">${task}</div>
       <div class="day-progress"><div class="day-progress-bar" style="width:${(i + 1) * 14}%"></div></div>
     </div>`).join('');
 }
 
-async function renderQuests(accountName) {
+async function renderExplanation(actions, strategy) {
+  const panel = document.getElementById('plan-explanation');
+  if (!panel) return;
+  if (!actions || actions.length === 0) {
+    panel.innerHTML = '';
+    panel.style.display = 'none';
+    return;
+  }
+  panel.style.display = 'block';
+  const top = actions[0];
+  const strategyLabels = { gold: 'maximizing gold/hour', build: 'completing builds', legendary: 'legendary progress', hybrid: 'balanced progression' };
+  panel.innerHTML = `
+    <div style="font-size:10px;color:var(--gw2-text-dim);text-transform:uppercase;letter-spacing:2px;margin-bottom:10px">Why This Plan</div>
+    <div style="font-size:13px;color:var(--gw2-text);line-height:1.6;padding:14px;background:var(--gw2-bg-card);border:1px solid var(--gw2-border)">
+      <strong>Strategy</strong>: ${strategyLabels[strategy] || 'balanced progression'}<br>
+      <strong>Top action</strong>: ${escHtml(top.action || top.title || '')} — ${escHtml(top.reason || '')}<br>
+      <strong>Expected outcome</strong>: ${top.reward_copper ? fmtCoinShort(top.reward_copper) : 'Improved account state'}
+    </div>`;
+}
+
+
+function renderQuests(accountName) {
   const list = document.getElementById('quest-list');
   try {
     const res = await fetch(`/quests/${encodeURIComponent(accountName)}`);
