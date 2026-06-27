@@ -1,10 +1,8 @@
-/* ── Plan Page — GW2 Decision Engine Theme ── */
+/* ── Plan Page — GW2 Official Site Style ── */
 
-/* Goal Input Card */
 .goal-input-card {
-  background: linear-gradient(135deg, #0f1a0f 0%, #1a0f1a 100%);
-  border: 1px solid #2a2a2a;
-  border-radius: 12px;
+  background: #151310;
+  border: 1px solid var(--gw2-border);
   padding: 24px;
   margin-bottom: 20px;
 }
@@ -16,160 +14,130 @@
 
 .goal-input-row input {
   flex: 1;
-  background: var(--bg3);
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  color: var(--text-bright);
-  font-size: 15px;
-  padding: 12px 16px;
+  background: var(--gw2-bg3);
+  border: 1px solid var(--gw2-border);
+  color: var(--gw2-text-bright);
+  font-family: var(--gw2-font-body);
+  font-size: 14px;
+  padding: 12px 14px;
   outline: none;
   transition: border-color .2s;
 }
 
 .goal-input-row input:focus {
-  border-color: var(--gold);
-  box-shadow: 0 0 12px var(--gold-glow);
+  border-color: var(--gw2-gold);
 }
 
 .quick-goal-row {
   display: flex;
-  gap: 8px;
+  gap: 6px;
   margin-top: 12px;
   flex-wrap: wrap;
 }
 
 .quick-goal-chip {
-  background: var(--bg2);
-  border: 1px solid var(--border);
-  border-radius: 20px;
-  color: var(--text-dim);
+  background: transparent;
+  border: 1px solid var(--gw2-border);
+  color: var(--gw2-text-dim);
   cursor: pointer;
+  font-family: var(--gw2-font-body);
   font-size: 12px;
   padding: 6px 16px;
-  transition: all .2s;
+  transition: all .15s;
   white-space: nowrap;
 }
 
 .quick-goal-chip:hover {
-  border-color: var(--gold);
-  color: var(--text);
-  background: rgba(200, 149, 108, 0.05);
+  border-color: var(--gw2-gold);
+  color: var(--gw2-text);
 }
 
 /* Strategy Bar */
 .strategy-bar {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 12px;
   padding: 12px 16px;
-  background: var(--bg-card);
-  border: 1px solid var(--border);
-  border-radius: 10px;
+  background: var(--gw2-bg-card);
+  border: 1px solid var(--gw2-border);
   font-size: 12px;
   margin-bottom: 20px;
   flex-wrap: wrap;
 }
 
-.strategy-btn-group {
-  display: flex;
-  gap: 4px;
-}
-
 .strategy-btn {
-  background: var(--bg3);
-  border: 1px solid transparent;
-  border-radius: 6px;
-  color: var(--text-dim);
+  background: transparent;
+  border: 1px solid var(--gw2-border);
+  color: var(--gw2-text-dim);
   cursor: pointer;
+  font-family: var(--gw2-font-body);
   font-size: 12px;
   padding: 6px 14px;
-  transition: all .2s;
+  transition: all .15s;
 }
 
 .strategy-btn:hover {
-  border-color: var(--gold);
-  color: var(--text);
+  border-color: var(--gw2-gold);
+  color: var(--gw2-text);
 }
 
 .strategy-btn.active {
-  background: linear-gradient(135deg, var(--gold), #b07850);
+  background: var(--gw2-gold);
   color: #111;
   font-weight: 600;
-  border-color: transparent;
+  border-color: var(--gw2-gold);
 }
 
-/* Priority Action Cards */
-.priority-section {
-  margin-bottom: 10px;
-}
-
+/* Priority Sections */
 .priority-header {
-  font-size: 12px;
+  font-family: var(--gw2-font-body);
+  font-size: 11px;
   font-weight: 600;
   padding: 8px 14px;
-  border-radius: 8px 8px 0 0;
-  letter-spacing: 1px;
+  letter-spacing: 1.5px;
   text-transform: uppercase;
+  border: 1px solid var(--gw2-border);
+  border-bottom: none;
 }
 
-.priority-header.p0 {
-  background: linear-gradient(90deg, #3a2a1a, #2a1a0a);
-  color: #d0a050;
-}
-
-.priority-header.p1 {
-  background: linear-gradient(90deg, #1a3a2a, #0a2a1a);
-  color: #6bc46b;
-}
-
-.priority-header.p2 {
-  background: linear-gradient(90deg, #1a2a3a, #0a1a2a);
-  color: #5a9ece;
-}
+.priority-header.p0 { background: #1e1812; color: #d0a050; }
+.priority-header.p1 { background: #121e16; color: #6bc46b; }
+.priority-header.p2 { background: #12161e; color: #5a9ece; }
 
 .action-card {
   display: flex;
   align-items: center;
   gap: 10px;
-  background: var(--bg-card);
-  border: 1px solid var(--border);
+  background: var(--gw2-bg-card);
+  border: 1px solid var(--gw2-border);
   border-top: none;
   padding: 10px 14px;
   font-size: 13px;
-  transition: background .15s;
+  transition: background .1s;
 }
 
-.action-card:hover {
-  background: var(--bg-card-hover);
-}
-
-.action-card:last-child {
-  border-radius: 0 0 8px 8px;
-}
+.action-card:hover { background: var(--gw2-bg-hover); }
+.action-card:last-child { border-bottom: 1px solid var(--gw2-border); }
 
 /* Timeline */
 .timeline-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
   gap: 8px;
-  margin-bottom: 16px;
+  margin-bottom: 20px;
 }
 
 .timeline-day {
-  border-radius: 10px;
+  background: var(--gw2-bg-card);
+  border: 1px solid var(--gw2-border);
   padding: 14px;
   font-size: 12px;
-  border: 1px solid var(--border);
-  transition: border-color .2s;
-}
-
-.timeline-day:hover {
-  border-color: var(--border-light);
 }
 
 .timeline-day .day-label {
+  font-family: var(--gw2-font-body);
   font-weight: 600;
-  color: var(--gold);
+  color: var(--gw2-gold);
   margin-bottom: 4px;
   font-size: 11px;
   text-transform: uppercase;
@@ -178,14 +146,11 @@
 
 .timeline-day .day-progress {
   height: 3px;
-  border-radius: 2px;
-  overflow: hidden;
-  background: var(--bg3);
+  background: var(--gw2-bg3);
   margin-top: 6px;
 }
 
 .timeline-day .day-progress-bar {
   height: 100%;
-  border-radius: 2px;
-  background: var(--gold);
+  background: var(--gw2-gold);
 }

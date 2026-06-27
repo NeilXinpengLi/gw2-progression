@@ -1,88 +1,91 @@
+/* ══════════════════════════════════════════════════
+   GW2 Progression — GW2 Official Site Inspired Theme
+   Colors & typography aligned with guildwars2.com
+   ══════════════════════════════════════════════════ */
+
+@import url('https://fonts.googleapis.com/css2?family=PT+Serif:ital,wght@0,400;0,700;1,400&family=Inter:wght@300;400;500;600;700&display=swap');
+
 :root {
-  /* GW2-inspired palette */
-  --bg: #0a0a0a;
-  --bg2: #141414;
-  --bg3: #1e1e1e;
-  --bg-card: #1a1a1a;
-  --bg-card-hover: #222;
-  --border: #2a2a2a;
-  --border-light: #333;
+  /* GW2 Official Site Colors */
+  --gw2-bg: #0f0e0c;
+  --gw2-bg2: #1a1815;
+  --gw2-bg3: #252220;
+  --gw2-bg-card: #1c1a17;
+  --gw2-bg-hover: #24211e;
+  --gw2-border: #2e2a26;
+  --gw2-border-light: #3d3833;
 
-  /* GW2 Brand Colors */
-  --gold: #c8956c;
-  --gold-light: #e8b08a;
-  --gold-glow: rgba(200, 149, 108, 0.15);
+  /* GW2 Brand Gold (from site logo & accents) */
+  --gw2-gold: #c8956c;
+  --gw2-gold-light: #dfb48c;
+  --gw2-gold-dark: #a07050;
+  --gw2-gold-glow: rgba(200, 149, 108, 0.12);
 
-  /* Mystic / Legendary */
-  --mystic: #a060c0;
-  --mystic-glow: rgba(160, 96, 192, 0.15);
-  --legendary: #ff9933;
-  --legendary-glow: rgba(255, 153, 51, 0.12);
-
-  /* Ascended / Exotic */
-  --ascended: #4a9ece;
-  --exotic: #ddaa00;
-
-  /* Status */
-  --green: #5a9e5a;
-  --green-bg: rgba(90, 158, 90, 0.1);
-  --red: #a05050;
-  --red-bg: rgba(160, 80, 80, 0.1);
-  --blue: #5080a0;
+  /* GW2 Accent Colors */
+  --gw2-red: #c04040;
+  --gw2-green: #5a8a5a;
+  --gw2-blue: #5080a0;
+  --gw2-mystic: #9060b0;
+  --gw2-legendary: #e89830;
 
   /* Text */
-  --text: #ccc;
-  --text-dim: #888;
-  --text-bright: #eee;
-  --text-gold: var(--gold-light);
+  --gw2-text: #d0cdc8;
+  --gw2-text-dim: #88837a;
+  --gw2-text-bright: #e8e5e0;
+  --gw2-text-gold: var(--gw2-gold-light);
+  --gw2-link: var(--gw2-gold);
+  --gw2-link-hover: var(--gw2-gold-light);
 
-  /* Font */
-  --font: 'Segoe UI', system-ui, -apple-system, sans-serif;
-  --font-mono: 'Cascadia Code', 'Fira Code', 'Consolas', monospace;
+  /* Fonts */
+  --gw2-font-display: 'PT Serif', Georgia, 'Times New Roman', serif;
+  --gw2-font-body: 'Inter', 'Segoe UI', system-ui, -apple-system, sans-serif;
+  --gw2-font-mono: 'Cascadia Code', 'Fira Code', 'Consolas', monospace;
 }
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
 
 body {
-  background: var(--bg);
-  color: var(--text);
-  font-family: var(--font);
+  background: var(--gw2-bg);
+  color: var(--gw2-text);
+  font-family: var(--gw2-font-body);
   font-size: 14px;
+  line-height: 1.6;
   min-height: 100vh;
-  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
 }
 
-/* ── Header ── */
+/* ── Header (GW2 site style) ── */
 header {
-  background: linear-gradient(180deg, #111 0%, #0d0d0d 100%);
-  border-bottom: 1px solid var(--border);
-  padding: 16px 32px;
+  background: #11100e;
+  border-bottom: 1px solid var(--gw2-border);
+  padding: 14px 32px;
   display: flex;
   align-items: center;
-  gap: 16px;
+  gap: 14px;
   flex-wrap: wrap;
 }
 
 header h1 {
+  font-family: var(--gw2-font-display);
   font-size: 22px;
-  color: var(--gold);
-  letter-spacing: 4px;
+  font-weight: 400;
+  color: var(--gw2-gold);
+  letter-spacing: 3px;
   text-transform: uppercase;
-  font-weight: 300;
-  text-shadow: 0 0 20px var(--gold-glow);
 }
 
 header span {
-  color: var(--text-dim);
-  font-size: 11px;
-  letter-spacing: 1px;
+  color: var(--gw2-text-dim);
+  font-size: 12px;
+  font-weight: 300;
+  letter-spacing: 0.5px;
 }
 
 /* ── Navigation ── */
 nav {
-  background: #0d0d0d;
-  border-bottom: 1px solid var(--border);
-  padding: 0 16px;
+  background: #12110e;
+  border-bottom: 1px solid var(--gw2-border);
+  padding: 0 20px;
   display: flex;
   gap: 0;
   overflow-x: auto;
@@ -92,48 +95,62 @@ nav button {
   background: none;
   border: none;
   border-bottom: 2px solid transparent;
-  color: var(--text-dim);
+  color: var(--gw2-text-dim);
   cursor: pointer;
+  font-family: var(--gw2-font-body);
   font-size: 13px;
-  padding: 10px 16px;
+  font-weight: 400;
+  padding: 11px 18px;
   transition: all .2s;
   white-space: nowrap;
+  letter-spacing: 0.3px;
 }
 
 nav button:hover {
-  color: var(--gold-light);
-  background: rgba(200, 149, 108, 0.04);
+  color: var(--gw2-text-bright);
+  background: rgba(255,255,255,0.02);
 }
 
 nav button.active {
-  color: var(--gold);
-  border-bottom-color: var(--gold);
-  text-shadow: 0 0 12px var(--gold-glow);
+  color: var(--gw2-gold);
+  border-bottom-color: var(--gw2-gold);
 }
 
-/* ── Main Content ── */
+/* ── Main ── */
 main {
-  max-width: 1280px;
+  max-width: 1200px;
   margin: 0 auto;
-  padding: 28px 24px;
+  padding: 32px 24px;
+}
+
+/* ── Section Title (GW2 "Eason" style) ── */
+.section-title {
+  font-family: var(--gw2-font-display);
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--gw2-gold);
+  letter-spacing: 0.5px;
+  border-bottom: 1px solid var(--gw2-border);
+  padding-bottom: 10px;
+  margin: 32px 0 16px;
 }
 
 /* ── Key Section ── */
 #key-section {
-  background: linear-gradient(135deg, #111 0%, #151015 100%);
-  border: 1px solid var(--border);
-  border-radius: 12px;
+  background: #151310;
+  border: 1px solid var(--gw2-border);
+  border-radius: 2px;
   padding: 28px;
   margin-bottom: 28px;
 }
 
 #key-section h2 {
-  color: var(--gold);
-  font-size: 16px;
-  margin-bottom: 12px;
+  font-family: var(--gw2-font-display);
+  color: var(--gw2-gold);
+  font-size: 18px;
   font-weight: 400;
-  letter-spacing: 2px;
-  text-transform: uppercase;
+  margin-bottom: 14px;
+  letter-spacing: 1px;
 }
 
 #key-row {
@@ -143,77 +160,65 @@ main {
 
 #key-input {
   flex: 1;
-  background: var(--bg3);
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  color: var(--text-bright);
-  font-size: 14px;
-  padding: 10px 14px;
+  background: var(--gw2-bg3);
+  border: 1px solid var(--gw2-border);
+  border-radius: 2px;
+  color: var(--gw2-text-bright);
+  font-size: 13px;
+  padding: 11px 14px;
   outline: none;
-  font-family: var(--font-mono);
+  font-family: var(--gw2-font-mono);
   min-width: 0;
   transition: border-color .2s;
 }
 
 #key-input:focus {
-  border-color: var(--gold);
-  box-shadow: 0 0 12px var(--gold-glow);
+  border-color: var(--gw2-gold);
 }
 
 #analyze-btn {
-  background: linear-gradient(135deg, var(--gold), #b07850);
+  background: var(--gw2-gold);
   border: none;
-  border-radius: 6px;
+  border-radius: 2px;
   color: #111;
   cursor: pointer;
-  font-size: 14px;
+  font-family: var(--gw2-font-body);
+  font-size: 13px;
   font-weight: 600;
-  padding: 10px 24px;
-  transition: all .2s;
+  padding: 11px 24px;
+  transition: background .2s;
   white-space: nowrap;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
 }
 
 #analyze-btn:hover {
-  background: linear-gradient(135deg, var(--gold-light), var(--gold));
-  box-shadow: 0 0 16px var(--gold-glow);
+  background: var(--gw2-gold-light);
 }
 
 #analyze-btn:disabled {
   background: #444;
   cursor: not-allowed;
-  box-shadow: none;
 }
 
-/* ── Section Titles ── */
-.section-title {
-  color: var(--gold);
-  font-size: 14px;
-  font-weight: 500;
-  letter-spacing: 2px;
-  text-transform: uppercase;
-  border-bottom: 1px solid var(--border);
-  padding-bottom: 8px;
-  margin: 28px 0 14px;
-}
-
-/* ── Cards ── */
+/* ── GW2-style Card ── */
 .card {
-  background: var(--bg-card);
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  padding: 18px;
+  background: var(--gw2-bg-card);
+  border: 1px solid var(--gw2-border);
+  border-radius: 2px;
+  padding: 20px;
   transition: border-color .2s, background .2s;
 }
 
 .card:hover {
-  border-color: var(--border-light);
-  background: var(--bg-card-hover);
+  border-color: var(--gw2-border-light);
+  background: var(--gw2-bg-hover);
 }
 
 /* ── Tables ── */
 .table-wrap {
   overflow-x: auto;
-  margin-bottom: 20px;
+  margin-bottom: 24px;
 }
 
 table {
@@ -224,29 +229,30 @@ table {
 
 table th {
   text-align: left;
-  color: var(--text-dim);
-  font-size: 10px;
+  color: var(--gw2-text-dim);
+  font-size: 11px;
+  font-weight: 500;
   text-transform: uppercase;
   letter-spacing: 1.5px;
-  padding: 10px 12px;
-  border-bottom: 1px solid var(--border);
-  font-weight: 500;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--gw2-border);
+  font-family: var(--gw2-font-body);
 }
 
 table td {
-  padding: 10px 12px;
-  border-bottom: 1px solid #1a1a1a;
+  padding: 10px 14px;
+  border-bottom: 1px solid #1a1917;
   transition: background .15s;
 }
 
 table tbody tr:hover td {
-  background: rgba(200, 149, 108, 0.03);
+  background: rgba(200, 149, 108, 0.04);
 }
 
 table .num {
   text-align: right;
   font-variant-numeric: tabular-nums;
-  font-family: var(--font-mono);
+  font-family: var(--gw2-font-mono);
   font-size: 12px;
 }
 
@@ -255,72 +261,62 @@ table .num {
   display: inline-block;
   width: 16px;
   height: 16px;
-  border: 2px solid var(--border);
-  border-top-color: var(--gold);
+  border: 2px solid var(--gw2-border);
+  border-top-color: var(--gw2-gold);
   border-radius: 50%;
   animation: spin .6s linear infinite;
 }
 
-@keyframes spin {
-  to { transform: rotate(360deg); }
-}
+@keyframes spin { to { transform: rotate(360deg); } }
 
 /* ── Utility ── */
 .hidden { display: none !important; }
-.dim { color: var(--text-dim); }
-.gold { color: var(--gold); }
-.text-bright { color: var(--text-bright); }
+.dim { color: var(--gw2-text-dim); }
+.gold { color: var(--gw2-gold); }
+.text-bright { color: var(--gw2-text-bright); }
 
+/* GW2-style button */
 .btn-sm {
-  background: var(--bg3);
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  color: var(--text);
+  background: transparent;
+  border: 1px solid var(--gw2-border);
+  border-radius: 2px;
+  color: var(--gw2-text-dim);
   cursor: pointer;
+  font-family: var(--gw2-font-body);
   font-size: 12px;
   padding: 6px 14px;
   transition: all .15s;
+  letter-spacing: 0.3px;
 }
 
 .btn-sm:hover {
-  border-color: var(--gold);
-  color: var(--gold-light);
+  border-color: var(--gw2-gold);
+  color: var(--gw2-gold);
 }
 
 .btn-gold {
-  background: linear-gradient(135deg, var(--gold), #b07850);
+  background: var(--gw2-gold);
   border: none;
-  border-radius: 6px;
+  border-radius: 2px;
   color: #111;
   cursor: pointer;
-  font-size: 14px;
+  font-family: var(--gw2-font-body);
+  font-size: 13px;
   font-weight: 600;
-  padding: 10px 24px;
-  transition: all .2s;
+  padding: 10px 22px;
+  transition: background .2s;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
 }
 
 .btn-gold:hover {
-  background: linear-gradient(135deg, var(--gold-light), var(--gold));
-  box-shadow: 0 0 16px var(--gold-glow);
-}
-
-/* ── GW2-theme glow effects ── */
-.glow-gold {
-  box-shadow: 0 0 20px var(--gold-glow);
-}
-
-.glow-mystic {
-  box-shadow: 0 0 20px var(--mystic-glow);
-}
-
-.glow-legendary {
-  box-shadow: 0 0 20px var(--legendary-glow);
+  background: var(--gw2-gold-light);
 }
 
 /* ── Responsive ── */
 @media (max-width: 900px) {
-  main { padding: 20px 16px; }
-  header { padding: 14px 16px; }
+  main { padding: 24px 16px; }
+  header { padding: 12px 16px; }
   header h1 { font-size: 18px; }
   #key-row { flex-direction: column; }
 }

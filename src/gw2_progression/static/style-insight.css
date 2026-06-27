@@ -1,92 +1,57 @@
-/* ── Insight Page — GW2 Mystic AI Theme ── */
+/* ── Insight Page — GW2 Official Site Style ── */
 
 .insight-card {
-  background: linear-gradient(135deg, #120a1a 0%, #1a0f1a 50%, #141014 100%);
-  border: 1px solid #2a1a3a;
-  border-radius: 12px;
+  background: #151310;
+  border: 1px solid var(--gw2-border);
   padding: 24px;
   margin-bottom: 16px;
-  position: relative;
-  overflow: hidden;
-  transition: border-color .3s;
-}
-
-.insight-card::before {
-  content: '';
-  position: absolute;
-  top: 0; left: 0; right: 0;
-  height: 2px;
-  background: linear-gradient(90deg, transparent, var(--mystic), transparent);
-  opacity: 0.4;
+  transition: border-color .2s;
 }
 
 .insight-card:hover {
-  border-color: #3a2a4a;
-}
-
-.insight-card#card-hidden-wealth {
-  background: linear-gradient(135deg, #0a1210 0%, #0f1a14 50%, #0a0f0a 100%);
-  border-color: #1a3a2a;
-}
-
-.insight-card#card-hidden-wealth::before {
-  background: linear-gradient(90deg, transparent, var(--green), transparent);
-}
-
-.insight-card#card-legendary {
-  background: linear-gradient(135deg, #1a120a 0%, #1a140a 100%);
-  border-color: #3a2a1a;
-}
-
-.insight-card#card-legendary::before {
-  background: linear-gradient(90deg, transparent, var(--legendary), transparent);
-  opacity: 0.6;
+  border-color: var(--gw2-border-light);
 }
 
 .insight-card-header {
   font-size: 11px;
-  color: var(--text-dim);
+  font-weight: 500;
+  color: var(--gw2-text-dim);
   text-transform: uppercase;
   letter-spacing: 2px;
   margin-bottom: 8px;
 }
 
 .insight-card-value {
+  font-family: var(--gw2-font-display);
   font-size: 28px;
   font-weight: 700;
   margin-bottom: 4px;
   font-variant-numeric: tabular-nums;
 }
 
-#card-hidden-wealth .insight-card-value { color: var(--green); }
-#card-build-readiness .insight-card-value { color: var(--ascended); }
-#card-legendary .insight-card-value { color: var(--legendary); }
+#card-hidden-wealth .insight-card-value { color: var(--gw2-green); }
+#card-build-readiness .insight-card-value { color: var(--gw2-blue); }
+#card-legendary .insight-card-value { color: var(--gw2-legendary); }
 
 .insight-card-detail {
   font-size: 12px;
-  color: var(--text-dim);
+  color: var(--gw2-text-dim);
 }
 
-/* Recommendation Items */
+/* Recommendations */
 .rec-item {
   display: flex;
   align-items: center;
   gap: 12px;
-  background: var(--bg-card);
-  border: 1px solid var(--border);
-  border-radius: 8px;
+  background: var(--gw2-bg-card);
+  border: 1px solid var(--gw2-border);
   padding: 12px 16px;
   margin-bottom: 6px;
-  transition: border-color .2s;
+  transition: border-color .15s;
 }
 
 .rec-item:hover {
-  border-color: var(--border-light);
-}
-
-.rec-item .rec-icon {
-  font-size: 18px;
-  flex-shrink: 0;
+  border-color: var(--gw2-border-light);
 }
 
 .rec-item .rec-text {
@@ -97,6 +62,7 @@
 .rec-item .rec-reward {
   font-size: 12px;
   font-weight: 600;
-  color: var(--gold-light);
+  color: var(--gw2-gold-light);
   white-space: nowrap;
+  font-family: var(--gw2-font-mono);
 }
