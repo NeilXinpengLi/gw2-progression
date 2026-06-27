@@ -323,6 +323,11 @@ async def insight_page() -> FileResponse:
     return FileResponse(STATIC_DIR / "insight.html")
 
 
+@app.get("/report")
+async def report_page() -> FileResponse:
+    return FileResponse(STATIC_DIR / "report.html")
+
+
 @app.get("/metrics")
 async def get_metrics():
     return metrics.snapshot()

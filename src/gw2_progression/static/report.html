@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Report — GW2 Progression</title>
+  <link rel="stylesheet" href="/static/style.css?v=20260627" />
+  <link rel="stylesheet" href="/static/style-report.css?v=20260627" />
+  <meta name="theme-color" content="#c8956c" />
+</head>
+<body>
+<svg xmlns="http://www.w3.org/2000/svg" style="display:none">
+  <symbol id="sym-nav-account" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="7"/><path d="M12 3v3M12 18v3M3 12h3M18 12h3"/><path d="M8 16l2.6-5.4L16 8l-2.6 5.4L8 16z"/><path d="M10 10l4 4"/></g></symbol>
+  <symbol id="sym-nav-insight" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12s3-5 8-5 8 5 8 5-3 5-8 5-8-5-8-5z"/><circle cx="12" cy="12" r="2.5"/><path d="M12 3v2M12 19v2M5 5l1.5 1.5M17.5 17.5L19 19"/><path d="M18.5 5.5L17 7"/></g></symbol>
+  <symbol id="sym-nav-plan" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="7"/><circle cx="12" cy="12" r="3"/><path d="M12 2v4M12 18v4M2 12h4M18 12h4"/><path d="M12 5l1.4 4.1L18 12l-4.6 2.9L12 19l-1.4-4.1L6 12l4.6-2.9L12 5z"/></g></symbol>
+  <symbol id="sym-action-export" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12M8 7l4-4 4 4"/><path d="M4 14v5a2 2 0 002 2h12a2 2 0 002-2v-5"/></g></symbol>
+</svg>
+
+<header>
+  <h1>GW2 Progression</h1>
+  <span>Account Intelligence</span>
+</header>
+
+<nav class="nav-os" id="os-nav" role="tablist">
+  <button data-nav="account" role="tab"><svg width="18" height="18" aria-hidden="true"><use href="#sym-nav-account"/></svg> Account</button>
+  <button data-nav="insight" role="tab"><svg width="18" height="18" aria-hidden="true"><use href="#sym-nav-insight"/></svg> Insight</button>
+  <button data-nav="plan" role="tab"><svg width="18" height="18" aria-hidden="true"><use href="#sym-nav-plan"/></svg> Plan</button>
+  <button class="active" data-nav="report" role="tab"><svg width="18" height="18" aria-hidden="true"><use href="#sym-action-export"/></svg> Report</button>
+</nav>
+
+<main>
+  <div class="page-section active" id="page-report">
+
+    <!-- Header -->
+    <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:24px">
+      <div>
+        <div style="font-size:22px;font-weight:700;color:var(--gw2-gold);font-family:var(--gw2-font-display)">Report</div>
+        <div style="font-size:12px;color:var(--gw2-text-dim)">Export your progression insights.</div>
+      </div>
+    </div>
+
+    <!-- Free Preview -->
+    <div style="font-family:var(--gw2-font-display);font-size:16px;color:var(--gw2-gold);margin-bottom:12px">Free Preview</div>
+    <div class="preview-card" id="report-preview">
+      <div class="preview-row">
+        <span class="preview-label">Account</span>
+        <span class="preview-value" id="report-account-name">—</span>
+      </div>
+      <div class="preview-row">
+        <span class="preview-label">Total Value</span>
+        <span class="preview-value" id="report-total-value">—</span>
+      </div>
+      <div class="preview-row">
+        <span class="preview-label">Characters</span>
+        <span class="preview-value" id="report-char-count">—</span>
+      </div>
+      <div class="preview-row">
+        <span class="preview-label">Build Ready</span>
+        <span class="preview-value" id="report-build-ready">—</span>
+      </div>
+    </div>
+
+    <!-- Pricing -->
+    <div style="font-family:var(--gw2-font-display);font-size:16px;color:var(--gw2-gold);margin:24px 0 12px">Unlock Full Potential</div>
+    <div class="pricing-grid">
+      <div class="pricing-card">
+        <div class="pricing-name">Free</div>
+        <div class="pricing-price">$0</div>
+        <ul class="pricing-features">
+          <li>Account overview</li>
+          <li>Basic value breakdown</li>
+          <li>Character list</li>
+        </ul>
+        <div class="pricing-badge current">Current Plan</div>
+      </div>
+
+      <div class="pricing-card featured">
+        <div class="pricing-name">Full Report</div>
+        <div class="pricing-price">$5</div>
+        <div class="pricing-period">one-time</div>
+        <ul class="pricing-features">
+          <li>Complete action plan</li>
+          <li>Build readiness analysis</li>
+          <li>Crafting path optimization</li>
+          <li>PDF export</li>
+          <li>7-day schedule</li>
+        </ul>
+        <button class="btn-gold" style="width:100%;margin-top:12px" onclick="alert('Stripe integration coming soon')">Purchase — $5</button>
+      </div>
+
+      <div class="pricing-card">
+        <div class="pricing-name">Weekly</div>
+        <div class="pricing-price">$5</div>
+        <div class="pricing-period">/ month</div>
+        <ul class="pricing-features">
+          <li>Auto-generated weekly report</li>
+          <li>Market signal alerts</li>
+          <li>Progression tracking</li>
+          <li>Priority support</li>
+          <li>Everything in Full Report</li>
+        </ul>
+        <button class="btn-sm" style="width:100%;margin-top:12px" onclick="alert('Stripe integration coming soon')">Subscribe — $5/mo</button>
+      </div>
+    </div>
+
+    <!-- Locked content preview -->
+    <div class="locked-section" id="locked-preview">
+      <div class="locked-overlay">
+        <div class="locked-icon">🔒</div>
+        <div class="locked-title">Full Action Plan</div>
+        <div class="locked-desc">Upgrade to unlock complete build analysis, crafting path, and PDF export.</div>
+      </div>
+      <div class="locked-teaser">
+        <div class="locked-row"><span>💰 Sell excess materials</span><span class="dim">+320g</span></div>
+        <div class="locked-row"><span>⚔ Build readiness score</span><span class="dim">92%</span></div>
+        <div class="locked-row"><span>🔨 Crafting step-by-step</span><span class="dim">12 steps</span></div>
+        <div class="locked-row"><span>📆 7-day schedule</span><span class="dim">Full plan</span></div>
+      </div>
+    </div>
+
+  </div>
+</main>
+
+<script type="module" src="/static/app-report.v2.js"></script>
+</body>
+</html>
