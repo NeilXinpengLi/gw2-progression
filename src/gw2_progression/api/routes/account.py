@@ -23,69 +23,55 @@ router = APIRouter(prefix="/api/account", tags=["account"])
 
 @router.get("/overview")
 async def account_overview(api_key: str = Query(...)):
-    """Structured account overview data for the dashboard."""
+    """Structured account overview via three-layer pipeline (Raw → Normalized → Derived)."""
     resolved_key = await get_api_key(api_key)
     try:
         contents = await fetch_all(resolved_key)
     except Gw2ApiError as e:
         raise HTTPException(status_code=401, detail=e.message)
 
-    account_name = contents.account_name or "unknown"
-    wallet_gold = sum(w.get("value", 0) for w in (contents.wallet or []) if w.get("id") == 1)
+    # Layer 1 → Layer 2: Normalize raw data
+    raw_dict = {
+        "account": {"name": contents.account_name, "world": contents.account_world, "created": contents.account_created, "age": 0},
+        "wallet": contents.wallet or [],
+        "characters": contents.characters or [],
+        "materials": contents.materials or [],
+        "bank": contents.bank or [],
+        "shared_inventory": contents.shared_inventory or [],
+        "tradingpost_buys": contents.tradingpost_buys or [],
+        "tradingpost_sells": contents.tradingpost_sells or [],
+    }
+    if contents.account_created:
+        raw_dict["account"]["created"] = contents.account_created
+    if contents.account_age_hours:
+        raw_dict["account"]["age"] = int(contents.account_age_hours * 3600)
 
-    # Build holdings from raw account data (no DB snapshot needed)
-    raw_holdings = []
-    raw_holdings.extend(extract_wallet_holdings(contents.wallet))
-    raw_holdings.extend(extract_material_holdings(contents.materials))
-    raw_holdings.extend(extract_bank_holdings(contents.bank))
-    raw_holdings.extend(extract_character_holdings(contents.characters))
-    raw_holdings.extend(extract_shared_inventory_holdings(contents.shared_inventory))
-    raw_holdings.extend(extract_tradingpost_holdings(contents.tradingpost_buys, contents.tradingpost_sells))
+    from gw2_progression.services.snapshot_service import create_snapshot, derive_value, derive_breakdown, normalize_account
 
-    # Enrich holdings with market prices
-    from gw2_progression.services.price_service import fetch_prices, compute_price_quality
+    normalized = normalize_account(raw_dict)
 
-    item_ids = list({h.item_id for h in raw_holdings if h.item_id != 1})
+    # Enrich with market prices
+    from gw2_progression.services.price_service import fetch_prices
+
+    item_ids = list({a.item_id for a in normalized.assets if a.item_id != 1 and a.price_sell == 0})
     if item_ids:
         try:
             prices = await fetch_prices(item_ids)
-            for h in raw_holdings:
-                price = prices.get(h.item_id)
+            for a in normalized.assets:
+                price = prices.get(a.item_id)
                 if price:
-                    quality = compute_price_quality(price.buy_unit_price, price.sell_unit_price, price.buy_quantity, price.sell_quantity)
-                    h.price_buy = price.buy_unit_price
-                    h.price_sell = price.sell_unit_price
-                    h.value_buy = h.count * price.buy_unit_price
-                    h.value_sell = h.count * price.sell_unit_price
-                    h.valuation_status = "priced"
-                    h.liquidity_score = quality.get("liquidity_score", "unknown")
-                    h.data_sources = ["gw2_commerce_prices"]
-                    h.price_timestamp = price.fetched_at
-                    h.confidence = quality.get("confidence", 0.5)
+                    a.price_buy = price.buy_unit_price
+                    a.price_sell = price.sell_unit_price
+                    a.value_buy = a.count * price.buy_unit_price
+                    a.value_sell = a.count * price.sell_unit_price
+                    a.value_after_fee = int(a.value_sell * 0.85)
+                    a.confidence = 0.8
         except Exception as e:
-            logger.warning("Price enrichment failed (continuing): %s", e)
+            logger.warning("Price enrichment failed: %s", e)
 
-    total_value_sell = sum(h.value_sell for h in raw_holdings)
-    total_value_buy = sum(h.value_buy for h in raw_holdings)
-    liquid_sell_after_fee = int(total_value_sell * 0.85)
-    unpriced_holdings = [h for h in raw_holdings if h.valuation_status == "unpriced"]
-    hidden_wealth = sum(h.count * (h.price_sell or 0) for h in unpriced_holdings)
-
-    # Per-category breakdown from raw data
-    categories = _categorize_holdings(raw_holdings)
-    category_rows = []
-    for cat_name, cat_holdings in categories:
-        cat_sell = sum(h.value_sell for h in cat_holdings)
-        cat_buy = sum(h.value_buy for h in cat_holdings)
-        risk = _category_risk(cat_holdings)
-        category_rows.append({
-            "category": cat_name,
-            "total_value": cat_sell,
-            "liquid_sell": cat_sell,
-            "liquid_buy": cat_buy,
-            "percentage": round(cat_sell / max(total_value_sell, 1) * 100, 1),
-            "risk_flag": risk,
-        })
+    # Layer 3: Derive intelligence
+    value = await derive_value(normalized)
+    breakdown = derive_breakdown(normalized.assets)
 
     # Character summary
     char_rows = []
@@ -102,21 +88,28 @@ async def account_overview(api_key: str = Query(...)):
 
     return {
         "account": {
-            "name": account_name,
+            "name": contents.account_name or "unknown",
             "world": contents.account_world,
             "created": contents.account_created,
             "age_hours": contents.account_age_hours,
         },
         "kpis": {
-            "account_value": total_value_sell,
-            "liquid_sell": total_value_sell,
-            "liquid_sell_after_fee": liquid_sell_after_fee,
-            "liquid_buy": total_value_buy,
-            "hidden_wealth": hidden_wealth,
-            "wallet_gold": wallet_gold,
-            "character_count": len(contents.characters or []),
+            "account_value": value.total_value,
+            "liquid_sell": value.liquid_value,
+            "liquid_sell_after_fee": value.liquid_value,
+            "liquid_buy": value.liquid_value_buy,
+            "hidden_wealth": value.hidden_value,
+            "wallet_gold": normalized.currencies.gold * 10000,
+            "character_count": normalized.snapshot.character_count,
         },
-        "assets": category_rows,
+        "assets": [{
+            "category": b.category,
+            "total_value": b.total_value,
+            "liquid_sell": b.liquid_value,
+            "liquid_buy": b.liquid_value,
+            "percentage": b.percentage,
+            "risk_flag": b.risk,
+        } for b in breakdown],
         "characters": char_rows,
         "snapshot_time": "",
     }

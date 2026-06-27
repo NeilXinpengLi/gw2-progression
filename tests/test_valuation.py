@@ -376,8 +376,8 @@ class TestValuationRoute:
             19720: type("PriceData", (), {"buy_unit_price": 3000, "sell_unit_price": 3500, "buy_quantity": 2000, "sell_quantity": 1500})(),
         }
         with (
-            patch("gw2_progression.services.snapshot_service.fetch_prices", AsyncMock(return_value=mock_prices)),
-            patch("gw2_progression.services.snapshot_service.get_db", AsyncMock()),
+            patch("gw2_progression.services.price_service.fetch_prices", AsyncMock(return_value=mock_prices)),
+            patch("gw2_progression.database.get_db", AsyncMock()),
         ):
             with stack:
                 result = await run_full_analysis("fake-key-12345678")

@@ -66,7 +66,7 @@ def _mock_gw2():
         patch(f"{BASE}.fetch_wvw_stats", AsyncMock(return_value={})),
         # Mock price and listing services
         patch(
-            "gw2_progression.services.snapshot_service.fetch_prices",
+            "gw2_progression.services.price_service.fetch_prices",
             AsyncMock(
                 return_value={
                     19976: type("PD", (), {"buy_unit_price": 20000, "sell_unit_price": 21600, "buy_quantity": 5000, "sell_quantity": 3000})(),
@@ -75,9 +75,9 @@ def _mock_gw2():
             ),
         ),
         patch("gw2_progression.services.listing_service.fetch_listings", AsyncMock(return_value={})),
-        patch("gw2_progression.services.snapshot_service.get_db", AsyncMock()),
-        patch("gw2_progression.services.snapshot_service.save_account_snapshot", AsyncMock(return_value=1)),
-        patch("gw2_progression.services.snapshot_service.load_value_history", AsyncMock(return_value=[])),
+        patch("gw2_progression.database.get_db", AsyncMock()),
+        patch("gw2_progression.database.save_account_snapshot", AsyncMock(return_value=1)),
+        patch("gw2_progression.database.load_value_history", AsyncMock(return_value=[])),
     ]
     for p in patches:
         p.start()

@@ -617,6 +617,13 @@ CREATE TABLE IF NOT EXISTS ontology_actions (
     created_at TEXT NOT NULL,
     completed_at TEXT NOT NULL DEFAULT ''
 );
+
+CREATE TABLE IF NOT EXISTS snapshot_registry (
+    snapshot_id TEXT PRIMARY KEY,
+    account_name TEXT NOT NULL,
+    raw_data TEXT NOT NULL,
+    created_at TEXT NOT NULL
+);
 """
 
 
