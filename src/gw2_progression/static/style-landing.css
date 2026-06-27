@@ -151,6 +151,7 @@
   transition: all .3s;
   letter-spacing: 0.8px;
   text-transform: uppercase;
+  text-decoration: none;
 }
 
 .btn-hero:hover {
@@ -167,6 +168,8 @@
   padding: 10px 22px;
   transition: all .25s;
   letter-spacing: 0.5px;
+  text-decoration: none;
+  display: inline-block;
 }
 
 .btn-demo:hover {
@@ -395,6 +398,7 @@
   inset: 0;
   background: radial-gradient(ellipse at center, rgba(212,162,76,0.06) 0%, transparent 60%);
   animation: ctaPulse 4s ease-in-out infinite;
+  pointer-events: none;
 }
 
 @keyframes ctaPulse {
@@ -420,33 +424,6 @@
   z-index: 1;
 }
 
-.cta-input-row {
-  display: flex;
-  gap: 0;
-  max-width: 520px;
-  margin: 0 auto 12px;
-  border: 1px solid #2a2a2a;
-  transition: border-color .3s, box-shadow .3s;
-  position: relative;
-  z-index: 1;
-}
-
-.cta-input-row:focus-within {
-  border-color: #d4a24c;
-  box-shadow: 0 0 24px rgba(212,162,76,0.12);
-}
-
-.cta-input-row input {
-  flex: 1;
-  background: #141419;
-  border: none;
-  color: #ededed;
-  font-size: 14px;
-  padding: 16px 20px;
-  outline: none;
-  font-family: var(--gw2-font-mono);
-}
-
 /* Footer */
 .landing-footer {
   padding: 40px 0;
@@ -467,8 +444,7 @@
   .hero-title { font-size: 28px; }
   .hero-input-row { flex-direction: column; border: none; }
   .hero-input-row input { border: 1px solid #2a2a2a; }
-  .cta-input-row { flex-direction: column; border: none; }
-  .cta-input-row input { border: 1px solid #2a2a2a; }
+
 }
 
 @media (max-width: 500px) {
