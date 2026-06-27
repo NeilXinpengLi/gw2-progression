@@ -1,0 +1,29 @@
+/* ── Insight Page styles ── */
+
+.insight-card {
+  background: linear-gradient(135deg, #1a2a1a, #2a1a2a);
+  border: 1px solid #3a2a3a;
+  border-radius: 12px;
+  padding: 24px;
+  margin-bottom: 16px;
+}
+
+.insight-card-header {
+  font-size: 12px;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  margin-bottom: 8px;
+}
+
+.insight-card-value {
+  font-size: 28px;
+  font-weight: 700;
+  color: var(--gold-light);
+  margin-bottom: 4px;
+}
+
+.insight-card-detail {
+  font-size: 12px;
+  color: var(--text-dim);
+}

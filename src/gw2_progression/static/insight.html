@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Insights — GW2 Progression</title>
+  <link rel="stylesheet" href="/static/style.css" />
+  <link rel="stylesheet" href="/static/style-insight.css" />
+  <meta name="theme-color" content="#c8956c" />
+</head>
+<body>
+
+<header>
+  <h1>GW2 Progression</h1>
+  <span>Account Intelligence</span>
+</header>
+
+<nav class="nav-os" id="os-nav" role="tablist">
+  <button data-nav="account" role="tab">📊 Account</button>
+  <button class="active" data-nav="insight" role="tab">💡 Insight</button>
+  <button data-nav="plan" role="tab">🎯 Plan</button>
+</nav>
+
+<main>
+  <div class="page-section active" id="page-insight">
+
+    <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:20px">
+      <div>
+        <div style="font-size:22px;font-weight:700;color:var(--gold)">💡 AI Insights</div>
+        <div style="font-size:12px;color:var(--text-dim)">Smart analysis layered over your raw account data.</div>
+      </div>
+      <div id="insight-account-badge" class="hidden" style="font-size:12px;color:var(--text-dim);background:var(--bg2);padding:6px 14px;border-radius:6px">
+        Account: <span id="insight-account-name" style="color:var(--text-bright)">—</span>
+      </div>
+    </div>
+
+    <!-- Hidden Wealth Card -->
+    <div class="insight-card" id="card-hidden-wealth">
+      <div class="insight-card-header">💰 Hidden Wealth</div>
+      <div class="insight-card-value" id="insight-hidden-wealth">—</div>
+      <div class="insight-card-detail">Unpriced items that may hold significant value</div>
+    </div>
+
+    <!-- Build Readiness Card -->
+    <div class="insight-card" id="card-build-readiness">
+      <div class="insight-card-header">⚔ Build Readiness</div>
+      <div class="insight-card-value" id="insight-build-ready">—</div>
+      <div class="insight-card-detail">Characters with matching curated builds</div>
+    </div>
+
+    <!-- Legendary Progress Card -->
+    <div class="insight-card" id="card-legendary">
+      <div class="insight-card-header">🏆 Legendary Progress</div>
+      <div class="insight-card-value" id="insight-legendary">—</div>
+      <div class="insight-card-detail">Active tracked goals and completion</div>
+    </div>
+
+    <!-- Recommendation Section -->
+    <div class="section-title" style="margin-top:24px">Recommendations</div>
+    <div id="insight-recommendations">
+      <div style="text-align:center;padding:40px 0;color:var(--text-dim)">
+        <div style="font-size:36px;margin-bottom:8px">📋</div>
+        <div>Analyze your account on the Account page first.</div>
+      </div>
+    </div>
+
+    <div style="margin-top:20px;text-align:center">
+      <a href="/plan" style="background:var(--gold);border:none;border-radius:8px;color:#111;display:inline-block;padding:12px 32px;font-weight:600;text-decoration:none">
+        Go to Full Plan System →
+      </a>
+    </div>
+
+  </div>
+</main>
+
+<script type="module" src="/static/app-insight.js?v=20260627"></script>
+</body>
+</html>
