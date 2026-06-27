@@ -1,21 +1,3 @@
-// ── SVG Icon Helper ──
-
-const _spriteLoaded = false;
-
-export function loadIconSprite() {
-  if (_spriteLoaded) return;
-  fetch('/static/icons.svg?v=20260627')
-    .then(r => r.text())
-    .then(html => {
-      document.body.insertAdjacentHTML('afterbegin', html);
-    })
-    .catch(() => {});
-}
-
-export function icon(name, size = 20) {
-  return `<svg class="gw2-icon" width="${size}" height="${size}" aria-hidden="true"><use href="#${name}"/></svg>`;
-}
-
 // ── Shared Cache & Utils ──
 export const MAX_CACHE_SIZE = 5000;
 

@@ -8,7 +8,6 @@ import {
   resolveMaps, resolveSkins, resolveGuilds, resolveColors, resolveSearch,
   rgbToHex, itemName, itemIcon, currencyName, matCatName, masteryName,
   masteryRegion, mapName, skinName, skinIcon, colorHex, fmtCoin, fmtCoinShort,
-  loadIconSprite,
 } from './app-shared.js';
 
 let _sessionToken = null;
@@ -18,7 +17,6 @@ let _overviewData = null;
 let _trendChart = null;
 
 document.addEventListener('DOMContentLoaded', () => {
-  loadIconSprite();
   document.getElementById('analyze-btn').addEventListener('click', runAnalyze);
   document.getElementById('key-input').addEventListener('keydown', e => { if (e.key === 'Enter') runAnalyze(); });
   document.getElementById('btn-refresh')?.addEventListener('click', runAnalyze);

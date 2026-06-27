@@ -2,7 +2,7 @@
 
 import {
   itemName, itemIcon, fmtCoin, fmtCoinShort,
-  resolveItems, resolveCurrencies, loadIconSprite,
+  resolveItems, resolveCurrencies,
 } from './app-shared.js';
 
 let _sessionToken = null;
@@ -11,7 +11,6 @@ let _planData = null;
 let _currentStrategy = 'hybrid';
 
 document.addEventListener('DOMContentLoaded', () => {
-  loadIconSprite();
   // Goal input
   const goalInput = document.getElementById('goal-input');
   document.getElementById('goal-generate-btn').addEventListener('click', generatePlan);
