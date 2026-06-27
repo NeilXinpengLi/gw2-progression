@@ -1,6 +1,6 @@
-/* ── Account Overview specific styles ── */
+/* ── Account Overview — GW2-themed styles ── */
 
-/* KPI Row */
+/* KPI Cards */
 .kpi-row {
   display: grid;
   grid-template-columns: repeat(6, 1fr);
@@ -9,26 +9,55 @@
 }
 
 .kpi-card {
-  background: var(--bg2);
+  background: linear-gradient(180deg, #161616 0%, #121212 100%);
   border: 1px solid var(--border);
-  border-radius: 8px;
-  padding: 16px 12px;
+  border-radius: 10px;
+  padding: 18px 12px;
   text-align: center;
+  transition: border-color .25s, transform .2s;
+  position: relative;
+  overflow: hidden;
 }
+
+.kpi-card::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, var(--gold), transparent);
+  opacity: 0;
+  transition: opacity .3s;
+}
+
+.kpi-card:hover {
+  border-color: #3a3a3a;
+  transform: translateY(-1px);
+}
+
+.kpi-card:hover::before {
+  opacity: 1;
+}
+
+/* Per-metric card styling */
+.kpi-card[data-metric="account_value"] .kpi-value { color: var(--gold-light); }
+.kpi-card[data-metric="hidden_wealth"] .kpi-value { color: var(--mystic); }
+.kpi-card[data-metric="legendary_progress"] .kpi-value { color: var(--legendary); }
+.kpi-card[data-metric="build_ready"] .kpi-value { color: var(--ascended); }
 
 .kpi-label {
   color: var(--text-dim);
   font-size: 10px;
   text-transform: uppercase;
-  letter-spacing: 1px;
+  letter-spacing: 1.5px;
   margin-bottom: 6px;
 }
 
 .kpi-value {
   font-size: 20px;
   font-weight: 700;
-  color: var(--gold-light);
+  color: var(--text-bright);
   margin-bottom: 2px;
+  font-variant-numeric: tabular-nums;
 }
 
 .kpi-sub {
@@ -36,131 +65,107 @@
   font-size: 10px;
 }
 
+/* API Status Badge */
 .api-badge {
   font-size: 11px;
-  padding: 3px 10px;
-  border-radius: 10px;
+  padding: 3px 12px;
+  border-radius: 12px;
+  font-weight: 500;
 }
 
 .api-badge[data-status="active"] {
-  background: #1a3a1a;
-  color: #6bc46b;
+  background: var(--green-bg);
+  color: var(--green);
+  border: 1px solid rgba(90, 158, 90, 0.2);
 }
 
 .api-badge[data-status="stale"] {
-  background: #3a3a1a;
-  color: #d0a050;
+  background: rgba(200, 149, 108, 0.1);
+  color: var(--gold);
+  border: 1px solid rgba(200, 149, 108, 0.2);
 }
 
 .api-badge[data-status="error"] {
-  background: #3a1a1a;
-  color: #c06060;
+  background: var(--red-bg);
+  color: var(--red);
+  border: 1px solid rgba(160, 80, 80, 0.2);
 }
 
 /* Asset Table */
-.asset-table-wrap, .char-table-wrap {
-  overflow-x: auto;
-  margin-bottom: 20px;
-}
-
-table.asset-table, table.char-table {
+.asset-table {
   width: 100%;
   border-collapse: collapse;
   font-size: 13px;
 }
 
-table.asset-table th, table.char-table th {
+.asset-table th {
   text-align: left;
   color: var(--text-dim);
   font-size: 10px;
   text-transform: uppercase;
-  letter-spacing: 1px;
-  padding: 8px 12px;
+  letter-spacing: 1.5px;
+  padding: 10px 14px;
   border-bottom: 1px solid var(--border);
+  font-weight: 500;
 }
 
-table.asset-table td, table.char-table td {
-  padding: 10px 12px;
-  border-bottom: 1px solid #222;
+.asset-table td {
+  padding: 10px 14px;
+  border-bottom: 1px solid #1a1a1a;
+  transition: background .15s;
 }
 
-table.asset-table .num, table.char-table .num {
+.asset-table tbody tr:hover td {
+  background: rgba(200, 149, 108, 0.03);
+}
+
+.asset-table .num {
   text-align: right;
   font-variant-numeric: tabular-nums;
+  font-family: var(--font-mono);
+  font-size: 12px;
 }
 
-table.asset-table tbody tr:hover, table.char-table tbody tr:hover {
-  background: #181818;
-}
-
-/* Guild List */
-.guild-card {
-  background: var(--bg2);
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  padding: 14px 18px;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 8px;
-}
-
-.guild-name {
-  font-weight: 600;
-  color: var(--text-bright);
-}
-
-.guild-tag {
-  color: var(--text-dim);
+/* Risk indicator */
+.risk-dot {
   font-size: 11px;
-  background: var(--bg3);
-  padding: 2px 6px;
-  border-radius: 4px;
-  margin-left: 6px;
 }
 
-.guild-role {
-  color: var(--text-dim);
-  font-size: 12px;
-}
+.risk-dot[data-risk="low"] { color: var(--green); }
+.risk-dot[data-risk="medium"] { color: var(--legendary); }
+.risk-dot[data-risk="high"] { color: var(--red); }
+.risk-dot[data-risk="none"] { color: var(--text-dim); }
 
-.guild-activity {
-  font-size: 12px;
-}
-
-.guild-activity[data-level="High"] { color: #6bc46b; }
-.guild-activity[data-level="Medium"] { color: #d0a050; }
-.guild-activity[data-level="Low"] { color: var(--text-dim); }
-
-/* Insight Preview */
-.insight-preview-card {
-  background: linear-gradient(135deg, #1a2a1a, #2a1a2a);
-  border: 1px solid #3a2a3a;
-  border-radius: 12px;
-  padding: 20px;
-}
-
-.insight-action {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  background: var(--bg2);
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  padding: 12px 16px;
-}
-
-.insight-action .reward {
+/* Character Table */
+.char-table {
+  width: 100%;
+  border-collapse: collapse;
   font-size: 13px;
-  font-weight: 600;
-  color: var(--gold-light);
-  white-space: nowrap;
 }
 
-.insight-action .reason {
-  flex: 1;
-  font-size: 12px;
+.char-table th {
+  text-align: left;
   color: var(--text-dim);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--border);
+  font-weight: 500;
+}
+
+.char-table td {
+  padding: 10px 14px;
+  border-bottom: 1px solid #1a1a1a;
+}
+
+.char-table tbody tr:hover td {
+  background: rgba(200, 149, 108, 0.03);
+}
+
+.char-table .num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
 }
 
 /* Status Grid */
@@ -171,10 +176,10 @@ table.asset-table tbody tr:hover, table.char-table tbody tr:hover {
 }
 
 .status-item {
-  background: var(--bg2);
+  background: var(--bg-card);
   border: 1px solid var(--border);
-  border-radius: 6px;
-  padding: 12px 16px;
+  border-radius: 8px;
+  padding: 14px 16px;
 }
 
 .status-label {
@@ -182,7 +187,7 @@ table.asset-table tbody tr:hover, table.char-table tbody tr:hover {
   font-size: 10px;
   color: var(--text-dim);
   text-transform: uppercase;
-  letter-spacing: 1px;
+  letter-spacing: 1.5px;
   margin-bottom: 4px;
 }
 
@@ -191,12 +196,29 @@ table.asset-table tbody tr:hover, table.char-table tbody tr:hover {
   color: var(--text);
 }
 
-/* Mobile */
-@media (max-width: 900px) {
-  .kpi-row { grid-template-columns: repeat(3, 1fr); }
-  .status-grid { grid-template-columns: 1fr; }
+/* Trend Chart */
+.chart-container {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 16px;
 }
 
-@media (max-width: 600px) {
+.chart-container canvas {
+  max-height: 260px;
+  max-width: 100%;
+}
+
+.chart-wide {
+  grid-column: 1 / -1;
+}
+
+/* Mobile */
+@media (max-width: 1100px) {
+  .kpi-row { grid-template-columns: repeat(3, 1fr); }
+}
+
+@media (max-width: 700px) {
   .kpi-row { grid-template-columns: repeat(2, 1fr); }
+  .status-grid { grid-template-columns: 1fr; }
 }

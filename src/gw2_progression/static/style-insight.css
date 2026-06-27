@@ -1,29 +1,102 @@
-/* ── Insight Page styles ── */
+/* ── Insight Page — GW2 Mystic AI Theme ── */
 
 .insight-card {
-  background: linear-gradient(135deg, #1a2a1a, #2a1a2a);
-  border: 1px solid #3a2a3a;
+  background: linear-gradient(135deg, #120a1a 0%, #1a0f1a 50%, #141014 100%);
+  border: 1px solid #2a1a3a;
   border-radius: 12px;
   padding: 24px;
   margin-bottom: 16px;
+  position: relative;
+  overflow: hidden;
+  transition: border-color .3s;
+}
+
+.insight-card::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, var(--mystic), transparent);
+  opacity: 0.4;
+}
+
+.insight-card:hover {
+  border-color: #3a2a4a;
+}
+
+.insight-card#card-hidden-wealth {
+  background: linear-gradient(135deg, #0a1210 0%, #0f1a14 50%, #0a0f0a 100%);
+  border-color: #1a3a2a;
+}
+
+.insight-card#card-hidden-wealth::before {
+  background: linear-gradient(90deg, transparent, var(--green), transparent);
+}
+
+.insight-card#card-legendary {
+  background: linear-gradient(135deg, #1a120a 0%, #1a140a 100%);
+  border-color: #3a2a1a;
+}
+
+.insight-card#card-legendary::before {
+  background: linear-gradient(90deg, transparent, var(--legendary), transparent);
+  opacity: 0.6;
 }
 
 .insight-card-header {
-  font-size: 12px;
+  font-size: 11px;
   color: var(--text-dim);
   text-transform: uppercase;
-  letter-spacing: 1px;
+  letter-spacing: 2px;
   margin-bottom: 8px;
 }
 
 .insight-card-value {
   font-size: 28px;
   font-weight: 700;
-  color: var(--gold-light);
   margin-bottom: 4px;
+  font-variant-numeric: tabular-nums;
 }
+
+#card-hidden-wealth .insight-card-value { color: var(--green); }
+#card-build-readiness .insight-card-value { color: var(--ascended); }
+#card-legendary .insight-card-value { color: var(--legendary); }
 
 .insight-card-detail {
   font-size: 12px;
   color: var(--text-dim);
+}
+
+/* Recommendation Items */
+.rec-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 12px 16px;
+  margin-bottom: 6px;
+  transition: border-color .2s;
+}
+
+.rec-item:hover {
+  border-color: var(--border-light);
+}
+
+.rec-item .rec-icon {
+  font-size: 18px;
+  flex-shrink: 0;
+}
+
+.rec-item .rec-text {
+  flex: 1;
+  font-size: 13px;
+}
+
+.rec-item .rec-reward {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--gold-light);
+  white-space: nowrap;
 }
