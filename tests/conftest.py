@@ -1,4 +1,10 @@
-"""Global test configuration — disables ontology persistence to avoid DB pool contention."""
+"""Global test configuration — ensures DB file exists and disables ontology persistence."""
+
+from pathlib import Path
+
+# Ensure the data directory exists before any test runs.
+DB_DIR = Path(__file__).resolve().parent.parent / "data"
+DB_DIR.mkdir(parents=True, exist_ok=True)
 
 from gw2_progression.ontology import object_store as ontology_store
 
