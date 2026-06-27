@@ -39,6 +39,7 @@ from .routes.credentials import router as credentials_router
 from .routes.engine import router as engine_router
 from .routes.goal_driven import router as goal_driven_router
 from .routes.goals import router as goals_router
+from .routes.insight import router as insight_router
 from .routes.guild import router as guild_router
 from .routes.payment import router as payment_router
 from .routes.production import router as production_router
@@ -213,6 +214,7 @@ app.include_router(commercial_router)
 app.include_router(payment_router)
 app.include_router(agent_router)
 app.include_router(goal_driven_router)
+app.include_router(insight_router)
 app.include_router(subscriptions_router)
 app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 
