@@ -4,13 +4,13 @@ import {
   itemName, itemIcon, fmtCoin, fmtCoinShort,
   resolveItems, resolveCurrencies,
 } from './app-shared.js';
+import { initSession, getToken } from './session-manager.js';
 
-let _sessionToken = null;
 let _abortController = null;
 let _planData = null;
 let _currentStrategy = 'hybrid';
 
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
   // Goal input
   const goalInput = document.getElementById('goal-input');
   document.getElementById('goal-generate-btn').addEventListener('click', generatePlan);
@@ -53,13 +53,11 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   // Restore session
-  try {
-    const saved = localStorage.getItem('gw2_session');
-    if (saved) {
-      _sessionToken = saved;
-      document.getElementById('plan-account-badge').classList.remove('hidden');
-    }
-  } catch(e) {}
+  const saved = document.getElementById('plan-account-badge');
+  const token = await initSession();
+  if (token && saved) {
+    saved.classList.remove('hidden');
+  }
 
   updateStrategyDesc('hybrid');
 });

@@ -9,14 +9,14 @@ import {
   rgbToHex, itemName, itemIcon, currencyName, matCatName, masteryName,
   masteryRegion, mapName, skinName, skinIcon, colorHex, fmtCoin, fmtCoinShort,
 } from './app-shared.js';
+import { initSession, createSession, clearSession, getToken, getEffectiveKey } from './session-manager.js';
 
-let _sessionToken = null;
 let _abortController = null;
 let _accountData = null;
 let _overviewData = null;
 let _trendChart = null;
 
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
   document.getElementById('analyze-btn').addEventListener('click', runAnalyze);
   document.getElementById('key-input').addEventListener('keydown', e => { if (e.key === 'Enter') runAnalyze(); });
   document.getElementById('btn-refresh')?.addEventListener('click', runAnalyze);
@@ -38,29 +38,12 @@ document.addEventListener('DOMContentLoaded', () => {
     if (page) page.classList.add('active');
   });
 
-  // Restore session — but validate it first
-  try {
-    const saved = localStorage.getItem('gw2_session');
-    if (saved) {
-      _sessionToken = saved;
-      document.getElementById('key-input').value = saved;
-      // Validate the saved session by checking if it still works
-      fetch('/api/account/overview?api_key=' + encodeURIComponent(saved))
-        .then(r => {
-          if (r.ok) runAnalyze();
-          else {
-            _sessionToken = null;
-            localStorage.removeItem('gw2_session');
-            document.getElementById('key-input').value = '';
-          }
-        })
-        .catch(() => {
-          _sessionToken = null;
-          localStorage.removeItem('gw2_session');
-          document.getElementById('key-input').value = '';
-        });
-    }
-  } catch(e) {}
+  // Auto-restore and validate session
+  const token = await initSession();
+  if (token) {
+    document.getElementById('key-input').value = token;
+    runAnalyze();
+  }
 });
 
 // ── Analyze ──
@@ -76,30 +59,24 @@ async function runAnalyze() {
   showLoading(true);
   hideAllSections();
 
-  let useKey = rawKey;
+  let useKey = getEffectiveKey(rawKey);
 
-  // Always validate: if input differs from cached token, force re-auth
-  if (_sessionToken && rawKey !== _sessionToken) {
-    _sessionToken = null;
-    localStorage.removeItem('gw2_session');
+  // If user entered a new key (different from cached token), create new session
+  if (useKey === null) {
+    const newToken = await createSession(rawKey);
+    if (newToken) {
+      useKey = newToken;
+    } else {
+      useKey = rawKey; // fallback
+    }
   }
 
-  // Create session if needed
-  if (!_sessionToken) {
-    try {
-      const sessionRes = await fetch('/auth/session', {
-        method: 'POST', headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({api_key: rawKey}), signal,
-      });
-      if (sessionRes.ok) {
-        const session = await sessionRes.json();
-        _sessionToken = session.token;
-        useKey = session.token;
-        localStorage.setItem('gw2_session', _sessionToken);
-      }
-    } catch(e) { /* use raw key */ }
-  } else {
-    useKey = _sessionToken;
+  // No valid session yet → create one
+  if (!getToken()) {
+    const newToken = await createSession(rawKey);
+    if (newToken) {
+      useKey = newToken;
+    }
   }
 
   // Fetch overview data

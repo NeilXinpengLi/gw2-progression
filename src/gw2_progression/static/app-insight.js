@@ -1,10 +1,9 @@
 // ── Insight Page — AI Overlay Layer ──
 
 import { fmtCoin, fmtCoinShort } from './app-shared.js';
+import { initSession, getToken } from './session-manager.js';
 
-let _sessionToken = null;
-
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
   document.getElementById('os-nav')?.addEventListener('click', e => {
     const btn = e.target.closest('button[data-nav]');
     if (!btn) return;
@@ -13,15 +12,10 @@ document.addEventListener('DOMContentLoaded', () => {
     else if (page === 'plan') window.location.href = '/plan';
   });
 
-  try {
-    const saved = localStorage.getItem('gw2_session');
-    if (saved) {
-      _sessionToken = saved;
-      loadInsight(saved);
-      const keyInput = document.getElementById('insight-api-key');
-      if (keyInput) { keyInput.value = saved; }
-    }
-  } catch(e) {}
+  const token = await initSession();
+  if (token) {
+    loadInsight(token);
+  }
 });
 
 async function loadInsight(token) {

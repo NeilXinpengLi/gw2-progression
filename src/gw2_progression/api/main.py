@@ -7,7 +7,7 @@ from collections import defaultdict
 from contextlib import asynccontextmanager
 from pathlib import Path
 
-from fastapi import Body, FastAPI, HTTPException, Request, WebSocket, WebSocketDisconnect
+from fastapi import Body, FastAPI, HTTPException, Query, Request, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
@@ -244,6 +244,15 @@ async def create_session_endpoint(api_key: str = Body(..., embed=True)):
 async def list_sessions_endpoint():
     sessions = await list_sessions()
     return sessions
+
+
+@app.get("/auth/session/validate")
+async def validate_session_endpoint(token: str = Query(...)):
+    """Check if a session token is still valid without resolving the API key."""
+    session = await get_session(token)
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found or expired")
+    return {"valid": True, "account_name": session["account_name"]}
 
 
 @app.delete("/auth/session/{token}")
