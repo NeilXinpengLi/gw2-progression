@@ -107,7 +107,7 @@ def test_static_css(client):
 
 
 def test_static_js_account(client):
-    resp = client.get("/static/app-account.js")
+    resp = client.get("/static/app-account.v2.js")
     assert resp.status_code == 200
     assert "javascript" in resp.headers["content-type"]
 
