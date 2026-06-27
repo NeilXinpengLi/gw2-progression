@@ -14,7 +14,7 @@ logger = logging.getLogger("gw2.db")
 
 DB_DIR = Path(__file__).resolve().parent.parent.parent / "data"
 DB_PATH = DB_DIR / "gw2_progression.db"
-DB_POOL_SIZE = 5
+DB_POOL_SIZE = 20
 _TEST_DB_URL = os.environ.get("TEST_DATABASE_URL", "")  # e.g. "file::memory:?cache=shared"
 
 _pool: asyncio.Queue[aiosqlite.Connection] | None = None

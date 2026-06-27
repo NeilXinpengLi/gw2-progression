@@ -88,7 +88,10 @@ async def _drain_loop() -> None:
     while True:
         try:
             event = await _queue.get()
-            await _dispatch(event)
+            try:
+                await asyncio.wait_for(_dispatch(event), timeout=30.0)
+            except asyncio.TimeoutError:
+                logger.warning("Event handler timed out (>30s) for %s", event.event_type.value)
             _queue.task_done()
         except asyncio.CancelledError:
             break
