@@ -138,9 +138,10 @@ async def refresh_goal(api_key: str, goal_id: str) -> TrackedGoal:
         goal.status = "completed"
 
     try:
+        ontology_goal.map_goal_to_ontology(goal)
         await ontology_goal.sync_goal_reservations(goal.account_name)
     except Exception as e:
-        logger.warning("Ontology reservation sync after refresh failed (continuing): %s", e)
+        logger.warning("Ontology sync after refresh failed (continuing): %s", e)
 
     return goal
 

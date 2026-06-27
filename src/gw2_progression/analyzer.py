@@ -169,4 +169,11 @@ async def fetch_all(api_key: str) -> AccountContents:
                     contents.unlocked_minis_count = len(contents.unlocked_minis)
 
     contents.errors = errors
+
+    try:
+        from .ontology.account_mapper import sync_account_to_ontology
+        await sync_account_to_ontology(api_key, contents.account_name or "unknown")
+    except Exception as e:
+        contents.errors["ontology"] = str(e)
+
     return contents

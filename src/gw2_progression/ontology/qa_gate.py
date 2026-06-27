@@ -22,7 +22,7 @@ from .models import OntologyObject, QAReport
 
 logger = logging.getLogger("gw2.ontology.qa")
 
-_API_KEY_PATTERN = re.compile(r"[0-9A-Fa-f]{8}(?:-[0-9A-Fa-f]{4}){3}-[0-9A-Fa-f]{12}|[0-9A-Fa-f]{16,72}")
+_API_KEY_PATTERN = re.compile(r"[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}")
 
 _CHECK_PROPERTY_MAP: dict[str, str] = {
     "surplus_non_negative": "safe_surplus",

@@ -66,6 +66,72 @@
       "owner": "GoalRequirementStatus"
     }
   ],
+  "state_axis": [
+    {
+      "name": "valuation_status",
+      "values": [
+        "priced",
+        "unpriced",
+        "account_bound"
+      ],
+      "code_anchor": "src/gw2_progression/models.py:12",
+      "owner": "ItemHolding"
+    },
+    {
+      "name": "qa_status",
+      "values": [
+        "pending",
+        "pass",
+        "fail"
+      ],
+      "code_anchor": "src/gw2_progression/ontology/models.py:11",
+      "owner": "OntologyObject"
+    },
+    {
+      "name": "privacy_scope",
+      "values": [
+        "private",
+        "shared",
+        "public"
+      ],
+      "code_anchor": "src/gw2_progression/ontology/config.py:13",
+      "owner": "OntologyObject"
+    },
+    {
+      "name": "price_quality",
+      "values": [
+        "priced",
+        "wide_spread",
+        "low_liquidity",
+        "missing_buy",
+        "missing_sell",
+        "illiquid"
+      ],
+      "code_anchor": "src/gw2_progression/services/price_service.py",
+      "owner": "PriceData"
+    },
+    {
+      "name": "action_priority",
+      "values": [
+        "P0",
+        "P1",
+        "P2"
+      ],
+      "code_anchor": "src/gw2_progression/services/v4_optimizer.py:5",
+      "owner": "ProgressionAdvice"
+    },
+    {
+      "name": "goal_progress",
+      "values": [
+        "owned",
+        "missing",
+        "blocked_by_cost",
+        "ready_to_craft"
+      ],
+      "code_anchor": "src/gw2_progression/models.py:237",
+      "owner": "GoalRequirementStatus"
+    }
+  ],
   "entity_axis": [
     {
       "name": "AccountContents",
@@ -112,8 +178,62 @@
     {
       "name": "ProgressionAdvice",
       "kind": "decision_output",
-      "code_anchor": "src/gw2_progression/models.py:376",
+      "code_anchor": "src/gw2_progression/services/agent_service.py:376",
       "meaning": "Ranked actions and weekly plan derived from account, economy, goals, and builds."
+    },
+    {
+      "name": "OntologyObject",
+      "kind": "semantic_entity",
+      "code_anchor": "src/gw2_progression/ontology/models.py:6",
+      "meaning": "Base ontology entity with class, properties, QA status, and privacy scope."
+    },
+    {
+      "name": "account_snapshot",
+      "kind": "ontology_class",
+      "code_anchor": "src/gw2_progression/ontology/config.py:9",
+      "meaning": "Point-in-time account data snapshot in the ontology graph."
+    },
+    {
+      "name": "account_asset",
+      "kind": "ontology_class",
+      "code_anchor": "src/gw2_progression/ontology/config.py:15",
+      "meaning": "An item holding owned by an account in the ontology graph."
+    },
+    {
+      "name": "legendary_goal",
+      "kind": "ontology_class",
+      "code_anchor": "src/gw2_progression/ontology/config.py:21",
+      "meaning": "A tracked legendary goal (active/paused/completed) in the ontology."
+    },
+    {
+      "name": "goal_requirement",
+      "kind": "ontology_class",
+      "code_anchor": "src/gw2_progression/ontology/config.py:27",
+      "meaning": "A material/currency/achievement required by a goal in the ontology."
+    },
+    {
+      "name": "reserved_asset",
+      "kind": "ontology_class",
+      "code_anchor": "src/gw2_progression/ontology/config.py:33",
+      "meaning": "An asset quantity reserved for a specific goal."
+    },
+    {
+      "name": "safe_surplus",
+      "kind": "ontology_class",
+      "code_anchor": "src/gw2_progression/ontology/config.py:39",
+      "meaning": "Computed safe-to-sell quantity for an asset."
+    },
+    {
+      "name": "guild_workspace",
+      "kind": "ontology_class",
+      "code_anchor": "src/gw2_progression/ontology/guild_mapper.py:21",
+      "meaning": "A guild workspace with members and shared goals."
+    },
+    {
+      "name": "guild_member",
+      "kind": "ontology_class",
+      "code_anchor": "src/gw2_progression/ontology/guild_mapper.py:35",
+      "meaning": "A member of a guild workspace."
     }
   ],
   "relations": [
@@ -164,6 +284,48 @@
       "relation": "informs",
       "to": "ProgressionAdvice",
       "code_anchor": "src/gw2_progression/services/agent_service.py:300"
+    },
+    {
+      "from": "account_snapshot",
+      "relation": "owns",
+      "to": "account_asset",
+      "code_anchor": "src/gw2_progression/ontology/account_mapper.py:99"
+    },
+    {
+      "from": "legendary_goal",
+      "relation": "requires",
+      "to": "goal_requirement",
+      "code_anchor": "src/gw2_progression/ontology/goal_mapper.py:75"
+    },
+    {
+      "from": "reserved_asset",
+      "relation": "reserved_for",
+      "to": "legendary_goal",
+      "code_anchor": "src/gw2_progression/ontology/goal_mapper.py:145"
+    },
+    {
+      "from": "safe_surplus",
+      "relation": "safe_surplus_for",
+      "to": "account_asset",
+      "code_anchor": "src/gw2_progression/ontology/config.py:96"
+    },
+    {
+      "from": "report",
+      "relation": "generated_from",
+      "to": "account_snapshot",
+      "code_anchor": "src/gw2_progression/ontology/report_mapper.py:49"
+    },
+    {
+      "from": "build_readiness",
+      "relation": "evaluates",
+      "to": "build",
+      "code_anchor": "src/gw2_progression/ontology/config.py:114"
+    },
+    {
+      "from": "guild_member",
+      "relation": "member_of",
+      "to": "guild_workspace",
+      "code_anchor": "src/gw2_progression/ontology/guild_mapper.py:47"
     }
   ],
   "constraint_axis": [
@@ -201,6 +363,34 @@
       "severity": "medium",
       "logic": "Build readiness depends on fetched account professions and parsed gear requirements.",
       "code_anchor": "src/gw2_progression/services/build_service.py:281"
+    },
+    {
+      "rule_id": "ReservedCountPositive",
+      "target": "reserved_asset",
+      "severity": "high",
+      "logic": "Reserved count must be positive.",
+      "code_anchor": "src/gw2_progression/ontology/qa_gate.py:203"
+    },
+    {
+      "rule_id": "SurplusNonNegative",
+      "target": "safe_surplus",
+      "severity": "high",
+      "logic": "Safe surplus must be >= 0.",
+      "code_anchor": "src/gw2_progression/ontology/qa_gate.py:167"
+    },
+    {
+      "rule_id": "ApiKeyLeakCheck",
+      "target": "report",
+      "severity": "critical",
+      "logic": "No API keys or session tokens in report data.",
+      "code_anchor": "src/gw2_progression/ontology/qa_gate.py:196"
+    },
+    {
+      "rule_id": "SnapshotFreshness",
+      "target": "report",
+      "severity": "high",
+      "logic": "Snapshot must be less than 48h old for reports.",
+      "code_anchor": "src/gw2_progression/ontology/qa_gate.py:227"
     }
   ],
   "professional_user_maturity": {
@@ -214,13 +404,18 @@
       "Runtime route registration can drift from indexed flows if route-map checks are not part of CI.",
       "Rate limiting and middleware need explicit test-mode isolation.",
       "API response shape contracts are not yet captured by GitNexus shape_check.",
-      "Professional trust signals need richer provenance: price timestamp, source, liquidity confidence, build source version, and time-gated material explanation."
+      "Professional trust signals need richer provenance: price timestamp, source, liquidity confidence, build source version, and time-gated material explanation.",
+      "Ontology layer was historically disconnected from runtime (P0 fixed in this patch).",
+      "Ontology persistence was in-memory only (P0 fixed in this patch).",
+      "QA gate regex previously over-matched session tokens as API keys (P1 fixed in this patch)."
     ],
     "next_stages": [
       "Stabilize runtime/API contract and CI checks.",
       "Add professional trust metadata to every recommendation.",
       "Turn semantic graph into an enforced contract for entities, states, and response shapes.",
-      "Improve user-facing workflows for advanced GW2 planning: raids/fractals/WvW/PvP, legendary time gates, and guild/account portfolio analysis."
+      "Improve user-facing workflows for advanced GW2 planning: raids/fractals/WvW/PvP, legendary time gates, and guild/account portfolio analysis.",
+      "Enforce ontology QA gate before report publication and strong recommendations.",
+      "Run semantic_graph.json generation in CI to prevent drift."
     ]
   }
 }

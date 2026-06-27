@@ -408,7 +408,7 @@ class TestQAGate:
             "report_id": 3,
             "snapshot_time": "2026-06-26T12:00:00",
             "access_level": "public",
-            "api_key": "ABCDEF1234567890",
+            "api_key": "ABCDEF01-2345-6789-ABCD-EF0123456789AB",
         })
         assert qa.status == "fail"
         assert any("API key" in e for e in qa.blocking_errors)

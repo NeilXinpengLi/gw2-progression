@@ -1,7 +1,9 @@
 """Ontology Object and Relation Store.
 
-In-memory dict-based registry with optional SQLite persistence.
-MVP uses dicts (not Neo4j/RDF) for simplicity and speed.
+In-memory dict-based registry with automatic SQLite persistence.
+Every register_object / register_relation call also persists to SQLite
+when a running event loop is available (fire-and-forget).
+On restart, call load_objects() / load_relations() to restore.
 """
 
 import asyncio
@@ -16,6 +18,8 @@ from .exceptions import PersistenceError
 from .models import OntologyAction, OntologyObject, OntologyRelation
 
 logger = logging.getLogger("gw2.ontology.store")
+
+_PERSIST_ENABLED = True
 
 _objects: dict[str, OntologyObject] = {}
 _relations: dict[str, OntologyRelation] = {}
@@ -48,6 +52,28 @@ def _index_relation(rel: OntologyRelation) -> None:
     _relations_by_type.setdefault(rel.relation_type, []).append(rel)
 
 
+def _try_persist(obj_or_rel: OntologyObject | OntologyRelation) -> None:
+    """Fire-and-forget SQLite persist. Falls back to in-memory only if DB unavailable."""
+    if not _PERSIST_ENABLED:
+        return
+    try:
+        loop = asyncio.get_running_loop()
+        if loop.is_running():
+            from ..database import _pool
+            if _pool is None:
+                return  # DB pool not ready yet
+            if isinstance(obj_or_rel, OntologyObject):
+                loop.create_task(asyncio.wait_for(
+                    _with_retry(lambda: persist_object(obj_or_rel)), timeout=5.0,
+                ))
+            elif isinstance(obj_or_rel, OntologyRelation):
+                loop.create_task(asyncio.wait_for(
+                    _with_retry(lambda: persist_relation(obj_or_rel)), timeout=5.0,
+                ))
+    except (RuntimeError, asyncio.TimeoutError):
+        pass
+
+
 def register_object(
     class_name: str,
     account_name: str = "",
@@ -70,6 +96,7 @@ def register_object(
         updated_at=now,
     )
     _reindex(obj)
+    _try_persist(obj)
     return obj
 
 
@@ -129,6 +156,7 @@ def register_relation(
         created_at=_ts(),
     )
     _index_relation(rel)
+    _try_persist(rel)
     return rel
 
 
