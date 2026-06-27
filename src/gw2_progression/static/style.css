@@ -1,45 +1,53 @@
-/* ══════════════════════════════════════════════════
-   GW2 Progression — GW2 Official Site Inspired Theme
-   Colors & typography aligned with guildwars2.com
-   ══════════════════════════════════════════════════ */
+/* ════════════════════════════════════════════════════════
+   GW2 Progression — Brand Design System
+   Research sources: awesome-design-md (NVIDIA, Claude, Stripe)
+                     + guildwars2.com official site analysis
+   ════════════════════════════════════════════════════════ */
 
 @import url('https://fonts.googleapis.com/css2?family=PT+Serif:ital,wght@0,400;0,700;1,400&family=Inter:wght@300;400;500;600;700&display=swap');
 
 :root {
-  /* GW2 Official Site Colors */
-  --gw2-bg: #0f0e0c;
-  --gw2-bg2: #1a1815;
-  --gw2-bg3: #252220;
-  --gw2-bg-card: #1c1a17;
-  --gw2-bg-hover: #24211e;
-  --gw2-border: #2e2a26;
+  /* ── Brand Colors (GW2-inspired) ── */
+  --gw2-bg:           #0f0e0c;
+  --gw2-bg-elevated:  #161412;
+  --gw2-bg-card:      #1c1a17;
+  --gw2-bg-hover:     #23211d;
+  --gw2-bg-input:     #1e1c19;
+  --gw2-surface:      #1a1815;
+  --gw2-border:       #2e2a26;
   --gw2-border-light: #3d3833;
+  --gw2-hairline:     #22201c;
 
-  /* GW2 Brand Gold (from site logo & accents) */
-  --gw2-gold: #c8956c;
+  /* ── Brand Gold (primary accent) ── */
+  --gw2-gold:       #c8956c;
   --gw2-gold-light: #dfb48c;
-  --gw2-gold-dark: #a07050;
-  --gw2-gold-glow: rgba(200, 149, 108, 0.12);
+  --gw2-gold-dark:  #a07050;
 
-  /* GW2 Accent Colors */
-  --gw2-red: #c04040;
-  --gw2-green: #5a8a5a;
-  --gw2-blue: #5080a0;
-  --gw2-mystic: #9060b0;
+  /* ── Semantic Colors ── */
+  --gw2-red:       #c04040;
+  --gw2-red-bg:    rgba(192,64,64,0.08);
+  --gw2-green:     #5a8a5a;
+  --gw2-green-bg:  rgba(90,138,90,0.08);
+  --gw2-blue:      #5080a0;
+  --gw2-blue-bg:   rgba(80,128,160,0.08);
+  --gw2-mystic:    #9060b0;
   --gw2-legendary: #e89830;
 
-  /* Text */
-  --gw2-text: #d0cdc8;
-  --gw2-text-dim: #88837a;
-  --gw2-text-bright: #e8e5e0;
-  --gw2-text-gold: var(--gw2-gold-light);
-  --gw2-link: var(--gw2-gold);
-  --gw2-link-hover: var(--gw2-gold-light);
+  /* ── Text ── */
+  --gw2-text:         #d0cdc8;
+  --gw2-text-dim:     #88837a;
+  --gw2-text-muted:   #6b6760;
+  --gw2-text-bright:  #e8e5e0;
+  --gw2-text-gold:    var(--gw2-gold-light);
 
-  /* Fonts */
+  /* ── Typography ── */
   --gw2-font-display: 'PT Serif', Georgia, 'Times New Roman', serif;
-  --gw2-font-body: 'Inter', 'Segoe UI', system-ui, -apple-system, sans-serif;
-  --gw2-font-mono: 'Cascadia Code', 'Fira Code', 'Consolas', monospace;
+  --gw2-font-body:    'Inter', 'Segoe UI', system-ui, -apple-system, sans-serif;
+  --gw2-font-mono:    'Cascadia Code', 'Fira Code', 'Consolas', monospace;
+
+  /* ── Borders & Radius ── */
+  --gw2-radius: 2px;
+  --gw2-radius-sm: 1px;
 }
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -54,7 +62,7 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
-/* ── Header (GW2 site style) ── */
+/* ── Header (GW2 red brush-stripe accent) ── */
 header {
   background: #11100e;
   border-bottom: 1px solid var(--gw2-border);
@@ -63,21 +71,41 @@ header {
   align-items: center;
   gap: 14px;
   flex-wrap: wrap;
+  position: relative;
+}
+
+/* Red brush-stripe accent from GW2 site */
+header::after {
+  content: '';
+  position: absolute;
+  bottom: -1px;
+  left: 0; right: 0;
+  height: 3px;
+  background: linear-gradient(90deg,
+    transparent 0%,
+    #8a2020 15%,
+    #b03030 30%,
+    #c04040 50%,
+    #b03030 70%,
+    #8a2020 85%,
+    transparent 100%
+  );
+  opacity: 0.7;
 }
 
 header h1 {
   font-family: var(--gw2-font-display);
-  font-size: 22px;
+  font-size: 20px;
   font-weight: 400;
   color: var(--gw2-gold);
-  letter-spacing: 3px;
+  letter-spacing: 4px;
   text-transform: uppercase;
 }
 
 header span {
   color: var(--gw2-text-dim);
-  font-size: 12px;
-  font-weight: 300;
+  font-size: 11px;
+  font-weight: 400;
   letter-spacing: 0.5px;
 }
 
@@ -103,12 +131,11 @@ nav button {
   padding: 11px 18px;
   transition: all .2s;
   white-space: nowrap;
-  letter-spacing: 0.3px;
+  letter-spacing: 0.5px;
 }
 
 nav button:hover {
   color: var(--gw2-text-bright);
-  background: rgba(255,255,255,0.02);
 }
 
 nav button.active {
@@ -116,30 +143,28 @@ nav button.active {
   border-bottom-color: var(--gw2-gold);
 }
 
-/* ── Main ── */
+/* ── Main Content ── */
 main {
   max-width: 1200px;
   margin: 0 auto;
   padding: 32px 24px;
 }
 
-/* ── Section Title (GW2 "Eason" style) ── */
+/* ── Section Heading (Serif, editorial) ── */
 .section-title {
   font-family: var(--gw2-font-display);
   font-size: 16px;
   font-weight: 700;
   color: var(--gw2-gold);
-  letter-spacing: 0.5px;
-  border-bottom: 1px solid var(--gw2-border);
-  padding-bottom: 10px;
-  margin: 32px 0 16px;
+  letter-spacing: 0.3px;
+  margin: 32px 0 14px;
 }
 
-/* ── Key Section ── */
+/* ── Key Entry Section ── */
 #key-section {
-  background: #151310;
+  background: var(--gw2-surface);
   border: 1px solid var(--gw2-border);
-  border-radius: 2px;
+  border-radius: var(--gw2-radius);
   padding: 28px;
   margin-bottom: 28px;
 }
@@ -150,19 +175,19 @@ main {
   font-size: 18px;
   font-weight: 400;
   margin-bottom: 14px;
-  letter-spacing: 1px;
+  letter-spacing: 0.5px;
 }
 
 #key-row {
   display: flex;
-  gap: 10px;
+  gap: 8px;
 }
 
 #key-input {
   flex: 1;
-  background: var(--gw2-bg3);
+  background: var(--gw2-bg-input);
   border: 1px solid var(--gw2-border);
-  border-radius: 2px;
+  border-radius: var(--gw2-radius);
   color: var(--gw2-text-bright);
   font-size: 13px;
   padding: 11px 14px;
@@ -179,16 +204,16 @@ main {
 #analyze-btn {
   background: var(--gw2-gold);
   border: none;
-  border-radius: 2px;
+  border-radius: var(--gw2-radius);
   color: #111;
   cursor: pointer;
   font-family: var(--gw2-font-body);
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 600;
   padding: 11px 24px;
-  transition: background .2s;
+  transition: background .15s, opacity .15s;
   white-space: nowrap;
-  letter-spacing: 0.5px;
+  letter-spacing: 1px;
   text-transform: uppercase;
 }
 
@@ -197,27 +222,25 @@ main {
 }
 
 #analyze-btn:disabled {
-  background: #444;
+  opacity: 0.4;
   cursor: not-allowed;
 }
 
-/* ── GW2-style Card ── */
+/* ── Cards ── */
 .card {
   background: var(--gw2-bg-card);
   border: 1px solid var(--gw2-border);
-  border-radius: 2px;
+  border-radius: var(--gw2-radius);
   padding: 20px;
-  transition: border-color .2s, background .2s;
+  transition: border-color .2s;
 }
 
 .card:hover {
   border-color: var(--gw2-border-light);
-  background: var(--gw2-bg-hover);
 }
 
-/* ── Tables ── */
+/* ── Data Tables ── */
 .table-wrap {
-  overflow-x: auto;
   margin-bottom: 24px;
 }
 
@@ -230,8 +253,8 @@ table {
 table th {
   text-align: left;
   color: var(--gw2-text-dim);
-  font-size: 11px;
-  font-weight: 500;
+  font-size: 10px;
+  font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 1.5px;
   padding: 10px 14px;
@@ -241,7 +264,7 @@ table th {
 
 table td {
   padding: 10px 14px;
-  border-bottom: 1px solid #1a1917;
+  border-bottom: 1px solid var(--gw2-hairline);
   transition: background .15s;
 }
 
@@ -259,8 +282,8 @@ table .num {
 /* ── Spinner ── */
 .spinner {
   display: inline-block;
-  width: 16px;
-  height: 16px;
+  width: 14px;
+  height: 14px;
   border: 2px solid var(--gw2-border);
   border-top-color: var(--gw2-gold);
   border-radius: 50%;
@@ -274,19 +297,20 @@ table .num {
 .dim { color: var(--gw2-text-dim); }
 .gold { color: var(--gw2-gold); }
 .text-bright { color: var(--gw2-text-bright); }
+.mono { font-family: var(--gw2-font-mono); }
 
-/* GW2-style button */
+/* ── Buttons ── */
 .btn-sm {
   background: transparent;
   border: 1px solid var(--gw2-border);
-  border-radius: 2px;
+  border-radius: var(--gw2-radius);
   color: var(--gw2-text-dim);
   cursor: pointer;
   font-family: var(--gw2-font-body);
-  font-size: 12px;
+  font-size: 11px;
   padding: 6px 14px;
   transition: all .15s;
-  letter-spacing: 0.3px;
+  letter-spacing: 0.5px;
 }
 
 .btn-sm:hover {
@@ -297,15 +321,15 @@ table .num {
 .btn-gold {
   background: var(--gw2-gold);
   border: none;
-  border-radius: 2px;
+  border-radius: var(--gw2-radius);
   color: #111;
   cursor: pointer;
   font-family: var(--gw2-font-body);
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 600;
   padding: 10px 22px;
-  transition: background .2s;
-  letter-spacing: 0.5px;
+  transition: background .15s;
+  letter-spacing: 1px;
   text-transform: uppercase;
 }
 
@@ -317,10 +341,10 @@ table .num {
 @media (max-width: 900px) {
   main { padding: 24px 16px; }
   header { padding: 12px 16px; }
-  header h1 { font-size: 18px; }
+  header h1 { font-size: 16px; }
   #key-row { flex-direction: column; }
 }
 
 @media (max-width: 600px) {
-  nav button { font-size: 12px; padding: 8px 10px; }
+  nav button { font-size: 11px; padding: 8px 10px; }
 }
