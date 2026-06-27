@@ -38,13 +38,27 @@ document.addEventListener('DOMContentLoaded', () => {
     if (page) page.classList.add('active');
   });
 
-  // Restore session
+  // Restore session — but validate it first
   try {
     const saved = localStorage.getItem('gw2_session');
     if (saved) {
       _sessionToken = saved;
       document.getElementById('key-input').value = saved;
-      setTimeout(runAnalyze, 300);
+      // Validate the saved session by checking if it still works
+      fetch('/api/account/overview?api_key=' + encodeURIComponent(saved), { signal: AbortSignal.timeout(5000) })
+        .then(r => {
+          if (r.ok) runAnalyze();
+          else {
+            _sessionToken = null;
+            localStorage.removeItem('gw2_session');
+            document.getElementById('key-input').value = '';
+          }
+        })
+        .catch(() => {
+          _sessionToken = null;
+          localStorage.removeItem('gw2_session');
+          document.getElementById('key-input').value = '';
+        });
     }
   } catch(e) {}
 });
@@ -64,8 +78,8 @@ async function runAnalyze() {
 
   let useKey = rawKey;
 
-  // If user entered a new key (different from cached token), force re-auth
-  if (_sessionToken && rawKey !== _sessionToken && rawKey.length > 40) {
+  // Always validate: if input differs from cached token, force re-auth
+  if (_sessionToken && rawKey !== _sessionToken) {
     _sessionToken = null;
     localStorage.removeItem('gw2_session');
   }
