@@ -83,6 +83,7 @@ def extract_bank_holdings(bank: list | None) -> list[ItemHolding]:
 
 
 def extract_character_holdings(characters: list | None) -> list[ItemHolding]:
+    """Extract bag inventory items from characters (location_type='character')."""
     result = []
     if not characters:
         return result
@@ -113,6 +114,35 @@ def extract_character_holdings(characters: list | None) -> list[ItemHolding]:
                             valuation_status="pending",
                         )
                     )
+    return result
+
+
+def extract_character_equipment(characters: list | None) -> list[ItemHolding]:
+    """Extract equipped gear items from characters (location_type='character_equipment')."""
+    result = []
+    if not characters:
+        return result
+    for char in characters:
+        if not isinstance(char, dict):
+            continue
+        char_name = char.get("name", "unknown")
+        for eq in (char.get("equipment") or []):
+            if not isinstance(eq, dict):
+                continue
+            item_id = eq.get("id")
+            slot = eq.get("slot", "")
+            if item_id:
+                result.append(
+                    ItemHolding(
+                        item_id=item_id,
+                        count=1,
+                        location_type="character_equipment",
+                        location_ref=f"{char_name}/{slot}",
+                        binding_status="AccountBound",
+                        tradable=False,
+                        valuation_status="pending",
+                    )
+                )
     return result
 
 

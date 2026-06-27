@@ -29,6 +29,7 @@ from ..models_data import (
 )
 from .holdings_service import (
     extract_bank_holdings,
+    extract_character_equipment,
     extract_character_holdings,
     extract_material_holdings,
     extract_shared_inventory_holdings,
@@ -132,7 +133,8 @@ def normalize_account(raw: dict[str, Any]) -> NormalizedAccountData:
     raw_holdings.extend(extract_wallet_holdings(raw_wallet))
     raw_holdings.extend(extract_material_holdings(raw_materials))
     raw_holdings.extend(extract_bank_holdings(raw_bank))
-    raw_holdings.extend(extract_character_holdings(raw_chars))
+    raw_holdings.extend(extract_character_equipment(raw_chars))  # gear slot
+    raw_holdings.extend(extract_character_holdings(raw_chars))   # bag items
     raw_holdings.extend(extract_shared_inventory_holdings(raw_shared))
     raw_holdings.extend(extract_tradingpost_holdings(raw_tp_buys, raw_tp_sells))
 
@@ -212,25 +214,46 @@ async def derive_value(normalized: NormalizedAccountData) -> AccountValue:
 
 
 def derive_breakdown(assets: list[AssetEntity]) -> list[AssetBreakdown]:
-    """Compute asset category breakdown with percentages."""
+    """Compute asset category breakdown by economic value source (gw2efficiency style).
+
+    Categories reflect how value is held, not where items are stored:
+      - Wallet:        liquid gold
+      - Bank:           items in bank storage
+      - Material Storage: crafting materials
+      - Equipment:      gear equipped on characters (from equipment slots)
+      - Character Inventory: items in character bags
+      - Shared Inventory:   shared inventory slots
+      - Trading Post:   active buy/sell orders
+    """
     total = sum(a.value_sell for a in assets)
-    categories: dict[str, int] = {}
+    cat_values: dict[str, int] = {}
     cat_items: dict[str, list[AssetEntity]] = {}
-    location_labels = {
-        "wallet": "Wallet", "material_storage": "Materials", "bank": "Bank",
-        "character": "Characters", "shared_inventory": "Shared Inventory",
-        "tradingpost": "Trading Post",
-    }
 
     for a in assets:
-        label = location_labels.get(a.location, a.location)
-        categories[label] = categories.get(label, 0) + a.value_after_fee
+        if a.location == "wallet":
+            label = "Wallet"
+        elif a.location == "material_storage":
+            label = "Material Storage"
+        elif a.location == "bank":
+            label = "Bank"
+        elif a.location == "character_equipment":
+            label = "Equipment"
+        elif a.location == "character":
+            label = "Character Inventory"
+        elif a.location == "shared_inventory":
+            label = "Shared Inventory"
+        elif a.location == "tradingpost":
+            label = "Trading Post"
+        else:
+            label = a.location.replace("_", " ").title()
+
+        cat_values[label] = cat_values.get(label, 0) + a.value_after_fee
         cat_items.setdefault(label, []).append(a)
 
-    order = ["Wallet", "Materials", "Bank", "Characters", "Shared Inventory", "Trading Post"]
+    order = ["Wallet", "Material Storage", "Bank", "Equipment", "Character Inventory", "Shared Inventory", "Trading Post"]
     breakdown = []
     for label in order:
-        val = categories.get(label, 0)
+        val = cat_values.get(label, 0)
         items = cat_items.get(label, [])
         low_liquidity = sum(1 for i in items if i.liquidity in ("low", "illiquid"))
         risk = "high" if len(items) > 0 and low_liquidity / len(items) > 0.5 else "medium" if low_liquidity > 0 else "low"
@@ -242,7 +265,6 @@ def derive_breakdown(assets: list[AssetEntity]) -> list[AssetBreakdown]:
             risk=risk,
             item_count=len(items),
         ))
-
     return breakdown
 
 
