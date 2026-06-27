@@ -1,0 +1,203 @@
+/* ── Plan Page specific styles ── */
+
+/* Goal Input Card */
+.goal-input-card {
+  background: linear-gradient(135deg, #0f1a0f, #1a0f1a);
+  border: 1px solid #2a2a2a;
+  border-radius: 12px;
+  padding: 24px;
+  margin-bottom: 20px;
+}
+
+.goal-input-row {
+  display: flex;
+  gap: 10px;
+}
+
+.goal-input-row input {
+  flex: 1;
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--text-bright);
+  font-size: 15px;
+  padding: 12px 16px;
+  outline: none;
+}
+
+.goal-input-row input:focus {
+  border-color: var(--gold);
+}
+
+.btn-gold {
+  background: var(--gold);
+  border: none;
+  border-radius: 8px;
+  color: #111;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 600;
+  padding: 12px 24px;
+  white-space: nowrap;
+}
+
+.btn-gold:hover {
+  background: var(--gold-light);
+}
+
+.quick-goal-row {
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
+  flex-wrap: wrap;
+}
+
+.quick-goal-chip {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  color: var(--text-dim);
+  cursor: pointer;
+  font-size: 12px;
+  padding: 6px 14px;
+  transition: border-color .15s;
+  white-space: nowrap;
+}
+
+.quick-goal-chip:hover {
+  border-color: var(--gold);
+  color: var(--text);
+}
+
+/* Strategy Bar */
+.strategy-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 16px;
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font-size: 12px;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+}
+
+.strategy-btn-group {
+  display: flex;
+  gap: 4px;
+}
+
+.strategy-btn {
+  background: var(--bg3);
+  border: 1px solid transparent;
+  border-radius: 6px;
+  color: var(--text-dim);
+  cursor: pointer;
+  font-size: 12px;
+  padding: 6px 14px;
+  transition: all .15s;
+}
+
+.strategy-btn:hover {
+  border-color: var(--gold);
+  color: var(--text);
+}
+
+.strategy-btn.active {
+  background: var(--gold);
+  color: #111;
+  font-weight: 600;
+}
+
+/* Priority Sections */
+.plan-priority-section {
+  margin-bottom: 8px;
+}
+
+.priority-header {
+  font-size: 12px;
+  font-weight: 600;
+  padding: 6px 12px;
+  border-radius: 6px 6px 0 0;
+  margin-bottom: 0;
+}
+
+.priority-header.p0 { background: #3a2a1a; color: #d0a050; }
+.priority-header.p1 { background: #1a3a2a; color: #6bc46b; }
+.priority-header.p2 { background: #1a2a3a; color: #5a9ece; }
+
+.action-card {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-top: none;
+  padding: 10px 14px;
+  font-size: 13px;
+}
+
+.action-card:last-child {
+  border-radius: 0 0 6px 6px;
+}
+
+.action-card .action-icon {
+  font-size: 18px;
+  flex-shrink: 0;
+}
+
+.action-card .action-text {
+  flex: 1;
+}
+
+.action-card .action-reward {
+  font-weight: 600;
+  color: var(--gold-light);
+  white-space: nowrap;
+  font-size: 12px;
+}
+
+.action-card .action-score {
+  font-size: 11px;
+  color: var(--text-dim);
+  white-space: nowrap;
+}
+
+/* Timeline Grid */
+.timeline-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.timeline-day {
+  border-radius: 8px;
+  padding: 12px;
+  font-size: 12px;
+}
+
+.timeline-day .day-label {
+  font-weight: 600;
+  color: var(--gold);
+  margin-bottom: 4px;
+}
+
+.timeline-day .day-task {
+  color: var(--text);
+  margin-bottom: 4px;
+}
+
+.timeline-day .day-progress {
+  height: 3px;
+  border-radius: 2px;
+  overflow: hidden;
+  background: var(--bg3);
+}
+
+.timeline-day .day-progress-bar {
+  height: 100%;
+  border-radius: 2px;
+  background: var(--gold);
+}

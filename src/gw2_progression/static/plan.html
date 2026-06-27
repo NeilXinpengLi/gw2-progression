@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Plan — GW2 Progression</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+  <link rel="stylesheet" href="/static/style.css" />
+  <link rel="stylesheet" href="/static/style-plan.css" />
+  <meta name="theme-color" content="#c8956c" />
+</head>
+<body>
+
+<header>
+  <h1>GW2 Progression</h1>
+  <span>Decision Engine</span>
+</header>
+
+<nav class="nav-os" id="os-nav" role="tablist">
+  <button data-nav="account" role="tab">📊 Account</button>
+  <button class="active" data-nav="plan" role="tab">🎯 Plan</button>
+  <button data-nav="tools" role="tab">🔧 Tools</button>
+</nav>
+
+<main>
+
+  <!-- ═══ PLAN PAGE ═══ -->
+  <div class="page-section active" id="page-plan">
+
+    <!-- ── Header ── -->
+    <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:20px">
+      <div>
+        <div style="font-size:22px;font-weight:700;color:var(--gold)">🎯 Progression Plan</div>
+        <div style="font-size:12px;color:var(--text-dim)">AI-powered decisions. Adjust strategy or enter a goal.</div>
+      </div>
+      <div id="plan-account-badge" class="hidden" style="font-size:12px;color:var(--text-dim);background:var(--bg2);padding:6px 14px;border-radius:6px;border:1px solid var(--border)">
+        Account: <span id="plan-account-name" style="color:var(--text-bright)">—</span>
+      </div>
+    </div>
+
+    <!-- ── Goal Input ── -->
+    <div class="goal-input-card">
+      <div class="goal-input-row">
+        <input id="goal-input" type="text" placeholder='e.g. "I want to finish Bolt" or "Make 500g this week"' />
+        <button id="goal-generate-btn" class="btn-gold">Generate Plan</button>
+      </div>
+      <div class="quick-goal-row">
+        <button class="quick-goal-chip" data-goal="I want to make gold this week">💰 Make Gold</button>
+        <button class="quick-goal-chip" data-goal="I want to finish Bolt">⚔️ Finish Legendary</button>
+        <button class="quick-goal-chip" data-goal="I need a fractal-ready build">🛡️ Build Prep</button>
+        <button class="quick-goal-chip" data-goal="Plan my week">📆 Weekly Plan</button>
+        <button class="quick-goal-chip" data-goal="I came back after a long break">🔄 Returning Player</button>
+      </div>
+    </div>
+
+    <!-- ── Strategy Selector ── -->
+    <div class="strategy-bar" id="strategy-bar">
+      <span class="dim">Strategy:</span>
+      <div class="strategy-btn-group">
+        <button class="strategy-btn active" data-strategy="hybrid">⚖️ Balanced</button>
+        <button class="strategy-btn" data-strategy="gold">💰 Gold</button>
+        <button class="strategy-btn" data-strategy="build">⚔ Build</button>
+        <button class="strategy-btn" data-strategy="legendary">🏆 Legendary</button>
+      </div>
+      <span class="dim" id="strategy-desc">Balanced across gold, builds, and legendaries</span>
+    </div>
+
+    <!-- ── Loading ── -->
+    <div id="plan-loading" class="hidden" style="text-align:center;padding:60px 0">
+      <div class="spinner" style="margin-bottom:12px"></div>
+      <div class="dim">Generating your plan…</div>
+    </div>
+
+    <!-- ── Empty State ── -->
+    <div id="plan-empty">
+      <div style="text-align:center;padding:60px 0;color:var(--text-dim)">
+        <div style="font-size:48px;margin-bottom:12px">🎯</div>
+        <div>Enter a goal above or select a strategy to generate your progression plan.</div>
+        <div style="font-size:12px;margin-top:8px">Your plan will include ranked actions, coach recommendations, and a 7-day timeline.</div>
+      </div>
+    </div>
+
+    <!-- ── Plan Content ── -->
+    <div id="plan-content" class="hidden">
+
+      <!-- P0/P1/P2 Action Cards -->
+      <div class="section-title">Ranked Actions</div>
+      <div id="plan-p0" class="plan-priority-section"></div>
+      <div id="plan-p1" class="plan-priority-section"></div>
+      <div id="plan-p2" class="plan-priority-section"></div>
+
+      <!-- 7-Day Timeline -->
+      <div class="section-title" style="margin-top:24px">7-Day Timeline</div>
+      <div id="timeline-grid" class="timeline-grid"></div>
+
+      <!-- Weekly Quests -->
+      <div class="section-title" style="margin-top:24px">Weekly Quests</div>
+      <div id="quest-list" style="display:flex;flex-direction:column;gap:4px"></div>
+
+      <!-- Coach Plan -->
+      <div class="section-title" style="margin-top:24px">Coach Recommendations</div>
+      <div id="coach-p0"></div>
+      <div id="coach-p1"></div>
+      <div id="coach-p2"></div>
+
+      <!-- Plan Metadata -->
+      <div class="plan-meta" id="plan-meta" style="margin-top:20px;font-size:11px;color:var(--text-dim)"></div>
+
+    </div>
+
+    <!-- ── Error ── -->
+    <div id="plan-error" class="hidden" style="text-align:center;padding:40px 0">
+      <div style="font-size:36px;margin-bottom:8px">⚠️</div>
+      <div class="dim" id="plan-error-msg">An error occurred.</div>
+      <button class="btn-sm" onclick="retryPlan()" style="margin-top:12px">Retry</button>
+    </div>
+
+  </div>
+
+  <!-- ═══ ACCOUNT PAGE (placeholder nav target) ═══ -->
+  <div class="page-section" id="page-account">
+    <div style="text-align:center;padding:60px 0;color:var(--text-dim)">
+      <div style="font-size:36px;margin-bottom:8px">📊</div>
+      <div>Go to <a href="/account" style="color:var(--gold)">/account</a> for your full dashboard.</div>
+    </div>
+  </div>
+
+  <!-- ═══ TOOLS PAGE (placeholder nav target) ═══ -->
+  <div class="page-section" id="page-tools">
+    <div style="text-align:center;padding:60px 0;color:var(--text-dim)">
+      <div style="font-size:36px;margin-bottom:8px">🔧</div>
+      <div>Tools available on the <a href="/" style="color:var(--gold)">main page</a>.</div>
+    </div>
+  </div>
+
+</main>
+
+<script type="module" src="/static/app-plan.js"></script>
+</body>
+</html>
