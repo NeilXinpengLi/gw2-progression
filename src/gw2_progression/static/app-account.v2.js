@@ -59,7 +59,11 @@ document.addEventListener('DOMContentLoaded', async () => {
     document.getElementById('btn-export')?.addEventListener('click', exportData);
   } catch(e) { console.error('Account input handlers:', e); }
 
-  await initSession(); // restore session for manual use, but don't auto-load
+  const restored = await initSession();
+  if (restored) {
+    document.getElementById('key-input').value = restored;
+    document.getElementById('key-input').placeholder = 'Session restored — click Analyze';
+  }
 });
 
 function scrollToChar(charName) {
@@ -153,15 +157,15 @@ function renderTree(data) {
   if (!tree) return;
   const charItems = (data.characters||[]).map(c => {
     const cid = escHtml(c.name).replace(/\s+/g,'-').toLowerCase();
-    return `<div class="tn-item tn-grandchild${_activeSub===escHtml(c.name)?' selected':''}" data-tab="characters" data-sub="${escHtml(c.name)}" id="tn-char-${cid}"><span class="tn-node-icon tn-char-glyph">⛨</span><span class="tn-label">${escHtml(c.name)}</span></div>`;
+    return `<div class="tn-item tn-grandchild${_activeSub===escHtml(c.name)?' selected':''}" data-tab="characters" data-sub="${escHtml(c.name)}" id="tn-char-${cid}"><span class="tn-icon">⛨</span><span class="tn-label">${escHtml(c.name)}</span></div>`;
   }).join('');
-  let html = `<div class="tn-section">Account<span class="tn-spacer"></span><button class="tn-expand-btn tn-expand-plus" id="tn-expand-all" type="button" aria-label="Expand tree" title="Expand"></button><button class="tn-expand-btn tn-expand-minus" id="tn-collapse-all" type="button" aria-label="Collapse tree" title="Collapse"></button></div>`;
+  let html = `<div class="tn-section">Account<span class="tn-spacer"></span><span class="tn-expand-btn" id="tn-expand-all" title="Expand all">⊕</span><span class="tn-expand-btn" id="tn-collapse-all" title="Collapse all">⊖</span></div>`;
   for (const [key, val] of Object.entries(TREE)) {
     const expanded = _activeTab === key;
-    html += `<div class="tn-item tn-root ${_activeTab===key?'expanded':''} ${_activeTab===key?'selected':''}" data-tab="${key}" id="tn-${key}"><span class="tn-node-icon"><svg class="tn-svg" width="16" height="16"><use href="#${val.icon}"/></svg></span><span class="tn-label">${val.label}</span><span class="tn-toggle" data-expanded="${expanded ? 'true' : 'false'}" aria-hidden="true"></span></div>`;
+    html += `<div class="tn-item tn-root ${_activeTab===key?'expanded':''} ${_activeTab===key?'selected':''}" data-tab="${key}" id="tn-${key}"><svg class="tn-svg" width="16" height="16"><use href="#${val.icon}"/></svg><span class="tn-label">${val.label}</span><span class="tn-toggle">${_activeTab===key?'⊖':'⊕'}</span></div>`;
     if (expanded && val.sub.length) {
       val.sub.forEach(s => {
-        html += `<div class="tn-item tn-child ${_activeSub===s.id?'selected':''}" data-tab="${key}" data-sub="${s.id}" id="tn-sub-${s.id}"><span class="tn-node-icon"><svg class="tn-svg" width="14" height="14"><use href="#${s.icon}"/></svg></span><span class="tn-label">${s.label}</span></div>`;
+        html += `<div class="tn-item tn-child ${_activeSub===s.id?'selected':''}" data-tab="${key}" data-sub="${s.id}" id="tn-sub-${s.id}"><svg class="tn-svg" width="14" height="14"><use href="#${s.icon}"/></svg><span class="tn-label">${s.label}</span></div>`;
       });
     }
     if (key === 'characters' && expanded) html += charItems;
@@ -181,7 +185,7 @@ function renderTree(data) {
         _activeTab = tab;
         _activeSub = sub;
       }
-      renderTree(data);
+      updateTreeSelection(data);
       renderDetail(data);
       if (sub && TREE.characters && tab === 'characters') scrollToChar(sub);
     });
@@ -191,14 +195,14 @@ function renderTree(data) {
     e.stopPropagation();
     _activeTab = null;
     _activeSub = null;
-    renderTree(data);
+    updateTreeSelection(data);
     renderDetail(data);
   });
   document.getElementById('tn-expand-all')?.addEventListener('click', e => {
     e.stopPropagation();
     _activeTab = 'economy';
     _activeSub = null;
-    renderTree(data);
+    updateTreeSelection(data);
     renderDetail(data);
   });
 }
@@ -219,7 +223,7 @@ function updateTreeSelection(data) {
     const rootEl = document.getElementById('tn-' + key);
     if (!rootEl) continue;
     const toggle = rootEl.querySelector('.tn-toggle');
-    if (toggle) toggle.dataset.expanded = _activeTab === key ? 'true' : 'false';
+    if (toggle) toggle.textContent = _activeTab === key ? '⊖' : '⊕';
     // Show/hide child items via CSS class
     rootEl.classList.toggle('expanded', _activeTab === key);
     // Actually toggle sub-node visibility in the DOM

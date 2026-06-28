@@ -59,7 +59,11 @@ document.addEventListener('DOMContentLoaded', async () => {
     document.getElementById('btn-export')?.addEventListener('click', exportData);
   } catch(e) { console.error('Account input handlers:', e); }
 
-  await initSession(); // restore session for manual use, but don't auto-load
+  const restored = await initSession();
+  if (restored) {
+    document.getElementById('key-input').value = restored;
+    document.getElementById('key-input').placeholder = 'Session restored — click Analyze';
+  }
 });
 
 function scrollToChar(charName) {
