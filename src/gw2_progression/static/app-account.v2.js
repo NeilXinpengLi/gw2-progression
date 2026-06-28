@@ -44,11 +44,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (urls[page]) window.location.href = urls[page];
   });
 
-  const token = await initSession();
-  if (token) {
-    document.getElementById('key-input').value = token;
-    runAnalyze();
-  }
+  await initSession(); // restore session for manual use, but don't auto-load
 });
 
 function scrollToChar(charName) {
