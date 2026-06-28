@@ -1,6 +1,6 @@
-/* ── Account Overview — GW2 Official Site Styling ── */
+/* ── Account Overview — Responsive Data Layout ── */
 
-/* KPI Cards */
+/* KPI Cards — responsive grid */
 .kpi-row {
   display: grid;
   grid-template-columns: repeat(6, 1fr);
@@ -12,10 +12,9 @@
 
 .kpi-card {
   background: var(--gw2-bg-card);
-  padding: 22px 14px;
+  padding: 20px 12px;
   text-align: center;
   transition: background .2s;
-  position: relative;
 }
 
 .kpi-card:hover {
@@ -35,34 +34,43 @@
 
 .kpi-label {
   color: var(--gw2-text-dim);
-  font-size: 11px;
+  font-size: 10px;
   font-weight: 500;
   text-transform: uppercase;
-  letter-spacing: 1.5px;
-  margin-bottom: 8px;
+  letter-spacing: 1.2px;
+  margin-bottom: 6px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .kpi-value {
   font-family: var(--gw2-font-display);
-  font-size: 24px;
+  font-size: 20px;
   font-weight: 700;
   color: var(--gw2-text-bright);
-  margin-bottom: 4px;
+  margin-bottom: 2px;
   font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .kpi-sub {
   color: var(--gw2-text-dim);
-  font-size: 11px;
+  font-size: 10px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 /* API Badge */
 .api-badge {
-  font-size: 12px;
-  padding: 4px 14px;
+  font-size: 11px;
+  padding: 3px 12px;
   border-radius: 2px;
   font-weight: 500;
-  font-family: var(--gw2-font-body);
+  white-space: nowrap;
 }
 
 .api-badge[data-status="active"] {
@@ -83,27 +91,37 @@
   border: 1px solid rgba(192, 64, 64, 0.2);
 }
 
-/* Asset Table */
+/* 📊 Table wrapper — horizontal scroll on small screens */
+.table-wrap {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  margin-bottom: 20px;
+}
+
+/* Tables */
 .asset-table, .char-table {
   width: 100%;
   border-collapse: collapse;
-  font-size: 14px;
+  font-size: 13px;
+  min-width: 600px; /* ensures columns stay readable */
 }
 
 .asset-table th, .char-table th {
   text-align: left;
   color: var(--gw2-text-dim);
-  font-size: 11px;
+  font-size: 10px;
   font-weight: 500;
   text-transform: uppercase;
-  letter-spacing: 1.5px;
-  padding: 12px 14px;
+  letter-spacing: 1.2px;
+  padding: 10px 10px;
   border-bottom: 1px solid var(--gw2-border);
+  white-space: nowrap;
 }
 
 .asset-table td, .char-table td {
-  padding: 12px 14px;
+  padding: 10px 10px;
   border-bottom: 1px solid #1a1917;
+  white-space: nowrap;
 }
 
 .asset-table tbody tr:hover td,
@@ -115,13 +133,11 @@
   text-align: right;
   font-variant-numeric: tabular-nums;
   font-family: var(--gw2-font-mono);
-  font-size: 13px;
+  font-size: 12px;
 }
 
 /* Risk indicator */
-.risk-dot {
-  font-size: 12px;
-}
+.risk-dot { font-size: 11px; }
 .risk-dot[data-risk="low"] { color: var(--gw2-green); }
 .risk-dot[data-risk="medium"] { color: var(--gw2-legendary); }
 .risk-dot[data-risk="high"] { color: var(--gw2-red); }
@@ -138,44 +154,54 @@
 
 .status-item {
   background: var(--gw2-bg-card);
-  padding: 16px 18px;
+  padding: 14px 16px;
 }
 
 .status-label {
   display: block;
-  font-size: 11px;
+  font-size: 10px;
   font-weight: 500;
   color: var(--gw2-text-dim);
   text-transform: uppercase;
-  letter-spacing: 1.5px;
+  letter-spacing: 1.2px;
   margin-bottom: 4px;
 }
 
 .status-value {
-  font-size: 14px;
+  font-size: 13px;
   color: var(--gw2-text);
 }
 
-/* Chart */
-.chart-container {
-  background: var(--gw2-bg-card);
-  border: 1px solid var(--gw2-border);
-  padding: 20px;
+/* ── Responsive Breakpoints ── */
+
+/* Large: 6-col KPI */
+@media (min-width: 1200px) {
+  .kpi-row { grid-template-columns: repeat(6, 1fr); }
+  .kpi-value { font-size: 22px; }
 }
 
-.chart-container canvas {
-  max-height: 260px;
-  max-width: 100%;
-}
-
-.chart-wide { grid-column: 1 / -1; }
-
-/* Responsive */
-@media (max-width: 1100px) {
+/* Medium-large: 3-col KPI, full tables */
+@media (max-width: 1199px) and (min-width: 768px) {
   .kpi-row { grid-template-columns: repeat(3, 1fr); }
+  .status-grid { grid-template-columns: repeat(3, 1fr); }
 }
 
-@media (max-width: 700px) {
+/* Tablet: 3-col KPI, scrollable tables */
+@media (max-width: 767px) and (min-width: 481px) {
+  .kpi-row { grid-template-columns: repeat(3, 1fr); }
+  .kpi-value { font-size: 18px; }
+  .kpi-card { padding: 14px 8px; }
+  .status-grid { grid-template-columns: repeat(2, 1fr); }
+  .asset-table, .char-table { font-size: 12px; min-width: 520px; }
+}
+
+/* Mobile: 2-col KPI, single status */
+@media (max-width: 480px) {
   .kpi-row { grid-template-columns: repeat(2, 1fr); }
+  .kpi-value { font-size: 16px; }
+  .kpi-card { padding: 12px 6px; }
+  .kpi-label { font-size: 9px; }
+  .kpi-sub { display: none; }
   .status-grid { grid-template-columns: 1fr; }
+  .asset-table, .char-table { font-size: 11px; min-width: 460px; }
 }

@@ -53,6 +53,7 @@ async def account_overview(api_key: str = Query(...)):
     # Enrich with market prices
     from gw2_progression.services.price_service import fetch_prices
 
+    prices: dict = {}
     item_ids = list({a.item_id for a in normalized.assets if a.item_id != 1 and a.price_sell == 0})
     if item_ids:
         try:
@@ -73,16 +74,24 @@ async def account_overview(api_key: str = Query(...)):
     value = await derive_value(normalized)
     breakdown = derive_breakdown(normalized.assets)
 
-    # Character summary
+    # Character summary — compute gear value and build status from raw equipment
     char_rows = []
     for ch in (contents.characters or []):
+        char_equip_list = ch.get("equipment") or []
+        char_gear_value = 0
+        for eq in char_equip_list:
+            if isinstance(eq, dict) and eq.get("id"):
+                eq_price = prices.get(eq["id"])
+                if eq_price:
+                    char_gear_value += eq_price.sell_unit_price
+        prof = ch.get("profession", "")
         char_rows.append({
             "name": ch.get("name", "?"),
-            "profession": _profession_name(ch.get("profession", "")),
+            "profession": _profession_name(prof),
             "level": ch.get("level", 0),
             "playtime": _fmt_duration(ch.get("age", 0)),
-            "gear_value": 0,
-            "build_status": "",
+            "gear_value": char_gear_value,
+            "build_status": f"{len(char_equip_list)} equipped" if char_equip_list else "",
             "last_login": _fmt_last_login(ch.get("created", "")),
         })
 

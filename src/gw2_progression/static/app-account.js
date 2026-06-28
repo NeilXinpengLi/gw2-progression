@@ -14,8 +14,6 @@ import { initSession, createSession, clearSession, getToken, getEffectiveKey } f
 let _abortController = null;
 let _accountData = null;
 let _overviewData = null;
-let _trendChart = null;
-
 document.addEventListener('DOMContentLoaded', async () => {
   document.getElementById('analyze-btn').addEventListener('click', runAnalyze);
   document.getElementById('key-input').addEventListener('keydown', e => { if (e.key === 'Enter') runAnalyze(); });
@@ -92,7 +90,6 @@ async function runAnalyze() {
 
     showLoading(false);
     renderDashboard(_overviewData);
-    loadChart();
     showStatusBadge('active');
   } catch (e) {
     if (e.name === 'AbortError') return;
@@ -165,79 +162,6 @@ function renderDashboard(data) {
   document.getElementById('status-api').textContent = 'active';
   document.getElementById('status-freshness').textContent = 'fresh';
   document.getElementById('status-permissions').textContent = `${data.characters?.length || 0} characters · ${data.assets?.length || 0} asset categories`;
-}
-
-// ── Chart — Realistic value trend based on current data ──
-
-function loadChart() {
-  const canvas = document.getElementById('trend-chart');
-  if (!canvas) return;
-  const ctx = canvas.getContext('2d');
-
-  if (_trendChart) { _trendChart.destroy(); _trendChart = null; }
-
-  const currentValue = (_overviewData?.kpis?.account_value || 0) / 10000;
-  if (currentValue <= 0) {
-    document.getElementById('chart-section').classList.add('hidden');
-    return;
-  }
-
-  // Generate realistic 30-day trend: gentle growth + weekly cycles
-  const labels = [];
-  const values = [];
-  const now = new Date();
-
-  // Estimate a "starting value" ~10-20% lower than current (growth over month)
-  const growthRate = 0.12 + Math.random() * 0.08; // 12-20% monthly growth
-  const startValue = currentValue / (1 + growthRate);
-
-  for (let i = 29; i >= 0; i--) {
-    const d = new Date(now);
-    d.setDate(d.getDate() - i);
-    labels.push(d.toLocaleDateString('en-US', {month: 'short', day: 'numeric'}));
-
-    // Linear growth from start to current
-    const progress = (30 - i) / 30;
-    const linear = startValue + (currentValue - startValue) * progress;
-
-    // Weekly cycle (weekends have more playtime = more value)
-    const dayOfWeek = d.getDay();
-    const weekendBoost = (dayOfWeek === 0 || dayOfWeek === 6) ? 0.02 : 0;
-
-    // Small daily noise
-    const noise = (Math.random() - 0.5) * currentValue * 0.01;
-
-    values.push(Math.max(0, linear * (1 + weekendBoost) + noise));
-  }
-
-  _trendChart = new Chart(ctx, {
-    type: 'line',
-    data: {
-      labels,
-      datasets: [{
-        label: 'Account Value (g)',
-        data: values,
-        borderColor: '#c8956c',
-        backgroundColor: 'rgba(200, 149, 108, 0.06)',
-        fill: true,
-        tension: 0.4,
-        pointRadius: 0,
-        borderWidth: 2,
-      }],
-    },
-    options: {
-      responsive: true,
-      maintainAspectRatio: false,
-      plugins: { legend: { display: false } },
-      scales: {
-        x: { ticks: { color: '#888', maxTicksLimit: 8, font: {size: 10} }, grid: { display: false } },
-        y: { ticks: { color: '#888', font: {size: 10} }, grid: { color: '#1e1e1e' } },
-      },
-      interaction: { intersect: false, mode: 'index' },
-    },
-  });
-
-  document.getElementById('chart-section').classList.remove('hidden');
 }
 
 // ── Helpers ──
