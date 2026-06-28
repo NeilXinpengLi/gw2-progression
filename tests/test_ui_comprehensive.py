@@ -240,7 +240,7 @@ class TestSvgIcons:
 
     def test_all_icons_in_account_page(self, client):
         resp = client.get("/account")
-        present_icons = ["nav-account", "nav-insight", "nav-plan", "nav-report", "kpi-account-value", "kpi-hidden-wealth", "kpi-legendary", "action-export", "asset-wallet", "asset-materials", "asset-bank", "asset-equipment", "tree-economy", "tree-progress", "tree-collection", "tree-characters", "status-active"]
+        present_icons = ["nav-account", "nav-insight", "nav-plan", "nav-report", "kpi-account-value", "kpi-hidden-wealth", "kpi-legendary", "action-export", "asset-wallet", "asset-materials", "asset-bank", "asset-equipment", "tree-economy", "tree-progress", "tree-collection", "tree-characters", "sub-wallet", "sub-achievements", "sub-skins", "sub-mastery", "sub-pvp", "sub-wvw", "sub-dyes", "sub-minis", "sub-trading", "sub-fractal", "status-active"]
         for icon_id in present_icons:
             assert f'symbol id="sym-{icon_id}"' in resp.text, f"Missing icon: {icon_id}"
 
