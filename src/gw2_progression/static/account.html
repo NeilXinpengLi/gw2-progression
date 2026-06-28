@@ -22,6 +22,11 @@
   <symbol id="sym-asset-materials" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="8" r="3"/><circle cx="16" cy="10" r="2.5"/><path d="M6 18l3-5 4 2 2-4 3 7z"/></g></symbol>
   <symbol id="sym-asset-bank" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="8" width="16" height="12"/><path d="M4 8L12 3l8 5"/><path d="M9 14v3M12 13v4M15 14v3"/></g></symbol>
   <symbol id="sym-asset-equipment" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3c-2 0-4 2-4 4v1c0 2 1 3 2 4l-2 7h8l-2-7c1-1 2-2 2-4V7c0-2-2-4-4-4z"/></g></symbol>
+  <symbol id="sym-nav-report" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="3" width="16" height="18" rx="2"/><path d="M8 7h8M8 11h8M8 15h5"/></g></symbol>
+  <symbol id="sym-tree-economy" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="3" y="7" width="18" height="14"/><path d="M3 7L12 3l9 4"/><circle cx="12" cy="14" r="2"/></g></symbol>
+  <symbol id="sym-tree-progress" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15 9 22 9 16 14 18 22 12 17 6 22 8 14 2 9 9 9 12 2"/><circle cx="12" cy="12" r="2" fill="currentColor"/></g></symbol>
+  <symbol id="sym-tree-collection" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h16v14H4z"/><path d="M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2"/><path d="M8 12h8M8 16h5"/></g></symbol>
+  <symbol id="sym-tree-characters" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="3"/><path d="M6 21v-2a6 6 0 0112 0v2"/></g></symbol>
   <symbol id="sym-status-active" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4" fill="currentColor" stroke="none"/></symbol>
 </svg>
 
@@ -79,8 +84,13 @@
     </div>
   </div>
 
+  <!-- ═══ EXPLORER + CONTENT LAYOUT ═══ -->
+  <div id="layer-content" class="hidden layer-content-wrap">
+    <div class="explorer-tree" id="explorer-tree"></div>
+    <div class="explorer-detail">
+
   <!-- ═══ TAB BAR ═══ -->
-  <div id="layer-tabs" class="hidden">
+  <div id="layer-tabs">
     <div class="layer-tab-bar">
       <button class="layer-tab active" data-tab="economy">Economy</button>
       <button class="layer-tab" data-tab="progress">Progress</button>
@@ -108,6 +118,8 @@
       <div class="char-cards" id="char-cards"></div>
     </div>
   </div>
+  </div><!-- end explorer-detail -->
+  </div><!-- end layer-content -->
 
   <!-- ═══ LAYER 5: AI INSIGHTS (COLLAPSED) ═══ -->
   <div id="layer-ai" class="hidden">
