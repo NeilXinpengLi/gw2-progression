@@ -6,13 +6,25 @@ let _overviewData = null;
 let _activeTab = 'economy';
 let _activeSub = null;
 
+const CATEGORY_MAP = {
+  wallet: 'wallet',
+  bank: 'bank',
+  materials: 'material storage',
+  tradingpost: 'trading post',
+  equipment: 'equipment',
+  shared_inventory: 'shared inventory',
+  character_inventory: 'character inventory',
+};
+
 const TREE = {
   economy: { label: 'Economy', icon: 'sym-tree-economy', sub: [
     { id: 'wallet', label: 'Wallet', icon: 'sym-sub-wallet' },
     { id: 'bank', label: 'Bank', icon: 'sym-asset-bank' },
     { id: 'materials', label: 'Materials', icon: 'sym-asset-materials' },
-    { id: 'tradingpost', label: 'Trading Post', icon: 'sym-sub-trading' },
     { id: 'equipment', label: 'Equipment', icon: 'sym-asset-equipment' },
+    { id: 'character_inventory', label: 'Character Inventory', icon: 'sym-sub-wallet' },
+    { id: 'shared_inventory', label: 'Shared Inventory', icon: 'sym-asset-bank' },
+    { id: 'tradingpost', label: 'Trading Post', icon: 'sym-sub-trading' },
   ]},
   progress: { label: 'Progression', icon: 'sym-tree-progress', sub: [
     { id: 'achievements', label: 'Achievements', icon: 'sym-sub-achievements' },
@@ -205,7 +217,7 @@ function renderEconomyDetail(data, sub) {
   const ad = data.additional_data || {};
   const k = data.kpis || {};
   let items = assets;
-  if (sub) items = items.filter(a => a.category.toLowerCase().replace(/\s+/g,'') === sub);
+  if (sub) { const target = CATEGORY_MAP[sub]; if (target) items = items.filter(a => a.category.toLowerCase() === target); }
 
   const totalValue = items.reduce((s,a) => s + (a.total_value||0), 0);
   const totalPct = items.reduce((s,a) => s + (a.percentage||0), 0);
