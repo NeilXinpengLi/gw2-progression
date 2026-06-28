@@ -20,6 +20,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   document.getElementById('analyze-btn').addEventListener('click', runAnalyze);
   document.getElementById('key-input').addEventListener('keydown', e => { if (e.key === 'Enter') runAnalyze(); });
   document.getElementById('btn-refresh')?.addEventListener('click', runAnalyze);
+  document.getElementById('btn-export')?.addEventListener('click', exportData);
 
   // Nav — navigate between pages
   document.getElementById('os-nav')?.addEventListener('click', e => {
@@ -240,6 +241,24 @@ function loadChart() {
 }
 
 // ── Helpers ──
+
+function exportData() {
+  if (!_overviewData) return;
+  const data = {
+    exported_at: new Date().toISOString(),
+    account: _overviewData.account,
+    kpis: _overviewData.kpis,
+    assets: _overviewData.assets,
+    characters: _overviewData.characters,
+  };
+  const blob = new Blob([JSON.stringify(data, null, 2)], {type: 'application/json'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `gw2-account-${data.account?.name || 'unknown'}-${new Date().toISOString().slice(0, 10)}.json`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
 
 function setKpi(id, value) {
   const el = document.getElementById(`kpi-${id}`);
