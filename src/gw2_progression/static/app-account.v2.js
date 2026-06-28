@@ -151,9 +151,10 @@ function renderFull(data) {
 function renderTree(data) {
   const tree = document.getElementById('explorer-tree');
   if (!tree) return;
-  const charItems = (data.characters||[]).map(c =>
-    `<div class="tn-item tn-grandchild" data-tab="characters" data-sub="${escHtml(c.name)}" id="tn-char-${escHtml(c.name).replace(/\s+/g,'-').toLowerCase()}"><span class="tn-icon">⛨</span><span class="tn-label">${escHtml(c.name)}</span></div>`
-  ).join('');
+  const charItems = (data.characters||[]).map(c => {
+    const cid = escHtml(c.name).replace(/\s+/g,'-').toLowerCase();
+    return `<div class="tn-item tn-grandchild${_activeSub===escHtml(c.name)?' selected':''}" data-tab="characters" data-sub="${escHtml(c.name)}" id="tn-char-${cid}"><span class="tn-icon">⛨</span><span class="tn-label">${escHtml(c.name)}</span></div>`;
+  }).join('');
   let html = `<div class="tn-section">Account<span class="tn-spacer"></span><span class="tn-collapse-all" id="tn-expand-all" title="Expand all">⊕</span><span class="tn-collapse-all" id="tn-collapse-all" title="Collapse all">⊖</span></div>`;
   for (const [key, val] of Object.entries(TREE)) {
     const expanded = _activeTab === key;
