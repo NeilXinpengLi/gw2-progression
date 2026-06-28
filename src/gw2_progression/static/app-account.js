@@ -19,8 +19,8 @@ const CATEGORY_MAP = {
 const TREE = {
   economy: { label: 'Economy', icon: 'sym-tree-economy', sub: [
     { id: 'wallet', label: 'Wallet', icon: 'sym-sub-wallet' },
+    { id: 'materials', label: 'Material Storage', icon: 'sym-asset-materials' },
     { id: 'bank', label: 'Bank', icon: 'sym-asset-bank' },
-    { id: 'materials', label: 'Materials', icon: 'sym-asset-materials' },
     { id: 'equipment', label: 'Equipment', icon: 'sym-asset-equipment' },
     { id: 'character_inventory', label: 'Character Inventory', icon: 'sym-sub-wallet' },
     { id: 'shared_inventory', label: 'Shared Inventory', icon: 'sym-asset-bank' },
