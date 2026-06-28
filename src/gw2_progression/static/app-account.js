@@ -1,26 +1,18 @@
-// ── Account Overview Dashboard ──
+// ── Account Overview — Layered Cognitive UI ──
 
-import {
-  _itemCache, _currencyCache, _matCatCache, _masteryCache, _mapCache,
-  _skinCache, _colorCache, _guildCache,
-  backendResolve, backendResolveSingle, cappedCacheAdd,
-  resolveItems, resolveCurrencies, resolveMatCategories, resolveMasteries,
-  resolveMaps, resolveSkins, resolveGuilds, resolveColors, resolveSearch,
-  rgbToHex, itemName, itemIcon, currencyName, matCatName, masteryName,
-  masteryRegion, mapName, skinName, skinIcon, colorHex, fmtCoin, fmtCoinShort,
-} from './app-shared.js';
+import { fmtCoin, fmtCoinShort, loadIconSprite } from './app-shared.js';
 import { initSession, createSession, clearSession, getToken, getEffectiveKey } from './session-manager.js';
 
 let _abortController = null;
-let _accountData = null;
 let _overviewData = null;
+
 document.addEventListener('DOMContentLoaded', async () => {
   document.getElementById('analyze-btn').addEventListener('click', runAnalyze);
   document.getElementById('key-input').addEventListener('keydown', e => { if (e.key === 'Enter') runAnalyze(); });
   document.getElementById('btn-refresh')?.addEventListener('click', runAnalyze);
   document.getElementById('btn-export')?.addEventListener('click', exportData);
 
-  // Nav — navigate between pages
+  // Nav
   document.getElementById('os-nav')?.addEventListener('click', e => {
     const btn = e.target.closest('button[data-nav]');
     if (!btn) return;
@@ -29,7 +21,17 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (urls[page]) window.location.href = urls[page];
   });
 
-  // Auto-restore and validate session
+  // Tab switching
+  document.querySelector('.layer-tab-bar')?.addEventListener('click', e => {
+    const btn = e.target.closest('.layer-tab');
+    if (!btn) return;
+    document.querySelectorAll('.layer-tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.layer-tab-content').forEach(t => t.classList.remove('active'));
+    btn.classList.add('active');
+    const tab = document.getElementById('tab-' + btn.dataset.tab);
+    if (tab) tab.classList.add('active');
+  });
+
   const token = await initSession();
   if (token) {
     document.getElementById('key-input').value = token;
@@ -37,59 +39,26 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 });
 
-// ── Analyze ──
-
 async function runAnalyze() {
   const rawKey = document.getElementById('key-input').value.trim();
   if (!rawKey) return showError('Please paste a GW2 API key first.');
-
   if (_abortController) _abortController.abort();
   _abortController = new AbortController();
-  const signal = _abortController.signal;
-
   showLoading(true);
-  hideAllSections();
 
   let useKey = getEffectiveKey(rawKey);
-
-  // If user entered a new key (different from cached token), create new session
-  if (useKey === null) {
+  if (useKey === null || !getToken()) {
     const newToken = await createSession(rawKey);
-    if (newToken) {
-      useKey = newToken;
-    } else {
-      useKey = rawKey; // fallback
-    }
+    if (newToken) useKey = newToken;
+    else useKey = rawKey;
   }
 
-  // No valid session yet → create one
-  if (!getToken()) {
-    const newToken = await createSession(rawKey);
-    if (newToken) {
-      useKey = newToken;
-    }
-  }
-
-  // Fetch overview data
   try {
-    const [overviewRes, analyzeRes] = await Promise.all([
-      fetch(`/api/account/overview?api_key=${encodeURIComponent(useKey)}`, { signal }),
-      fetch('/analyze', {
-        method: 'POST', headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({api_key: useKey}), signal,
-      }),
-    ]);
-
-    if (!overviewRes.ok) {
-      const err = await overviewRes.json().catch(() => ({}));
-      throw new Error(err.detail || `HTTP ${overviewRes.status}`);
-    }
-
-    _overviewData = await overviewRes.json();
-    _accountData = analyzeRes.ok ? await analyzeRes.json() : null;
-
+    const r = await fetch(`/api/account/overview?api_key=${encodeURIComponent(useKey)}`, { signal: _abortController.signal });
+    if (!r.ok) { const e = await r.json().catch(() => ({})); throw new Error(e.detail || `HTTP ${r.status}`); }
+    _overviewData = await r.json();
     showLoading(false);
-    renderDashboard(_overviewData);
+    renderOverview(_overviewData);
     showStatusBadge('active');
   } catch (e) {
     if (e.name === 'AbortError') return;
@@ -99,120 +68,141 @@ async function runAnalyze() {
   }
 }
 
-// ── Render Dashboard ──
+function renderOverview(data) {
+  document.getElementById('key-section').style.display = 'none';
+  document.getElementById('layer-overview').classList.remove('hidden');
+  document.getElementById('layer-tabs').classList.remove('hidden');
+  document.getElementById('layer-ai').classList.remove('hidden');
 
-function renderDashboard(data) {
-  hideAllSections();
-
-  // Header
-  document.getElementById('header-account-name').textContent = data.account?.name || '—';
+  const a = data.account || {};
+  const k = data.kpis || {};
+  document.getElementById('header-account-name').textContent = a.name || '—';
   document.getElementById('header-last-sync').textContent = `Last sync: ${data.snapshot_time || 'just now'}`;
 
-  // KPI Row
-  const kpis = data.kpis || {};
-  setKpi('account-value', fmtCoin(kpis.account_value || 0));
-  setKpi('liquid-sell', fmtCoin(kpis.liquid_sell || 0));
-  setKpi('liquid-buy', fmtCoin(kpis.liquid_buy || 0));
-  setKpi('hidden-wealth', fmtCoin(kpis.hidden_wealth || 0));
-  setKpi('legendary', `${kpis.character_count || 0} chars`);
-  setKpi('build-ready', `${kpis.skin_count || 0} skins`);
+  // Overview KPIs
+  document.getElementById('ov-total-value').textContent = fmtCoin(k.account_value || 0);
+  document.getElementById('ov-liquid-value').textContent = fmtCoin(k.liquid_sell_after_fee || 0);
+  document.getElementById('ov-hidden-wealth').textContent = fmtCoin(k.hidden_wealth || 0);
 
-  // Asset Table
-  const tbody = document.getElementById('asset-tbody');
-  tbody.innerHTML = '';
-  let total = 0;
-  for (const row of data.assets || []) {
-    total += row.total_value || 0;
-    const tr = document.createElement('tr');
-    tr.innerHTML = `
-      <td>${row.category}</td>
-      <td class="num">${fmtCoin(row.total_value || 0)}</td>
-      <td class="num">${fmtCoin(row.liquid_sell || 0)}</td>
-      <td class="num">${fmtCoin(row.liquid_buy || 0)}</td>
-      <td class="num">${row.percentage ?? 0}%</td>
-      <td><span class="risk-dot" data-risk="${row.risk_flag || 'none'}">● ${row.risk_flag || 'none'}</span></td>`;
-    tbody.appendChild(tr);
-  }
-  document.getElementById('asset-total').textContent = `${fmtCoin(total)} total`;
+  // Progress bar
+  const og = data.object_graph || {};
+  const prog = og.progression || {};
+  document.getElementById('overview-progress').innerHTML = `
+    <div class="ov-stat"><span class="ov-stat-lbl">Skins</span><span class="ov-stat-val">${k.skin_count || 0}</span></div>
+    <div class="ov-stat"><span class="ov-stat-lbl">Masteries</span><span class="ov-stat-val">${k.mastery_count || 0}</span></div>
+    <div class="ov-stat"><span class="ov-stat-lbl">Fractal</span><span class="ov-stat-val">${k.fractal_level || 0}</span></div>
+    <div class="ov-stat"><span class="ov-stat-lbl">WvW Rank</span><span class="ov-stat-val">${k.wvw_rank || 0}</span></div>
+  `;
 
-  // Character Table
-  const charTbody = document.getElementById('char-tbody');
-  charTbody.innerHTML = '';
-  for (const ch of data.characters || []) {
-    const tr = document.createElement('tr');
-    tr.innerHTML = `
-      <td><strong>${escHtml(ch.name)}</strong></td>
-      <td>${escHtml(ch.profession || '—')}</td>
-      <td class="num">${ch.level ?? '—'}</td>
-      <td class="num">${ch.playtime || '—'}</td>
-      <td class="num">${ch.gear_value ? fmtCoin(ch.gear_value) : '—'}</td>
-      <td>${ch.build_status || '—'}</td>
-      <td>${ch.last_login || '—'}</td>`;
-    charTbody.appendChild(tr);
-  }
+  // Economy tab
+  renderEconomy(data.assets || []);
 
-  // Show sections
-  document.getElementById('account-header').classList.remove('hidden');
-  document.getElementById('kpi-section').classList.remove('hidden');
-  document.getElementById('asset-section').classList.remove('hidden');
-  document.getElementById('character-section').classList.remove('hidden');
-  document.getElementById('status-panel').classList.remove('hidden');
+  // Progress tab
+  renderProgression(data);
 
-  // Status panel
-  document.getElementById('status-api').textContent = 'active';
-  document.getElementById('status-freshness').textContent = 'fresh';
-  document.getElementById('status-permissions').textContent = `${data.characters?.length || 0} characters · ${data.assets?.length || 0} asset categories`;
+  // Collection tab
+  renderCollection(data);
 
-  // Additional stats section
-  const extra = data.additional_data || {};
-  const extraEl = document.getElementById('additional-stats');
-  if (extraEl) {
-    extraEl.innerHTML = `
-      <div class="status-grid">
-        <div class="status-item"><span class="status-label">Skins</span><span class="status-value">${kpis.skin_count || 0}</span></div>
-        <div class="status-item"><span class="status-label">Dyes</span><span class="status-value">${extra.unlocked_dyes || 0}</span></div>
-        <div class="status-item"><span class="status-label">Minis</span><span class="status-value">${extra.unlocked_minis || 0}</span></div>
-        <div class="status-item"><span class="status-label">Achievements</span><span class="status-value">${kpis.achievement_count || 0}</span></div>
-        <div class="status-item"><span class="status-label">Daily AP</span><span class="status-value">${kpis.daily_ap || 0}</span></div>
-        <div class="status-item"><span class="status-label">Masteries</span><span class="status-value">${kpis.mastery_count || 0}</span></div>
-        <div class="status-item"><span class="status-label">Build Storage</span><span class="status-value">${extra.build_storage_count || 0}</span></div>
-        <div class="status-item"><span class="status-label">Guilds</span><span class="status-value">${extra.guild_count || 0}</span></div>
-        <div class="status-item"><span class="status-label">Fractal Lv</span><span class="status-value">${kpis.fractal_level || 0}</span></div>
-        <div class="status-item"><span class="status-label">WvW Rank</span><span class="status-value">${kpis.wvw_rank || 0}</span></div>
-        <div class="status-item"><span class="status-label">PvP Rank</span><span class="status-value">${extra.pvp_rank || 0}</span></div>
-        <div class="status-item"><span class="status-label">Monthly AP</span><span class="status-value">${kpis.monthly_ap || 0}</span></div>
-      </div>`;
-    extraEl.classList.remove('hidden');
-  }
+  // Characters tab
+  renderCharacters(data.characters || []);
+
+  // AI Drawer
+  renderAIDrawer(k);
 }
 
-// ── Helpers ──
-
-function exportData() {
-  if (!_overviewData) return;
-  const data = {
-    exported_at: new Date().toISOString(),
-    account: _overviewData.account,
-    kpis: _overviewData.kpis,
-    assets: _overviewData.assets,
-    characters: _overviewData.characters,
-  };
-  const blob = new Blob([JSON.stringify(data, null, 2)], {type: 'application/json'});
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = `gw2-account-${data.account?.name || 'unknown'}-${new Date().toISOString().slice(0, 10)}.json`;
-  a.click();
-  URL.revokeObjectURL(url);
+function renderEconomy(assets) {
+  const list = document.getElementById('economy-list');
+  list.innerHTML = assets.map(a => `
+    <div class="econ-row">
+      <div class="econ-info">
+        <span class="econ-cat">${a.category}</span>
+        <span class="econ-pct">${a.percentage}%</span>
+      </div>
+      <div class="econ-vals">
+        <span class="econ-val">${fmtCoin(a.total_value || 0)}</span>
+        <span class="econ-sub">${a.risk_flag}</span>
+      </div>
+    </div>`).join('');
 }
 
-function setKpi(id, value) {
-  const el = document.getElementById(`kpi-${id}`);
-  if (el) el.textContent = value;
+function renderProgression(data) {
+  const k = data.kpis || {};
+  const ad = data.additional_data || {};
+  const grid = document.getElementById('progression-grid');
+  grid.innerHTML = `
+    <div class="prog-card"><div class="prog-cat">Combat</div>
+      <div class="prog-rows">
+        <div class="prog-row"><span>Fractal Level</span><span class="prog-val">${k.fractal_level || 0}</span></div>
+        <div class="prog-row"><span>WvW Rank</span><span class="prog-val">${k.wvw_rank || 0}</span></div>
+        <div class="prog-row"><span>PvP Rank</span><span class="prog-val">${ad.pvp_rank || 0}</span></div>
+      </div>
+    </div>
+    <div class="prog-card"><div class="prog-cat">Mastery</div>
+      <div class="prog-rows">
+        <div class="prog-row"><span>AP (Daily)</span><span class="prog-val">${k.daily_ap || 0}</span></div>
+        <div class="prog-row"><span>AP (Monthly)</span><span class="prog-val">${k.monthly_ap || 0}</span></div>
+        <div class="prog-row"><span>Masteries</span><span class="prog-val">${k.mastery_count || 0}</span></div>
+        <div class="prog-row"><span>Build Templates</span><span class="prog-val">${ad.build_storage_count || 0}</span></div>
+      </div>
+    </div>
+    <div class="prog-card"><div class="prog-cat">Social</div>
+      <div class="prog-rows">
+        <div class="prog-row"><span>Characters</span><span class="prog-val">${k.character_count || 0}</span></div>
+        <div class="prog-row"><span>Guilds</span><span class="prog-val">${ad.guild_count || 0}</span></div>
+        <div class="prog-row"><span>Achievements</span><span class="prog-val">${k.achievement_count || 0}</span></div>
+      </div>
+    </div>`;
 }
 
-function showLoading(show) {
-  document.getElementById('loading-state').classList.toggle('hidden', !show);
+function renderCollection(data) {
+  const k = data.kpis || {};
+  const ad = data.additional_data || {};
+  const grid = document.getElementById('collection-grid');
+  grid.innerHTML = `
+    <div class="coll-card"><span class="coll-icon">🎨</span><span class="coll-label">Skins</span><span class="coll-count">${k.skin_count || 0}</span></div>
+    <div class="coll-card"><span class="coll-icon">🎨</span><span class="coll-label">Dyes</span><span class="coll-count">${ad.unlocked_dyes || 0}</span></div>
+    <div class="coll-card"><span class="coll-icon">🧸</span><span class="coll-label">Minis</span><span class="coll-count">${ad.unlocked_minis || 0}</span></div>
+    <div class="coll-card"><span class="coll-icon">⭐</span><span class="coll-label">Finishers</span><span class="coll-count">${ad.finisher_count || data.object_graph?.unlock_counts?.finishers || 0}</span></div>`;
+}
+
+function renderCharacters(chars) {
+  const container = document.getElementById('char-cards');
+  if (!chars || chars.length === 0) {
+    container.innerHTML = '<div class="dim">No characters found.</div>';
+    return;
+  }
+  container.innerHTML = chars.map(c => {
+    const profColors = { Guardian: '#6b8', Necromancer: '#86a', Elementalist: '#c84', Mesmer: '#a6c', Warrior: '#c86', Revenant: '#a60', Ranger: '#8a6', Thief: '#888', Engineer: '#a86' };
+    const color = profColors[c.profession] || '#888';
+    return `<div class="char-card" style="border-left:3px solid ${color}">
+      <div class="char-top">
+        <span class="char-name">${escHtml(c.name)}</span>
+        <span class="char-prof">${c.profession}</span>
+        <span class="char-lv">Lv${c.level}</span>
+      </div>
+      <div class="char-meta">
+        <span>${c.playtime || '—'}</span>
+        <span>${c.gear_value ? fmtCoin(c.gear_value) : '—'}</span>
+        <span>${c.build_status || '—'}</span>
+      </div>
+      <div class="char-login">${c.last_login || '—'}</div>
+    </div>`;
+  }).join('');
+}
+
+function renderAIDrawer(k) {
+  const content = document.getElementById('ai-drawer-content');
+  if (!content) return;
+  content.innerHTML = `
+    <div class="ai-item"><span>Hidden Wealth</span><span class="ai-val">${fmtCoin(k.hidden_wealth || 0)}</span></div>
+    <div class="ai-item"><span>Build Ready</span><span class="ai-val">${k.build_ready_count ?? '—'} / ${k.character_count || 0}</span></div>
+    <div class="ai-item"><span>Liquid Value</span><span class="ai-val">${fmtCoin(k.liquid_sell_after_fee || 0)}</span></div>`;
+}
+
+function showLoading(v) {
+  document.getElementById('key-section').style.display = v ? 'none' : '';
+  document.getElementById('loading-state').classList.toggle('hidden', !v);
+  document.getElementById('error-state').classList.add('hidden');
 }
 
 function showError(msg) {
@@ -224,29 +214,19 @@ function showStatusBadge(status) {
   const badge = document.getElementById('api-status-badge');
   if (!badge) return;
   badge.dataset.status = status;
-  const labels = {active: '● Active', stale: '● Stale', error: '● Error'};
-  badge.textContent = labels[status] || '● Unknown';
+  badge.textContent = { active: '● Active', stale: '● Stale', error: '● Error' }[status] || '● Unknown';
 }
 
-function hideAllSections() {
-  ['account-header', 'kpi-section', 'chart-section', 'asset-section',
-    'character-section', 'guild-section', 'status-panel',
-   'loading-state', 'error-state'].forEach(id => {
-    const el = document.getElementById(id);
-    if (el) el.classList.add('hidden');
-  });
+function exportData() {
+  if (!_overviewData) return;
+  const data = { exported_at: new Date().toISOString(), account: _overviewData.account, kpis: _overviewData.kpis, assets: _overviewData.assets, characters: _overviewData.characters };
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `gw2-account-${data.account?.name || 'unknown'}-${new Date().toISOString().slice(0, 10)}.json`;
+  a.click();
+  URL.revokeObjectURL(url);
 }
 
-function escHtml(s) {
-  if (!s) return '';
-  return String(s).replace(/[&<>"]/g, function(m) {
-    if (m === '&') return '&amp;'; if (m === '<') return '&lt;';
-    if (m === '>') return '&gt;'; if (m === '"') return '&quot;';
-    return m;
-  });
-}
-
-window.switchPage = function(page) {
-  const btn = document.querySelector(`#os-nav button[data-nav="${page}"]`);
-  if (btn) btn.click();
-};
+function escHtml(s) { if (!s) return ''; return String(s).replace(/[&<>"]/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[m] || m); }

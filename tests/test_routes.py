@@ -82,7 +82,7 @@ def test_svg_sprite_inlined_in_account(client):
     resp = client.get("/account")
     assert '<symbol id="sym-nav-account"' in resp.text
     assert '<symbol id="sym-kpi-account-value"' in resp.text
-    assert '<symbol id="sym-insight-hidden-wealth"' in resp.text
+    assert '<symbol id="sym-asset-wallet"' in resp.text
 
 
 def test_svg_sprite_inlined_in_insight(client):
