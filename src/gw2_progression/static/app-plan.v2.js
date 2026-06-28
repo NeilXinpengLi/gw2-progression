@@ -73,7 +73,7 @@ async function generatePlan() {
   showLoading(true);
   hidePlanContent();
 
-  const apiKey = _sessionToken || document.getElementById('goal-input').value || 'demo';
+  const apiKey = getToken() || document.getElementById('goal-input').value || 'demo';
 
   try {
     let planPayload;
