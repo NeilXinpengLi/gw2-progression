@@ -117,6 +117,8 @@ function renderLite(data) {
 }
 
 function renderFull(data) {
+  _activeTab = 'economy';
+  _activeSub = null;
   const k = data.kpis || {};
   document.getElementById('header-last-sync').textContent = `Last sync: ${data.snapshot_time||'just now'}`;
   document.getElementById('ov-total-value').textContent = fmtCoin(k.account_value||0);

@@ -145,6 +145,12 @@ class TestPageStructure:
         resp = client.get("/account")
         assert "characters" in resp.text.lower()
 
+    def test_account_has_graph_detail_container(self, client):
+        resp = client.get("/account")
+        assert 'id="graph-detail"' in resp.text
+        assert 'class="explorer-tree"' in resp.text
+        assert 'class="ai-overlay"' in resp.text
+
     def test_insight_page_structure(self, client):
         resp = client.get("/insight")
         assert resp.status_code == 200
@@ -612,3 +618,46 @@ class TestAPIResponseShapes:
         data = resp.json()
         required = {"account_name", "hidden_wealth", "build_readiness", "legendary_progress", "market_insight", "top_items", "top_materials"}
         assert set(data.keys()) >= required
+
+
+# ═══════════════════════════════════════════════════════
+# FRONTEND-BACKEND INTERFACE TESTS
+# ═══════════════════════════════════════════════════════
+
+
+class TestFrontendBackendInterface:
+    """Verify JS getElementById calls match HTML element IDs."""
+
+    ACCOUNT_IDS = {
+        # JS references in app-account.js
+        "analyze-btn", "key-input", "btn-refresh", "btn-export", "os-nav",
+        "key-section", "layer-overview", "layer-content", "layer-footer",
+        "header-account-name", "header-last-sync", "ov-total-value",
+        "ov-liquid-value", "ov-hidden-wealth", "overview-progress",
+        "explorer-tree", "graph-detail", "ai-overlay-body",
+        "loading-state", "error-state", "error-message", "api-status-badge",
+    }
+
+    def test_account_html_has_all_js_referenced_ids(self, client):
+        resp = client.get("/account")
+        for eid in self.ACCOUNT_IDS:
+            assert f'id="{eid}"' in resp.text, f"Missing id='{eid}' in account.html"
+
+    def test_api_overview_accepts_lite_int_refresh(self, client, mock_api):
+        resp = client.get("/api/account/overview?api_key=ABCDEF01-2345-6789-ABCD-EF0123456789AB&lite=true&refresh=1782616951665", headers={"Accept": "application/json"})
+        assert resp.status_code == 200, f"Expected 200, got {resp.status_code}: {resp.text[:200]}"
+        data = resp.json()
+        assert "account" in data
+        assert "kpis" in data
+
+    def test_api_overview_rejects_invalid_bool_refresh(self, client):
+        resp = client.get("/api/account/overview?api_key=ABCDEF01-2345-6789-ABCD-EF0123456789AB&refresh=notabool")
+        assert resp.status_code == 422
+
+    def test_api_error_detail_is_readable_string(self, client):
+        resp = client.get("/api/account/overview")
+        assert resp.status_code == 422
+        data = resp.json()
+        detail = data.get("detail", "")
+        detail_str = str(detail)
+        assert "[object Object]" not in detail_str
