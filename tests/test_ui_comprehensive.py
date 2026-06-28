@@ -745,3 +745,56 @@ class TestJSStaticAnalysis:
     @pytest.mark.skip(reason="Run manually: npx eslint src/gw2_progression/static/*.js")
     def test_eslint_no_undef(self):
         """Run ESLint on all JS files (requires Node.js + npm dependencies)."""
+
+    def test_nav_handler_is_first_in_domcontentloaded(self):
+        """Nav handler must be the first statement in DOMContentLoaded on every page.
+        
+        This catches the bug where earlier getElementById calls without
+        optional chaining can throw and prevent the nav handler from
+        being registered, making the entire page unnavigable.
+        """
+        for js_name in ["app-account.js", "app-insight.js", "app-plan.js", "app-report.js"]:
+            js = self._get_js(js_name)
+            # Find DOMContentLoaded handler body (arrow function)
+            m = re.search(r"addEventListener\('DOMContentLoaded',\s*(?:async\s*)?\([^)]*\)\s*=>\s*\{", js)
+            assert m, f"{js_name}: No DOMContentLoaded handler found"
+            start = m.end()
+            depth = 1
+            i = start
+            while i < len(js) and depth > 0:
+                if js[i] == '{': depth += 1
+                elif js[i] == '}': depth -= 1
+                i += 1
+            dcl_body = js[start:i-1]
+            lines = [l.strip() for l in dcl_body.split("\n") if l.strip() and not l.strip().startswith("//")]
+            nav_stmts = [i for i, l in enumerate(lines) if "os-nav" in l]
+            assert len(nav_stmts) > 0, f"{js_name}: No os-nav handler found in DOMContentLoaded"
+            first_nav = nav_stmts[0]
+            for i in range(first_nav):
+                line = lines[i]
+                if "getElementById(" in line and "?." not in line:
+                    raise AssertionError(
+                        f"{js_name}: '{line.strip()[:60]}...' at line index {i} "
+                        f"is BEFORE nav handler at index {first_nav} and lacks optional chaining. "
+                        f"If it throws, nav is never registered."
+                    )
+
+    def test_no_await_in_non_async_function(self):
+        """Catch await keyword inside function() without async keyword.
+        
+        In ES modules, await in a non-async function is a SyntaxError
+        that prevents the entire module from loading (no nav, no JS).
+        """
+        for js_name in ["app-account.js", "app-insight.js", "app-plan.js", "app-report.js"]:
+            js = self._get_js(js_name)
+            fn_defs = re.findall(r'(?:async\s+)?function\s+(\w+)\s*\(', js)
+            for fn_name in fn_defs:
+                body = self._function_body(js, fn_name)
+                has_await = "await " in body
+                fn_decl = re.search(rf'(async\s+)?function\s+{fn_name}', js).group(1) or ""
+                is_async = "async" in fn_decl
+                if has_await and not is_async:
+                    raise AssertionError(
+                        f"{js_name}: {fn_name}() uses 'await' but is not declared 'async'. "
+                        f"This is a SyntaxError in ES modules that prevents the module from loading."
+                    )

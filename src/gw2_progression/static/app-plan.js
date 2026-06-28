@@ -125,7 +125,7 @@ function regeneratePlan() {
   generatePlan();
 }
 
-function renderPlan(data, accountName) {
+async function renderPlan(data, accountName) {
   document.getElementById('plan-account-badge').classList.remove('hidden');
   document.getElementById('plan-account-name').textContent = accountName;
   document.getElementById('plan-empty').classList.add('hidden');
@@ -233,7 +233,7 @@ async function renderExplanation(actions, strategy) {
 }
 
 
-function renderQuests(accountName) {
+async function renderQuests(accountName) {
   const list = document.getElementById('quest-list');
   try {
     const res = await fetch(`/quests/${encodeURIComponent(accountName)}`);

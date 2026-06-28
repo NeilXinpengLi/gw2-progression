@@ -43,11 +43,7 @@ const TREE = {
 };
 
 document.addEventListener('DOMContentLoaded', async () => {
-  document.getElementById('analyze-btn').addEventListener('click', runAnalyze);
-  document.getElementById('key-input').addEventListener('keydown', e => { if (e.key === 'Enter') runAnalyze(); });
-  document.getElementById('btn-refresh')?.addEventListener('click', runAnalyze);
-  document.getElementById('btn-export')?.addEventListener('click', exportData);
-
+  // Nav — attach FIRST so it survives any error in handlers below
   document.getElementById('os-nav')?.addEventListener('click', e => {
     const btn = e.target.closest('button[data-nav]');
     if (!btn) return;
@@ -55,6 +51,13 @@ document.addEventListener('DOMContentLoaded', async () => {
     const urls = { account: '/account', insight: '/insight', plan: '/plan', report: '/report' };
     if (urls[page]) window.location.href = urls[page];
   });
+
+  try {
+    document.getElementById('analyze-btn').addEventListener('click', runAnalyze);
+    document.getElementById('key-input').addEventListener('keydown', e => { if (e.key === 'Enter') runAnalyze(); });
+    document.getElementById('btn-refresh')?.addEventListener('click', runAnalyze);
+    document.getElementById('btn-export')?.addEventListener('click', exportData);
+  } catch(e) { console.error('Account input handlers:', e); }
 
   await initSession(); // restore session for manual use, but don't auto-load
 });
