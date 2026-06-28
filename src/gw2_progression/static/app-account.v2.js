@@ -245,7 +245,7 @@ function renderEconomyDetail(data, sub) {
     });
     html += `</div></div>`;
   }
-  gd.innerHTML = html;
+  document.getElementById('graph-detail').innerHTML = html;
 }
 
 function renderProgressDetail(data, sub) {
@@ -282,7 +282,7 @@ function renderProgressDetail(data, sub) {
     html += `<div class="gd-row"><span>${m.label}</span><span><div class="pm-bar"><div class="pm-fill" style="width:${pct}%"></div></div></span><span>${m.value}</span><span>/${m.max}</span></div>`;
   });
   html += `</div></div>`;
-  gd.innerHTML = html;
+  document.getElementById('graph-detail').innerHTML = html;
 }
 
 function renderCollectionDetail(data, sub) {
@@ -309,7 +309,7 @@ function renderCollectionDetail(data, sub) {
     html += `<div class="gd-metric" style="${highlight?'border-color:#c8956c':''}"><span>${i.label}</span><strong>${i.count}</strong></div>`;
   });
   html += `</div></div>`;
-  gd.innerHTML = html;
+  document.getElementById('graph-detail').innerHTML = html;
 }
 
 function renderCharactersDetail(data, sub) {
@@ -326,7 +326,7 @@ function renderCharactersDetail(data, sub) {
 
   if (!chars.length) {
     html += `<div class="gd-empty">No characters found.</div>`;
-    gd.innerHTML = html;
+    document.getElementById('graph-detail').innerHTML = html;
     return;
   }
 
@@ -347,7 +347,7 @@ function renderCharactersDetail(data, sub) {
     </div>`;
   });
   html += `</div></div>`;
-  gd.innerHTML = html;
+  document.getElementById('graph-detail').innerHTML = html;
 }
 
 /* ───────── Overlay ───────── */
