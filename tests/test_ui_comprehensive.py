@@ -9,6 +9,10 @@ Verifies:
 - Export, nav, session validate, plan, insight APIs
 """
 
+import re
+import shutil
+import subprocess
+from pathlib import Path
 from unittest.mock import AsyncMock, patch
 import time
 from datetime import datetime, timezone
@@ -621,7 +625,7 @@ class TestAPIResponseShapes:
 
 
 # ═══════════════════════════════════════════════════════
-# FRONTEND-BACKEND INTERFACE TESTS
+# FRONTEND-BACKEND INTERFACE + JS STATIC ANALYSIS TESTS
 # ═══════════════════════════════════════════════════════
 
 
@@ -629,7 +633,7 @@ class TestFrontendBackendInterface:
     """Verify JS getElementById calls match HTML element IDs."""
 
     ACCOUNT_IDS = {
-        # JS references in app-account.js
+        # JS references in app-account.js (static IDs present in account.html)
         "analyze-btn", "key-input", "btn-refresh", "btn-export", "os-nav",
         "key-section", "layer-overview", "layer-content", "layer-footer",
         "header-account-name", "header-last-sync", "ov-total-value",
@@ -637,6 +641,8 @@ class TestFrontendBackendInterface:
         "explorer-tree", "graph-detail", "ai-overlay-body",
         "loading-state", "error-state", "error-message", "api-status-badge",
     }
+    # IDs created dynamically by JS (verified self-consistent via renderTree/renderCharacters)
+    DYNAMIC_IDS = {"tn-collapse-all"}
 
     def test_account_html_has_all_js_referenced_ids(self, client):
         resp = client.get("/account")
@@ -661,3 +667,81 @@ class TestFrontendBackendInterface:
         detail = data.get("detail", "")
         detail_str = str(detail)
         assert "[object Object]" not in detail_str
+
+
+class TestJSStaticAnalysis:
+    """Catch JS scope bugs and common errors via static analysis.
+    
+    These tests parse JS files directly without a JS runtime, catching
+    patterns that would cause runtime errors in the browser.
+    """
+
+    JS_DIR = Path(__file__).parent.parent / "src" / "gw2_progression" / "static"
+
+    def _get_js(self, name):
+        path = self.JS_DIR / name
+        assert path.exists(), f"JS file not found: {path}"
+        return path.read_text(encoding="utf-8")
+
+    def _function_body(self, js: str, fn_name: str) -> str:
+        """Extract the body of a named function from JS source."""
+        pattern = rf"function {fn_name}\s*\([^)]*\)\s*\{{"
+        m = re.search(pattern, js)
+        assert m, f"function {fn_name} not found in JS"
+        start = m.end()
+        depth = 1
+        i = start
+        while i < len(js) and depth > 0:
+            if js[i] == '{': depth += 1
+            elif js[i] == '}': depth -= 1
+            i += 1
+        return js[start:i-1]
+
+    def _local_vars(self, body: str) -> set:
+        """Find all locally-declared variables (const/let/var) in a function body."""
+        return set(re.findall(rf"(?:const|let|var)\s+(\w+)\s*[=;]", body))
+
+    def _param_names(self, fn_def: str) -> set:
+        """Extract parameter names from a function definition."""
+        m = re.search(rf"function\s+\w+\s*\(([^)]*)\)", fn_def)
+        if not m: return set()
+        params = m.group(1)
+        return set(p.strip() for p in params.split(",") if p.strip())
+
+    def test_all_render_detail_functions_define_gd(self):
+        """Each render*Detail function must not reference 'gd' from parent scope.
+        
+        This catches the ReferenceError: gd is not defined bug where
+        sub-functions relied on gd from renderDetail()'s scope.
+        """
+        js = self._get_js("app-account.js")
+        # Find all render*Detail function definitions
+        fn_names = sorted(set(re.findall(r'function (render[a-zA-Z]+Detail)', js)))
+        fn_names = [n for n in fn_names if n != "renderDetail"]
+
+        assert len(fn_names) >= 3, f"Expected >=3 render*Detail fns, got {fn_names}"
+
+        for fn_name in fn_names:
+            body = self._function_body(js, fn_name)
+            # Check for 'gd' as a variable reference (gd.innerHTML or gd = or gd)
+            if re.search(r'(?<!["\w])gd\.|(?<!["\w])gd\s*=', body):
+                local_vars = self._local_vars(body)
+                assert "gd" in local_vars, \
+                    f"{fn_name} uses 'gd' but not defined locally (must use document.getElementById)"
+
+    def test_no_getelementById_before_definition(self):
+        """Verify all getElementById('...') calls reference known static IDs."""
+        js = self._get_js("app-account.js")
+        calls = re.findall(r"getElementById\('([^']+)'\)", js)
+        known = TestFrontendBackendInterface.ACCOUNT_IDS
+        dynamic = TestFrontendBackendInterface.DYNAMIC_IDS | {"${cid}"}
+        for cid in calls:
+            if cid not in known and cid not in dynamic:
+                raise AssertionError(
+                    f"getElementById('{cid}') references unknown ID. "
+                    f"Add to ACCOUNT_IDS or DYNAMIC_IDS"
+                )
+
+    @pytest.mark.skip(reason="Run manually: npx eslint src/gw2_progression/static/*.js")
+    def test_eslint_no_undef(self):
+        """Run ESLint on all JS files (requires Node.js + npm dependencies)."""
