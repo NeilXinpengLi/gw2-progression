@@ -2,23 +2,16 @@
 
 import logging
 from datetime import datetime, timezone
-from typing import Any, Optional
+from typing import Any
 
 from fastapi import APIRouter, HTTPException, Query
 
 from gw2_progression.analyzer import fetch_all
 from gw2_progression.gw2_client import Gw2ApiError
 from gw2_progression.services.auth_service import get_api_key
+from gw2_progression.services.snapshot_service import derive_breakdown, derive_value, normalize_account
 
 logger = logging.getLogger("gw2.api.account")
-from gw2_progression.services.holdings_service import (
-    extract_bank_holdings,
-    extract_character_holdings,
-    extract_material_holdings,
-    extract_shared_inventory_holdings,
-    extract_tradingpost_holdings,
-    extract_wallet_holdings,
-)
 
 router = APIRouter(prefix="/api/account", tags=["account"])
 
@@ -97,8 +90,6 @@ async def account_overview(api_key: str = Query(...), lite: bool = Query(False),
     from gw2_progression.object_graph.mapper import map_to_graph
     object_graph = map_to_graph(contents)
 
-    from gw2_progression.services.snapshot_service import create_snapshot, derive_value, derive_breakdown, normalize_account
-
     normalized = normalize_account(raw_dict)
 
     # Enrich with market prices
@@ -124,6 +115,7 @@ async def account_overview(api_key: str = Query(...), lite: bool = Query(False),
     # Layer 3: Derive intelligence
     value = await derive_value(normalized)
     breakdown = derive_breakdown(normalized.assets)
+    graph_nodes, node_details = _build_account_graph_payload(normalized.assets, breakdown, object_graph)
 
     # Character summary — compute gear value and build status from raw equipment
     char_rows = []
@@ -192,7 +184,10 @@ async def account_overview(api_key: str = Query(...), lite: bool = Query(False),
             "liquid_buy": b.liquid_value,
             "percentage": b.percentage,
             "risk_flag": b.risk,
+            "count": b.item_count,
         } for b in breakdown],
+        "graph_nodes": graph_nodes,
+        "node_details": node_details,
         "object_graph": {
             "item_count": len(object_graph.items),
             "character_count": len(object_graph.characters),
@@ -271,6 +266,197 @@ def _category_risk(holdings) -> str:
     if ratio > 0.2:
         return "medium"
     return "low"
+
+
+def _asset_category(location: str) -> str:
+    mapping = {
+        "wallet": "Wallet",
+        "material_storage": "Material Storage",
+        "bank": "Bank",
+        "character_equipment": "Equipment",
+        "character": "Character Inventory",
+        "shared_inventory": "Shared Inventory",
+        "tradingpost": "Trading Post",
+    }
+    return mapping.get(location, location.replace("_", " ").title())
+
+
+def _node_id(label: str) -> str:
+    return label.lower().replace("&", "and").replace("/", "-").replace(" ", "-")
+
+
+def _build_account_graph_payload(assets, breakdown, object_graph) -> tuple[list[dict], dict]:
+    """Build a compact graph navigator payload for the Account Raw UI."""
+    by_category: dict[str, list] = {}
+    for asset in assets:
+        by_category.setdefault(_asset_category(asset.location), []).append(asset)
+
+    nodes: list[dict] = [{
+        "id": "overview",
+        "group": "snapshot",
+        "label": "Account Snapshot",
+        "kind": "snapshot",
+        "count": len(assets),
+        "value": sum(a.value_after_fee for a in assets),
+        "risk": "low",
+    }]
+    details: dict[str, dict] = {
+        "overview": {
+            "title": "Account Snapshot",
+            "subtitle": "Raw account data normalized into asset, character, unlock, market, and progression nodes.",
+            "metrics": [
+                {"label": "Asset stacks", "value": len(assets)},
+                {"label": "Characters", "value": len(object_graph.characters)},
+                {"label": "Currencies", "value": len([v for v in object_graph.currencies.__dict__.values() if getattr(v, "value", 0) > 0])},
+                {"label": "Market orders", "value": len(object_graph.market.buy_orders) + len(object_graph.market.sell_orders)},
+            ],
+            "breakdown": [],
+            "items": [],
+            "insight": "Start from Assets to inspect value quality, or Characters to inspect ownership by character.",
+        }
+    }
+
+    for b in breakdown:
+        node_id = f"asset:{_node_id(b.category)}"
+        cat_assets = by_category.get(b.category, [])
+        priced = sum(1 for a in cat_assets if a.price_sell > 0 or a.location == "wallet")
+        unpriced = max(len(cat_assets) - priced, 0)
+        bound = sum(1 for a in cat_assets if a.binding or not a.tradable)
+        low_liquidity = sum(1 for a in cat_assets if a.liquidity in ("low", "illiquid", "unknown"))
+        top_items = sorted(cat_assets, key=lambda a: a.value_after_fee or a.value_sell or a.value_buy, reverse=True)[:8]
+
+        nodes.append({
+            "id": node_id,
+            "group": "assets",
+            "label": b.category,
+            "kind": "asset_category",
+            "count": b.item_count,
+            "value": b.total_value,
+            "percentage": b.percentage,
+            "risk": b.risk,
+        })
+        details[node_id] = {
+            "title": b.category,
+            "subtitle": "Value grouped by where the account holds this asset class.",
+            "metrics": [
+                {"label": "Net value", "value": b.total_value, "format": "coin"},
+                {"label": "Stacks", "value": b.item_count},
+                {"label": "Priced", "value": priced},
+                {"label": "Unpriced", "value": unpriced},
+            ],
+            "breakdown": [
+                {"label": "Account-bound / locked", "value": bound},
+                {"label": "Low or unknown liquidity", "value": low_liquidity},
+                {"label": "Share of account value", "value": f"{b.percentage}%"},
+                {"label": "Risk", "value": b.risk.upper()},
+            ],
+            "items": [{
+                "item_id": a.item_id,
+                "count": a.count,
+                "location": a.location,
+                "location_ref": a.location_ref,
+                "binding": a.binding or ("Tradable" if a.tradable else "Locked"),
+                "liquidity": a.liquidity,
+                "value": a.value_after_fee or a.value_sell or a.value_buy,
+            } for a in top_items],
+            "insight": _asset_insight(b.category, b.risk, unpriced, low_liquidity),
+        }
+
+    nodes.extend([
+        {"id": "progression", "group": "progression", "label": "Progression", "kind": "progression", "count": object_graph.progression.mastery_count, "value": 0, "risk": "low"},
+        {"id": "unlocks", "group": "unlocks", "label": "Unlocks", "kind": "unlocks", "count": object_graph.unlocks.skin_count, "value": 0, "risk": "low"},
+        {
+            "id": "market",
+            "group": "market",
+            "label": "Trading Post Orders",
+            "kind": "market",
+            "count": len(object_graph.market.buy_orders) + len(object_graph.market.sell_orders),
+            "value": object_graph.market.total_buy_value + object_graph.market.total_sell_value,
+            "risk": "medium" if object_graph.market.buy_orders or object_graph.market.sell_orders else "low",
+        },
+    ])
+
+    details["progression"] = {
+        "title": "Progression",
+        "subtitle": "Account-level progression signals from GW2 account endpoints.",
+        "metrics": [
+            {"label": "Fractal", "value": object_graph.progression.fractal_level},
+            {"label": "WvW rank", "value": object_graph.progression.wvw_rank},
+            {"label": "Masteries", "value": object_graph.progression.mastery_count},
+            {"label": "Build templates", "value": object_graph.progression.build_count},
+        ],
+        "breakdown": [],
+        "items": [],
+        "insight": "Use this area to connect raw progress to build readiness and weekly plan priorities.",
+    }
+    details["unlocks"] = {
+        "title": "Unlocks",
+        "subtitle": "Collections unlocked on the account.",
+        "metrics": [
+            {"label": "Skins", "value": object_graph.unlocks.skin_count},
+            {"label": "Dyes", "value": object_graph.unlocks.dye_count},
+            {"label": "Minis", "value": object_graph.unlocks.mini_count},
+            {"label": "Finishers", "value": object_graph.unlocks.finisher_count},
+        ],
+        "breakdown": [],
+        "items": [],
+        "insight": "Unlock counts are useful context, but should stay secondary to wealth, goals, and build readiness.",
+    }
+    details["market"] = {
+        "title": "Trading Post Orders",
+        "subtitle": "Open buy and sell orders that affect liquid value and future cash flow.",
+        "metrics": [
+            {"label": "Buy orders", "value": len(object_graph.market.buy_orders)},
+            {"label": "Sell orders", "value": len(object_graph.market.sell_orders)},
+            {"label": "Buy value", "value": object_graph.market.total_buy_value, "format": "coin"},
+            {"label": "Sell value", "value": object_graph.market.total_sell_value, "format": "coin"},
+        ],
+        "breakdown": [],
+        "items": [],
+        "insight": "Separate active orders from owned inventory so liquidity and pending commitments do not blur together.",
+    }
+
+    for ch in object_graph.characters:
+        node_id = f"char:{_node_id(ch.name)}"
+        nodes.append({"id": node_id, "group": "characters", "label": ch.name, "kind": "character", "count": len(ch.bag_items) + len(ch.equipment), "value": ch.equipment_value, "risk": "low"})
+        details[node_id] = {
+            "title": ch.name,
+            "subtitle": f"{ch.profession or 'Unknown profession'} level {ch.level}",
+            "metrics": [
+                {"label": "Playtime", "value": f"{round(ch.playtime_hours)}h"},
+                {"label": "Equipment", "value": len(ch.equipment)},
+                {"label": "Bag items", "value": len(ch.bag_items)},
+                {"label": "Build tabs", "value": ch.build_tabs},
+            ],
+            "breakdown": [
+                {"label": "Race", "value": ch.race or "Unknown"},
+                {"label": "Deaths", "value": ch.deaths},
+                {"label": "Last login age", "value": f"{ch.last_login_days} days"},
+            ],
+            "items": [{
+                "item_id": item.item_id,
+                "count": item.count,
+                "location": item.location,
+                "location_ref": item.location_ref,
+                "binding": item.binding or ("Tradable" if item.tradable else "Locked"),
+                "value": item.value_after_fee or item.value_sell or item.value_buy,
+            } for item in sorted(ch.bag_items, key=lambda item: item.value_after_fee or item.value_sell or item.value_buy, reverse=True)[:8]],
+            "insight": "Character nodes should connect equipment and inventory to build readiness, not just show roster facts.",
+        }
+
+    return nodes, details
+
+
+def _asset_insight(category: str, risk: str, unpriced: int, low_liquidity: int) -> str:
+    if category == "Wallet":
+        return "Wallet is immediately spendable and should anchor liquid-value decisions."
+    if category == "Trading Post":
+        return "Trading Post orders should be separated into pending buys and pending sells before action recommendations."
+    if unpriced > 0:
+        return f"{unpriced} stacks lack sell prices; treat this as hidden or uncertain value before recommending liquidation."
+    if low_liquidity > 0 or risk != "low":
+        return "Some value may be hard to convert quickly; show price quality before suggesting sales."
+    return "This category is mostly priced and low-risk; expose top contributors and safe surplus next."
 
 
 def _profession_name(key: str) -> str:

@@ -139,11 +139,11 @@ class TestPageStructure:
 
     def test_account_has_asset_section(self, client):
         resp = client.get("/account")
-        assert "Economy" in resp.text or "layer-tab" in resp.text
+        assert "economy" in resp.text.lower()
 
     def test_account_has_character_table(self, client):
         resp = client.get("/account")
-        assert "Characters" in resp.text
+        assert "characters" in resp.text.lower()
 
     def test_insight_page_structure(self, client):
         resp = client.get("/insight")

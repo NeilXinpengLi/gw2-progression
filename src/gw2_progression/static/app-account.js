@@ -3,29 +3,31 @@ import { initSession, createSession, getToken, getEffectiveKey } from './session
 
 let _abortController = null;
 let _overviewData = null;
+let _activeTab = 'economy';
 let _activeSub = null;
 
-const TREE_SUBS = {
-  economy: [
+const TREE = {
+  economy: { label: 'Economy', icon: 'sym-tree-economy', sub: [
     { id: 'wallet', label: 'Wallet', icon: 'sym-sub-wallet' },
     { id: 'bank', label: 'Bank', icon: 'sym-asset-bank' },
     { id: 'materials', label: 'Materials', icon: 'sym-asset-materials' },
     { id: 'tradingpost', label: 'Trading Post', icon: 'sym-sub-trading' },
     { id: 'equipment', label: 'Equipment', icon: 'sym-asset-equipment' },
-  ],
-  progress: [
+  ]},
+  progress: { label: 'Progression', icon: 'sym-tree-progress', sub: [
     { id: 'achievements', label: 'Achievements', icon: 'sym-sub-achievements' },
     { id: 'masteries', label: 'Masteries', icon: 'sym-sub-mastery' },
     { id: 'pvp', label: 'PvP', icon: 'sym-sub-pvp' },
     { id: 'wvw', label: 'WvW', icon: 'sym-sub-wvw' },
     { id: 'fractals', label: 'Fractals', icon: 'sym-sub-fractal' },
-  ],
-  collection: [
+  ]},
+  collection: { label: 'Collections', icon: 'sym-tree-collection', sub: [
     { id: 'skins', label: 'Skins', icon: 'sym-sub-skins' },
     { id: 'dyes', label: 'Dyes', icon: 'sym-sub-dyes' },
     { id: 'minis', label: 'Minis', icon: 'sym-sub-minis' },
     { id: 'finishers', label: 'Finishers', icon: 'sym-kpi-legendary' },
-  ],
+  ]},
+  characters: { label: 'Characters', icon: 'sym-tree-characters', sub: [] },
 };
 
 document.addEventListener('DOMContentLoaded', async () => {
@@ -42,13 +44,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (urls[page]) window.location.href = urls[page];
   });
 
-  document.querySelector('.layer-tab-bar')?.addEventListener('click', e => {
-    const btn = e.target.closest('.layer-tab');
-    if (!btn) return;
-    _activeSub = null;
-    switchTab(btn.dataset.tab);
-  });
-
   const token = await initSession();
   if (token) {
     document.getElementById('key-input').value = token;
@@ -56,26 +51,16 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 });
 
-function switchTab(tabId) {
-  document.querySelectorAll('.layer-tab').forEach(t => t.classList.remove('active'));
-  document.querySelectorAll('.layer-tab-content').forEach(t => t.classList.remove('active'));
-  const tb = document.querySelector(`.layer-tab[data-tab="${tabId}"]`);
-  if (tb) tb.classList.add('active');
-  const tc = document.getElementById('tab-' + tabId);
-  if (tc) tc.classList.add('active');
-  selectTreeNode(tabId);
-}
-
-function selectTreeNode(id) {
-  document.querySelectorAll('.tn-item').forEach(n => n.classList.remove('selected'));
-  const node = document.getElementById('tn-' + id);
-  if (node) node.classList.add('selected');
-}
-
 function scrollToChar(charName) {
   const id = 'char-' + escHtml(charName).replace(/\s+/g, '-').toLowerCase();
   const card = document.getElementById(id);
   if (card) { card.scrollIntoView({ behavior: 'smooth', block: 'center' }); card.classList.add('highlight'); }
+}
+
+function selectTree(id) {
+  document.querySelectorAll('.tn-item').forEach(n => n.classList.remove('selected'));
+  const node = document.getElementById('tn-' + id);
+  if (node) node.classList.add('selected');
 }
 
 async function runAnalyze() {
@@ -95,15 +80,13 @@ async function runAnalyze() {
   const encKey = encodeURIComponent(useKey);
   const signal = _abortController.signal;
   const refresh = Date.now();
-
   try {
     const r1 = await fetch(`/api/account/overview?api_key=${encKey}&lite=true&refresh=${refresh}`, { signal });
     if (!r1.ok) { const e = await r1.json().catch(() => ({detail:`HTTP ${r1.status}`})); throw new Error(Array.isArray(e.detail)?e.detail.map(x=>x.msg||JSON.stringify(x)).join('; '):(typeof e.detail==='string'?e.detail:JSON.stringify(e.detail))); }
-    const lite = await r1.json();
+    const l = await r1.json();
     showLoading(false);
-    renderLite(lite);
+    renderLite(l);
     showStatusBadge('active');
-
     const r2 = await fetch(`/api/account/overview?api_key=${encKey}&refresh=${refresh}`, { signal });
     if (!r2.ok) { const e = await r2.json().catch(() => ({detail:`HTTP ${r2.status}`})); throw new Error(Array.isArray(e.detail)?e.detail.map(x=>x.msg||JSON.stringify(x)).join('; '):(typeof e.detail==='string'?e.detail:JSON.stringify(e.detail))); }
     _overviewData = await r2.json();
@@ -121,201 +104,263 @@ function renderLite(data) {
   document.getElementById('layer-overview').classList.remove('hidden');
   document.getElementById('layer-content').classList.remove('hidden');
   document.getElementById('layer-footer').classList.remove('hidden');
-
   const a = data.account || {};
   const k = data.kpis || {};
   document.getElementById('header-account-name').textContent = a.name || '—';
-  document.getElementById('header-last-sync').textContent = 'Loading full data…';
+  document.getElementById('header-last-sync').textContent = 'Loading…';
   document.getElementById('ov-total-value').textContent = '…';
   document.getElementById('ov-liquid-value').textContent = '…';
   document.getElementById('ov-hidden-wealth').textContent = '…';
   document.getElementById('overview-progress').innerHTML = `
-    <div class="ov-stat"><span class="ov-stat-lbl">Skins</span><span class="ov-stat-val">${k.skin_count || 0}</span></div>
-    <div class="ov-stat"><span class="ov-stat-lbl">Masteries</span><span class="ov-stat-val">${k.mastery_count || 0}</span></div>
-    <div class="ov-stat"><span class="ov-stat-lbl">Fractal</span><span class="ov-stat-val">${k.fractal_level || 0}</span></div>
-    <div class="ov-stat"><span class="ov-stat-lbl">WvW Rank</span><span class="ov-stat-val">${k.wvw_rank || 0}</span></div>`;
-
-  document.querySelectorAll('.tab-skeleton').forEach(el => el.remove());
-  document.querySelectorAll('.layer-tab-content').forEach(t => {
-    const sk = document.createElement('div');
-    sk.className = 'tab-skeleton';
-    sk.innerHTML = '<div class="sk-shimmer"><div class="sk-block" style="height:80px"></div><div class="sk-block" style="height:120px;margin-top:8px"></div><div class="sk-block" style="height:60px;margin-top:8px"></div></div>';
-    t.appendChild(sk);
-  });
+    <div class="ov-stat"><span class="ov-stat-lbl">Skins</span><span class="ov-stat-val">${k.skin_count||0}</span></div>
+    <div class="ov-stat"><span class="ov-stat-lbl">Masteries</span><span class="ov-stat-val">${k.mastery_count||0}</span></div>
+    <div class="ov-stat"><span class="ov-stat-lbl">Fractal</span><span class="ov-stat-val">${k.fractal_level||0}</span></div>
+    <div class="ov-stat"><span class="ov-stat-lbl">WvW Rank</span><span class="ov-stat-val">${k.wvw_rank||0}</span></div>`;
+  const gd = document.getElementById('graph-detail');
+  if (gd) gd.innerHTML = '<div class="gd-empty">Loading account data…</div>';
 }
 
 function renderFull(data) {
   const k = data.kpis || {};
-  document.getElementById('header-last-sync').textContent = `Last sync: ${data.snapshot_time || 'just now'}`;
-  document.getElementById('ov-total-value').textContent = fmtCoin(k.account_value || 0);
-  document.getElementById('ov-liquid-value').textContent = fmtCoin(k.liquid_sell_after_fee || 0);
-  document.getElementById('ov-hidden-wealth').textContent = fmtCoin(k.hidden_wealth || 0);
+  document.getElementById('header-last-sync').textContent = `Last sync: ${data.snapshot_time||'just now'}`;
+  document.getElementById('ov-total-value').textContent = fmtCoin(k.account_value||0);
+  document.getElementById('ov-liquid-value').textContent = fmtCoin(k.liquid_sell_after_fee||0);
+  document.getElementById('ov-hidden-wealth').textContent = fmtCoin(k.hidden_wealth||0);
 
-  document.querySelectorAll('.tab-skeleton').forEach(el => el.remove());
-
-  renderExplorerTree(data);
-  renderEconomy(data.assets || []);
-  renderProgression(data);
-  renderCollection(data);
-  renderCharacters(data.characters || []);
-  renderAIOverlay(k);
+  renderTree(data);
+  renderDetail(data);
+  renderOverlay(k);
 }
 
-function renderExplorerTree(data) {
+/* ───────── Tree ───────── */
+
+function renderTree(data) {
   const tree = document.getElementById('explorer-tree');
   if (!tree) return;
-
-  const childCharHtml = (data.characters || []).map(c =>
-    `<div class="tn-item tn-grandchild" data-tab="characters" data-char="${escHtml(c.name)}" id="tn-char-${escHtml(c.name).replace(/\s+/g, '-').toLowerCase()}"><span class="tn-icon">⛨</span>${escHtml(c.name)}</div>`
+  const charItems = (data.characters||[]).map(c =>
+    `<div class="tn-item tn-grandchild" data-tab="characters" data-sub="${escHtml(c.name)}" id="tn-char-${escHtml(c.name).replace(/\s+/g,'-').toLowerCase()}"><span class="tn-icon">⛨</span><span class="tn-label">${escHtml(c.name)}</span></div>`
   ).join('');
-
-  const subsHtml = (rootId, subs) =>
-    (subs || []).map(s =>
-      `<div class="tn-item tn-child" data-tab="${rootId}" data-sub="${s.id}" id="tn-sub-${s.id}"><svg class="tn-svg" width="14" height="14"><use href="#${s.icon}"/></svg>${s.label}</div>`
-    ).join('');
-
-  tree.innerHTML = `
-    <div class="tn-section">OBJECT GRAPH</div>
-    <div class="tn-item tn-root selected" data-tab="economy" id="tn-economy"><svg class="tn-svg" width="16" height="16"><use href="#sym-tree-economy"/></svg>Economy</div>
-    ${subsHtml('economy', TREE_SUBS.economy)}
-    <div class="tn-item tn-root" data-tab="progress" id="tn-progress"><svg class="tn-svg" width="16" height="16"><use href="#sym-tree-progress"/></svg>Progression</div>
-    ${subsHtml('progress', TREE_SUBS.progress)}
-    <div class="tn-item tn-root" data-tab="collection" id="tn-collection"><svg class="tn-svg" width="16" height="16"><use href="#sym-tree-collection"/></svg>Collections</div>
-    ${subsHtml('collection', TREE_SUBS.collection)}
-    <div class="tn-item tn-root tn-parent" data-tab="characters" id="tn-characters"><svg class="tn-svg" width="16" height="16"><use href="#sym-tree-characters"/></svg>Characters</div>
-    ${childCharHtml}
-  `;
+  let html = `<div class="tn-section">OBJECT GRAPH <span class="tn-collapse-all" id="tn-collapse-all" title="Collapse all">⊖</span></div>`;
+  for (const [key, val] of Object.entries(TREE)) {
+    const expanded = _activeTab === key;
+    html += `<div class="tn-item tn-root ${_activeTab===key?'expanded':''} ${_activeTab===key?'selected':''}" data-tab="${key}" id="tn-${key}"><svg class="tn-svg" width="16" height="16"><use href="#${val.icon}"/></svg><span class="tn-label">${val.label}</span><span class="tn-toggle">${_activeTab===key?'⊖':'⊕'}</span></div>`;
+    if (expanded && val.sub.length) {
+      val.sub.forEach(s => {
+        html += `<div class="tn-item tn-child ${_activeSub===s.id?'selected':''}" data-tab="${key}" data-sub="${s.id}" id="tn-sub-${s.id}"><svg class="tn-svg" width="14" height="14"><use href="#${s.icon}"/></svg><span class="tn-label">${s.label}</span></div>`;
+      });
+    }
+    if (key === 'characters' && expanded) html += charItems;
+  }
+  tree.innerHTML = html;
 
   tree.querySelectorAll('.tn-item').forEach(el => {
-    el.addEventListener('click', () => {
+    el.addEventListener('click', e => {
+      e.stopPropagation();
       const tab = el.dataset.tab;
-      const sub = el.dataset.sub;
-      const charName = el.dataset.char;
-      _activeSub = sub || null;
-      tree.querySelectorAll('.tn-item').forEach(n => n.classList.remove('selected'));
-      el.classList.add('selected');
-      switchTab(tab);
-      applySubFilter();
-      if (charName) scrollToChar(charName);
+      const sub = el.dataset.sub || null;
+      const root = TREE[tab];
+      if (root && root.sub && root.sub.length && sub === null && el.classList.contains('tn-root')) {
+        // Toggle root expansion
+        _activeTab = _activeTab === tab ? null : tab;
+        _activeSub = null;
+      } else {
+        _activeTab = tab;
+        _activeSub = sub;
+      }
+      renderTree(data);
+      renderDetail(data);
+      if (sub && TREE.characters && tab === 'characters') scrollToChar(sub);
     });
+  });
+
+  document.getElementById('tn-collapse-all')?.addEventListener('click', e => {
+    e.stopPropagation();
+    _activeTab = null;
+    _activeSub = null;
+    renderTree(data);
+    renderDetail(data);
   });
 }
 
-function applySubFilter() {
-  document.querySelectorAll('.econ-row').forEach(r => r.classList.toggle('sub-active', _activeSub && r.dataset.cat && r.dataset.cat.toLowerCase().replace(/\s+/g, '') === _activeSub));
-  document.querySelectorAll('.prog-card').forEach(r => r.classList.toggle('sub-active', _activeSub && r.dataset.sub === _activeSub));
-  document.querySelectorAll('.coll-card').forEach(r => r.classList.toggle('sub-active', _activeSub && r.dataset.sub === _activeSub));
-  document.querySelectorAll('.char-card').forEach(r => r.classList.toggle('sub-active', false));
-}
+/* ───────── Detail ───────── */
 
-function renderEconomy(assets) {
-  const list = document.getElementById('economy-list');
-  const expandedRows = { 'Wallet': true, 'Bank': true, 'Materials': true, 'Shared Inventory': false, 'Trading Post': false };
-  list.innerHTML = assets.map(a => {
-    const catKey = a.category.toLowerCase().replace(/\s+/g, '');
-    return `<div class="econ-row ${expandedRows[a.category] ? 'expanded' : ''}" data-cat="${a.category}">
-      <div class="econ-header" onclick="this.closest('.econ-row').classList.toggle('expanded')">
-        <div class="econ-info">
-          <span class="econ-toggle">▶</span>
-          <span class="econ-cat">${a.category}</span>
-          <span class="econ-pct">${a.percentage}%</span>
-        </div>
-        <div class="econ-vals">
-          <span class="econ-val">${fmtCoin(a.total_value || 0)}</span>
-          <span class="econ-sub">${a.risk_flag}</span>
-        </div>
-      </div>
-      <div class="econ-detail">
-        <div class="econ-detail-row"><span>Items</span><span>${a.count || 0}</span></div>
-        <div class="econ-detail-row"><span>Distinct</span><span>${a.distinct_count || a.count || 0}</span></div>
-        <div class="econ-detail-row"><span>Avg Value</span><span>${a.count ? fmtCoin(Math.round(a.total_value / a.count)) : '—'}</span></div>
-      </div>
-    </div>`;
-  }).join('');
-  applySubFilter();
-}
+function renderDetail(data) {
+  const gd = document.getElementById('graph-detail');
+  if (!gd) return;
 
-function renderProgression(data) {
-  const k = data.kpis || {};
-  const ad = data.additional_data || {};
-  const grid = document.getElementById('progression-grid');
-  grid.innerHTML = `
-    <div class="prog-card" data-sub="fractals"><div class="prog-cat">Combat</div>
-      <div class="prog-timeline">
-        <div class="prog-milestone"><span class="pm-label">Fractal Level</span><span class="pm-stat">${k.fractal_level || 0}</span><div class="pm-bar"><div class="pm-fill" style="width:${Math.min(100, ((k.fractal_level||0)/150)*100)}%"></div></div></div>
-        <div class="prog-milestone"><span class="pm-label">WvW Rank</span><span class="pm-stat">${k.wvw_rank || 0}</span><div class="pm-bar"><div class="pm-fill" style="width:${Math.min(100, ((k.wvw_rank||0)/300)*100)}%"></div></div></div>
-        <div class="prog-milestone"><span class="pm-label">PvP Rank</span><span class="pm-stat">${ad.pvp_rank || 0}</span><div class="pm-bar"><div class="pm-fill" style="width:${Math.min(100, ((ad.pvp_rank||0)/100)*100)}%"></div></div></div>
-      </div>
-    </div>
-    <div class="prog-card" data-sub="masteries"><div class="prog-cat">Mastery</div>
-      <div class="prog-timeline">
-        <div class="prog-milestone"><span class="pm-label">AP (Daily)</span><span class="pm-stat">${k.daily_ap || 0}</span><div class="pm-bar"><div class="pm-fill" style="width:${Math.min(100, ((k.daily_ap||0)/10000)*100)}%"></div></div></div>
-        <div class="prog-milestone"><span class="pm-label">AP (Monthly)</span><span class="pm-stat">${k.monthly_ap || 0}</span><div class="pm-bar"><div class="pm-fill" style="width:${Math.min(100, ((k.monthly_ap||0)/5000)*100)}%"></div></div></div>
-        <div class="prog-milestone"><span class="pm-label">Masteries</span><span class="pm-stat">${k.mastery_count || 0}</span><div class="pm-bar"><div class="pm-fill" style="width:${Math.min(100, ((k.mastery_count||0)/90)*100)}%"></div></div></div>
-        <div class="prog-milestone"><span class="pm-label">Builds</span><span class="pm-stat">${ad.build_storage_count || 0}</span><div class="pm-bar"><div class="pm-fill" style="width:${Math.min(100, ((ad.build_storage_count||0)/30)*100)}%"></div></div></div>
-      </div>
-    </div>
-    <div class="prog-card" data-sub="achievements"><div class="prog-cat">Social</div>
-      <div class="prog-timeline">
-        <div class="prog-milestone"><span class="pm-label">Characters</span><span class="pm-stat">${k.character_count || 0}</span><div class="pm-bar"><div class="pm-fill" style="width:${Math.min(100, ((k.character_count||0)/70)*100)}%"></div></div></div>
-        <div class="prog-milestone"><span class="pm-label">Guilds</span><span class="pm-stat">${ad.guild_count || 0}</span><div class="pm-bar"><div class="pm-fill" style="width:${Math.min(100, ((ad.guild_count||0)/5)*100)}%"></div></div></div>
-        <div class="prog-milestone"><span class="pm-label">Achievements</span><span class="pm-stat">${k.achievement_count || 0}</span><div class="pm-bar"><div class="pm-fill" style="width:${Math.min(100, ((k.achievement_count||0)/5000)*100)}%"></div></div></div>
-      </div>
-    </div>`;
-  applySubFilter();
-}
-
-function renderCollection(data) {
-  const k = data.kpis || {};
-  const ad = data.additional_data || {};
-  const grid = document.getElementById('collection-grid');
-  grid.innerHTML = `
-    <div class="coll-card" data-sub="skins"><svg class="coll-svg" width="28" height="28" viewBox="0 0 24 24"><g fill="none" stroke="#c8956c" stroke-width="1.5"><circle cx="12" cy="12" r="7"/><path d="M12 7v10M7 12h10"/></g></svg><span class="coll-label">Skins</span><span class="coll-count">${k.skin_count || 0}</span></div>
-    <div class="coll-card" data-sub="dyes"><svg class="coll-svg" width="28" height="28" viewBox="0 0 24 24"><g fill="none" stroke="#c8956c" stroke-width="1.5"><path d="M12 3a5 5 0 015 5c0 4-5 11-5 11S7 12 7 8a5 5 0 015-5z"/><circle cx="12" cy="8" r="1.5" fill="currentColor"/></g></svg><span class="coll-label">Dyes</span><span class="coll-count">${ad.unlocked_dyes || 0}</span></div>
-    <div class="coll-card" data-sub="minis"><svg class="coll-svg" width="28" height="28" viewBox="0 0 24 24"><g fill="none" stroke="#c8956c" stroke-width="1.5"><rect x="7" y="3" width="10" height="18" rx="2"/><circle cx="12" cy="10" r="2"/><circle cx="12" cy="16" r="1.5"/></g></svg><span class="coll-label">Minis</span><span class="coll-count">${ad.unlocked_minis || 0}</span></div>
-    <div class="coll-card" data-sub="finishers"><svg class="coll-svg" width="28" height="28" viewBox="0 0 24 24"><g fill="none" stroke="#c8956c" stroke-width="1.5"><polygon points="12 2 15 9 22 9 16 14 18 22 12 17 6 22 8 14 2 9 9 9 12 2"/></g></svg><span class="coll-label">Finishers</span><span class="coll-count">${ad.finisher_count || data.object_graph?.unlock_counts?.finishers || 0}</span></div>`;
-  applySubFilter();
-}
-
-function renderCharacters(chars) {
-  const container = document.getElementById('char-cards');
-  if (!chars || chars.length === 0) {
-    container.innerHTML = '<div class="dim">No characters found.</div>';
+  if (!_activeTab) {
+    gd.innerHTML = '<div class="gd-empty">Select a node from the Object Graph to inspect.</div>';
     return;
   }
-  const profColors = { Guardian: '#6b8', Necromancer: '#86a', Elementalist: '#c84', Mesmer: '#a6c', Warrior: '#c86', Revenant: '#a60', Ranger: '#8a6', Thief: '#888', Engineer: '#a86' };
 
-  container.innerHTML = chars.map(c => {
+  if (_activeTab === 'economy') renderEconomyDetail(data, _activeSub);
+  else if (_activeTab === 'progress') renderProgressDetail(data, _activeSub);
+  else if (_activeTab === 'collection') renderCollectionDetail(data, _activeSub);
+  else if (_activeTab === 'characters') renderCharactersDetail(data, _activeSub);
+}
+
+function renderEconomyDetail(data, sub) {
+  const assets = data.assets || [];
+  const ad = data.additional_data || {};
+  const k = data.kpis || {};
+  let items = assets;
+  if (sub) items = items.filter(a => a.category.toLowerCase().replace(/\s+/g,'') === sub);
+
+  const totalValue = items.reduce((s,a) => s + (a.total_value||0), 0);
+  const totalPct = items.reduce((s,a) => s + (a.percentage||0), 0);
+  const isFiltered = !!sub;
+  const subName = sub ? sub.charAt(0).toUpperCase() + sub.slice(1) : null;
+
+  let html = `<div class="gd-head"><div><div class="gd-kicker">Economy${isFiltered ? ` / ${subName}` : ''}</div><h2>${subName || 'All Assets'}</h2><p>${isFiltered ? `Showing ${subName} details.` : 'Your account wealth across all storage locations.'}</p></div><span class="gd-status">${fmtCoin(totalValue)}</span></div>`;
+
+  if (!isFiltered) {
+    html += `<div class="gd-metrics">
+      <div class="gd-metric"><span>Total Value</span><strong>${fmtCoin(k.account_value||0)}</strong></div>
+      <div class="gd-metric"><span>Liquid Value</span><strong>${fmtCoin(k.liquid_sell_after_fee||0)}</strong></div>
+      <div class="gd-metric"><span>Wallet Gold</span><strong>${fmtCoin(k.wallet_gold||0)}</strong></div>
+      <div class="gd-metric"><span>Categories</span><strong>${assets.length}</strong></div>
+    </div>`;
+  }
+
+  html += `<div class="gd-section"><h3>${isFiltered ? subName : 'Category'} Breakdown</h3><div class="gd-table">`;
+  items.forEach(a => {
+    const key = a.category.toLowerCase().replace(/\s+/g,'');
+    html += `<div class="econ-row expanded" data-cat="${a.category}"><div class="econ-header" onclick="this.closest('.econ-row').classList.toggle('expanded')">
+      <div class="econ-info"><span class="econ-toggle">▶</span><span class="econ-cat">${a.category}</span><span class="econ-pct">${a.percentage}%</span></div>
+      <div class="econ-vals"><span class="econ-val">${fmtCoin(a.total_value||0)}</span><span class="econ-sub">${a.risk_flag}</span></div>
+    </div><div class="econ-detail">
+      <div class="econ-detail-row"><span>Items</span><span>${a.count||0}</span></div>
+      <div class="econ-detail-row"><span>Distinct</span><span>${a.distinct_count||a.count||0}</span></div>
+      <div class="econ-detail-row"><span>Avg Value</span><span>${a.count?fmtCoin(Math.round(a.total_value/a.count)):'—'}</span></div>
+    </div></div>`;
+  });
+  html += `</div></div>`;
+
+  if (ad.wallet_currencies && !isFiltered) {
+    html += `<div class="gd-section"><h3>Wallet Currencies</h3><div class="gd-breakdown">`;
+    (ad.wallet_currencies||[]).forEach(c => {
+      const names = {1:'Gold',2:'Karma',3:'Laurels',4:'Spirit Shards'};
+      html += `<div><span>${names[c.id]||'Currency #'+c.id}</span><strong>${c.id===1?fmtCoin(c.value):(c.value||0).toLocaleString()}</strong></div>`;
+    });
+    html += `</div></div>`;
+  }
+  gd.innerHTML = html;
+}
+
+function renderProgressDetail(data, sub) {
+  const k = data.kpis || {};
+  const ad = data.additional_data || {};
+  const milestones = [
+    {id:'fractals', label:'Fractal Level', value:k.fractal_level||0, max:150},
+    {id:'wvw', label:'WvW Rank', value:k.wvw_rank||0, max:300},
+    {id:'pvp', label:'PvP Rank', value:ad.pvp_rank||0, max:100},
+    {id:'achievements', label:'AP (Daily)', value:k.daily_ap||0, max:10000},
+    {id:'masteries', label:'AP (Monthly)', value:k.monthly_ap||0, max:5000},
+    {id:'masteries2', label:'Masteries', value:k.mastery_count||0, max:90},
+    {id:'builds', label:'Build Templates', value:ad.build_storage_count||0, max:30},
+  ];
+
+  let filtered = milestones;
+  if (sub) filtered = milestones.filter(m => m.id === sub || m.id.startsWith(sub));
+
+  const isFiltered = !!sub;
+  const subName = sub ? sub.charAt(0).toUpperCase() + sub.slice(1) : null;
+
+  let html = `<div class="gd-head"><div><div class="gd-kicker">Progression${isFiltered ? ' / ' + subName : ''}</div><h2>${subName || 'Account Progress'}</h2><p>${isFiltered ? `Focus on ${subName} metrics.` : 'Your achievement, mastery, and rank progress.'}</p></div><span class="gd-status">${k.achievement_count||0} Achievements</span></div>`;
+
+  html += `<div class="gd-metrics">
+    <div class="gd-metric"><span>Total AP</span><strong>${((k.daily_ap||0)+(k.monthly_ap||0)).toLocaleString()}</strong></div>
+    <div class="gd-metric"><span>Masteries</span><strong>${k.mastery_count||0}</strong></div>
+    <div class="gd-metric"><span>Fractal</span><strong>${k.fractal_level||0}</strong></div>
+    <div class="gd-metric"><span>Characters</span><strong>${k.character_count||0}</strong></div>
+  </div>`;
+
+  html += `<div class="gd-section"><h3>Milestones</h3><div class="gd-table">`;
+  filtered.forEach(m => {
+    const pct = Math.min(100, (m.value / m.max) * 100);
+    html += `<div class="gd-row"><span>${m.label}</span><span><div class="pm-bar"><div class="pm-fill" style="width:${pct}%"></div></div></span><span>${m.value}</span><span>/${m.max}</span></div>`;
+  });
+  html += `</div></div>`;
+  gd.innerHTML = html;
+}
+
+function renderCollectionDetail(data, sub) {
+  const k = data.kpis || {};
+  const ad = data.additional_data || {};
+  const items = [
+    {id:'skins', label:'Skins', count:k.skin_count||0},
+    {id:'dyes', label:'Dyes', count:ad.unlocked_dyes||0},
+    {id:'minis', label:'Minis', count:ad.unlocked_minis||0},
+    {id:'finishers', label:'Finishers', count:ad.finisher_count||data.object_graph?.unlock_counts?.finishers||0},
+  ];
+  let filtered = items;
+  if (sub) filtered = items.filter(i => i.id === sub);
+
+  const isFiltered = !!sub;
+  const subName = sub ? sub.charAt(0).toUpperCase() + sub.slice(1) : null;
+  const total = items.reduce((s,i) => s + i.count, 0);
+
+  let html = `<div class="gd-head"><div><div class="gd-kicker">Collections${isFiltered ? ' / ' + subName : ''}</div><h2>${subName || 'All Unlocks'}</h2><p>${isFiltered ? `${subName} unlock details.` : 'Your collection progress across all categories.'}</p></div><span class="gd-status">${total} Total</span></div>`;
+
+  html += `<div class="gd-metrics">`;
+  items.forEach(i => {
+    const highlight = sub && sub === i.id;
+    html += `<div class="gd-metric" style="${highlight?'border-color:#c8956c':''}"><span>${i.label}</span><strong>${i.count}</strong></div>`;
+  });
+  html += `</div></div>`;
+  gd.innerHTML = html;
+}
+
+function renderCharactersDetail(data, sub) {
+  const chars = data.characters || [];
+  const k = data.kpis || {};
+  let filtered = chars;
+  if (sub) filtered = chars.filter(c => c.name.toLowerCase() === sub.toLowerCase());
+
+  const isFiltered = !!sub;
+  const subName = sub || null;
+  const profColors = { Guardian:'#6b8', Necromancer:'#86a', Elementalist:'#c84', Mesmer:'#a6c', Warrior:'#c86', Revenant:'#a60', Ranger:'#8a6', Thief:'#888', Engineer:'#a86' };
+
+  let html = `<div class="gd-head"><div><div class="gd-kicker">Characters${isFiltered ? ' / ' + subName : ''}</div><h2>${subName || 'All Characters'}</h2><p>${isFiltered ? `Details for ${subName}.` : `${chars.length} characters on this account.`}</p></div><span class="gd-status">${k.character_count||0} Total</span></div>`;
+
+  if (!chars.length) {
+    html += `<div class="gd-empty">No characters found.</div>`;
+    gd.innerHTML = html;
+    return;
+  }
+
+  html += `<div class="gd-section"><div class="char-cards">`;
+  filtered.forEach(c => {
     const color = profColors[c.profession] || '#888';
-    const cid = 'char-' + escHtml(c.name).replace(/\s+/g, '-').toLowerCase();
-    return `<div class="char-card" id="${cid}" style="border-left:3px solid ${color}">
+    const cid = 'char-'+escHtml(c.name).replace(/\s+/g,'-').toLowerCase();
+    html += `<div class="char-card" id="${cid}" style="border-left:3px solid ${color}">
       <div class="char-top" onclick="document.getElementById('${cid}').classList.toggle('expanded')">
         <span class="char-name">${escHtml(c.name)}</span>
         <span class="char-prof">${c.profession}</span>
         <span class="char-lv">Lv${c.level}</span>
         <span style="font-size:10px;color:#555;margin-left:auto">▼</span>
       </div>
-      <div class="char-meta">
-        <span>${c.playtime || '—'}</span>
-        <span>${c.gear_value ? fmtCoin(c.gear_value) : '—'}</span>
-        <span>${c.build_status || '—'}</span>
-      </div>
-      <div class="char-login">${c.last_login || '—'}</div>
-      <div class="char-expand">
-        <div class="char-eq-note">Equipment slots and inventory detail available with item-level data.</div>
-      </div>
+      <div class="char-meta"><span>${c.playtime||'—'}</span><span>${c.gear_value?fmtCoin(c.gear_value):'—'}</span><span>${c.build_status||'—'}</span></div>
+      <div class="char-login">${c.last_login||'—'}</div>
+      <div class="char-expand"><div class="char-eq-note">Equipment slots and inventory detail available with item-level data.</div></div>
     </div>`;
-  }).join('');
+  });
+  html += `</div></div>`;
+  gd.innerHTML = html;
 }
 
-function renderAIOverlay(k) {
+/* ───────── Overlay ───────── */
+
+function renderOverlay(k) {
   const body = document.getElementById('ai-overlay-body');
   if (!body) return;
   body.innerHTML = `
-    <div class="ai-oi"><div class="ai-oi-label">Hidden Wealth</div><div class="ai-oi-value">${fmtCoin(k.hidden_wealth || 0)}</div><div class="ai-oi-sub">Unused value in materials, bank, etc.</div></div>
-    <div class="ai-oi"><div class="ai-oi-label">Build Ready</div><div class="ai-oi-value">${k.build_ready_count ?? '—'} / ${k.character_count || 0}</div><div class="ai-oi-sub">Characters near meta-ready state</div></div>
-    <div class="ai-oi"><div class="ai-oi-label">Liquid Value</div><div class="ai-oi-value">${fmtCoin(k.liquid_sell_after_fee || 0)}</div><div class="ai-oi-sub">Sell value after TP fees</div></div>`;
+    <div class="ai-oi"><div class="ai-oi-label">Hidden Wealth</div><div class="ai-oi-value">${fmtCoin(k.hidden_wealth||0)}</div><div class="ai-oi-sub">Unused value in materials, bank, etc.</div></div>
+    <div class="ai-oi"><div class="ai-oi-label">Build Ready</div><div class="ai-oi-value">${k.build_ready_count??'—'} / ${k.character_count||0}</div><div class="ai-oi-sub">Characters near meta-ready state</div></div>
+    <div class="ai-oi"><div class="ai-oi-label">Liquid Value</div><div class="ai-oi-value">${fmtCoin(k.liquid_sell_after_fee||0)}</div><div class="ai-oi-sub">Sell value after TP fees</div></div>`;
 }
+
+/* ───────── Utils ───────── */
 
 function showLoading(v) {
   document.getElementById('key-section').style.display = v ? 'none' : '';
@@ -329,22 +374,22 @@ function showError(msg) {
 }
 
 function showStatusBadge(status) {
-  const badge = document.getElementById('api-status-badge');
-  if (!badge) return;
-  badge.dataset.status = status;
-  badge.textContent = { active: '● Active', stale: '● Stale', error: '● Error' }[status] || '● Unknown';
+  const b = document.getElementById('api-status-badge');
+  if (!b) return;
+  b.dataset.status = status;
+  b.textContent = {active:'● Active',stale:'● Stale',error:'● Error'}[status]||'● Unknown';
 }
 
 function exportData() {
   if (!_overviewData) return;
-  const d = { exported_at: new Date().toISOString(), account: _overviewData.account, kpis: _overviewData.kpis, assets: _overviewData.assets, characters: _overviewData.characters };
-  const blob = new Blob([JSON.stringify(d, null, 2)], { type: 'application/json' });
-  const url = URL.createObjectURL(blob);
+  const d = { exported_at:new Date().toISOString(), account:_overviewData.account, kpis:_overviewData.kpis, assets:_overviewData.assets, characters:_overviewData.characters };
+  const b = new Blob([JSON.stringify(d,null,2)], {type:'application/json'});
+  const u = URL.createObjectURL(b);
   const a = document.createElement('a');
-  a.href = url;
-  a.download = `gw2-account-${d.account?.name || 'unknown'}-${new Date().toISOString().slice(0, 10)}.json`;
+  a.href = u;
+  a.download = `gw2-account-${d.account?.name||'unknown'}-${new Date().toISOString().slice(0,10)}.json`;
   a.click();
-  URL.revokeObjectURL(url);
+  URL.revokeObjectURL(u);
 }
 
-function escHtml(s) { if (!s) return ''; return String(s).replace(/[&<>"]/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[m] || m); }
+function escHtml(s) { if (!s) return ''; return String(s).replace(/[&<>"]/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'})[m]||m); }
