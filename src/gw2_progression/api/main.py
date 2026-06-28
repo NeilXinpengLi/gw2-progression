@@ -38,6 +38,7 @@ from .routes.commercial import router as commercial_router
 from .routes.crafting import router as crafting_router
 from .routes.credentials import router as credentials_router
 from .routes.engine import router as engine_router
+from .routes.expert_ai import router as expert_ai_router
 from .routes.goal_driven import router as goal_driven_router
 from .routes.goals import router as goals_router
 from .routes.insight import router as insight_router
@@ -205,6 +206,7 @@ app.include_router(builds_router)
 app.include_router(commerce_router)
 app.include_router(credentials_router)
 app.include_router(engine_router)
+app.include_router(expert_ai_router)
 app.include_router(affiliates_router)
 app.include_router(audit_router)
 app.include_router(workspaces_router)

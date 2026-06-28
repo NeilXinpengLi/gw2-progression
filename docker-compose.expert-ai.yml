@@ -1,0 +1,106 @@
+services:
+  app:
+    build: .
+    ports:
+      - "${PORT:-8000}:8000"
+    restart: unless-stopped
+    volumes:
+      - gw2-data:/app/data
+    environment:
+      - RATE_LIMIT_REQUESTS=${RATE_LIMIT_REQUESTS:-30}
+      - RATE_LIMIT_WINDOW=${RATE_LIMIT_WINDOW:-60}
+      - GW2_API_BASE=${GW2_API_BASE:-https://api.guildwars2.com}
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+      - EXPERT_AI_POSTGRES_URL=postgresql://gw2:${POSTGRES_PASSWORD:-gw2}@postgres:5432/gw2_progression
+      - EXPERT_AI_NEO4J_URL=bolt://neo4j:7687
+      - EXPERT_AI_NEO4J_USER=neo4j
+      - EXPERT_AI_NEO4J_PASSWORD=${NEO4J_PASSWORD:-gw2progression}
+      - EXPERT_AI_QDRANT_URL=http://qdrant:6333
+      - EXPERT_AI_REDIS_URL=redis://redis:6379/0
+      - EXPERT_AI_STATE_PATH=/app/data/expert_ai_state.json
+    depends_on:
+      postgres:
+        condition: service_healthy
+      neo4j:
+        condition: service_started
+      qdrant:
+        condition: service_started
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import http.client; conn=http.client.HTTPConnection('localhost:8000'); conn.request('GET','/health'); resp=conn.getresponse(); exit(0 if resp.status==200 else 1)"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+
+  worker:
+    build: .
+    restart: unless-stopped
+    command: ["celery", "-A", "gw2_progression.expert_ai.celery_app:celery_app", "worker", "--loglevel=INFO", "--concurrency=2"]
+    volumes:
+      - gw2-data:/app/data
+    environment:
+      - EXPERT_AI_POSTGRES_URL=postgresql://gw2:${POSTGRES_PASSWORD:-gw2}@postgres:5432/gw2_progression
+      - EXPERT_AI_NEO4J_URL=bolt://neo4j:7687
+      - EXPERT_AI_NEO4J_USER=neo4j
+      - EXPERT_AI_NEO4J_PASSWORD=${NEO4J_PASSWORD:-gw2progression}
+      - EXPERT_AI_QDRANT_URL=http://qdrant:6333
+      - EXPERT_AI_REDIS_URL=redis://redis:6379/0
+      - EXPERT_AI_STATE_PATH=/app/data/expert_ai_state.json
+    depends_on:
+      app:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      - POSTGRES_DB=gw2_progression
+      - POSTGRES_USER=gw2
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-gw2}
+    volumes:
+      - expert-postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U gw2 -d gw2_progression"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  neo4j:
+    image: neo4j:5-community
+    restart: unless-stopped
+    ports:
+      - "${NEO4J_HTTP_PORT:-7474}:7474"
+      - "${NEO4J_BOLT_PORT:-7687}:7687"
+    environment:
+      - NEO4J_AUTH=neo4j/${NEO4J_PASSWORD:-gw2progression}
+    volumes:
+      - expert-neo4j-data:/data
+      - expert-neo4j-logs:/logs
+
+  qdrant:
+    image: qdrant/qdrant:v1.9.7
+    restart: unless-stopped
+    ports:
+      - "${QDRANT_PORT:-6333}:6333"
+    volumes:
+      - expert-qdrant:/qdrant/storage
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  gw2-data:
+  expert-postgres:
+  expert-neo4j-data:
+  expert-neo4j-logs:
+  expert-qdrant:
