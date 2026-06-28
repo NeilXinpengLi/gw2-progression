@@ -143,6 +143,24 @@ nav button.active {
   border-bottom-color: var(--gw2-gold);
 }
 
+/* Nav buttons that require login — dimmed until authenticated */
+nav button.requires-auth {
+  opacity: 0.4;
+}
+
+nav button.requires-auth:hover {
+  opacity: 0.6;
+  color: var(--gw2-text-dim);
+}
+
+nav.authenticated button.requires-auth {
+  opacity: 1;
+}
+
+nav.authenticated button.requires-auth:hover {
+  color: var(--gw2-text-bright);
+}
+
 /* ── Main Content ── */
 main {
   max-width: 1200px;

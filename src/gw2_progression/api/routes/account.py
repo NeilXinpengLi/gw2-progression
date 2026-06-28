@@ -44,7 +44,9 @@ async def account_overview(api_key: str = Query(...), lite: bool = Query(False),
     try:
         contents = await _cached_fetch(resolved_key, refresh=refresh)
     except Gw2ApiError as e:
-        raise HTTPException(status_code=401, detail=e.message)
+        if e.status_code == 429:
+            raise HTTPException(status_code=429, detail="GW2 API rate limit reached. Please wait 60 seconds and try again.")
+        raise HTTPException(status_code=e.status_code if e.status_code in (401, 403, 404) else 502, detail=e.message)
 
     if lite:
         wallet_gold = 0

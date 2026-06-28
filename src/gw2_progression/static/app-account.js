@@ -175,15 +175,13 @@ function renderTree(data) {
       const sub = el.dataset.sub || null;
       const root = TREE[tab];
       if (root && root.sub && root.sub.length && sub === null && el.classList.contains('tn-root')) {
-        // Toggle root expansion
         _activeTab = _activeTab === tab ? null : tab;
         _activeSub = null;
       } else {
         _activeTab = tab;
         _activeSub = sub;
       }
-      if (tab === 'characters') console.log('char click:', {tab, sub, activeSub: _activeSub});
-      renderTree(data);
+      updateTreeSelection(data);
       renderDetail(data);
       if (sub && TREE.characters && tab === 'characters') scrollToChar(sub);
     });
@@ -193,16 +191,54 @@ function renderTree(data) {
     e.stopPropagation();
     _activeTab = null;
     _activeSub = null;
-    renderTree(data);
+    updateTreeSelection(data);
     renderDetail(data);
   });
   document.getElementById('tn-expand-all')?.addEventListener('click', e => {
     e.stopPropagation();
     _activeTab = 'economy';
     _activeSub = null;
-    renderTree(data);
+    updateTreeSelection(data);
     renderDetail(data);
   });
+}
+
+function updateTreeSelection(data) {
+  const tree = document.getElementById('explorer-tree');
+  if (!tree) return;
+  // Update classes on existing DOM nodes without full re-render
+  tree.querySelectorAll('.tn-item').forEach(el => {
+    const tab = el.dataset.tab;
+    const sub = el.dataset.sub || null;
+    el.classList.toggle('selected',
+      tab === _activeTab && (sub === null ? _activeSub === null : sub === _activeSub)
+    );
+  });
+  // Update root expanded state (show/hide children)
+  for (const [key, val] of Object.entries(TREE)) {
+    const rootEl = document.getElementById('tn-' + key);
+    if (!rootEl) continue;
+    const toggle = rootEl.querySelector('.tn-toggle');
+    if (toggle) toggle.textContent = _activeTab === key ? '⊖' : '⊕';
+    // Show/hide child items via CSS class
+    rootEl.classList.toggle('expanded', _activeTab === key);
+    // Actually toggle sub-node visibility in the DOM
+    if (key === 'characters') {
+      // For characters, the grandchild items need to be shown/hidden
+      let sibling = rootEl.nextElementSibling;
+      while (sibling && sibling.classList.contains('tn-grandchild')) {
+        sibling.style.display = _activeTab === key ? '' : 'none';
+        sibling = sibling.nextElementSibling;
+      }
+    } else {
+      // For other roots, toggle child items
+      let sibling = rootEl.nextElementSibling;
+      while (sibling && sibling.classList.contains('tn-child')) {
+        sibling.style.display = _activeTab === key ? '' : 'none';
+        sibling = sibling.nextElementSibling;
+      }
+    }
+  }
 }
 
 /* ───────── Detail ───────── */

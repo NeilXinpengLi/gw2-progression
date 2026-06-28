@@ -6,7 +6,7 @@
   <title>Account Overview — GW2 Progression</title>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
   <link rel="stylesheet" href="/static/style.css?v=20260627" />
-  <link rel="stylesheet" href="/static/style-account.css?v=20260627" />
+  <link rel="stylesheet" href="/static/style-account.css?v=20260628-tree" />
   <meta name="theme-color" content="#c8956c" />
 </head>
 <body>
@@ -101,33 +101,13 @@
 
     <!-- COL 2: CENTER DETAIL -->
     <div class="explorer-detail">
-      <div id="layer-tabs">
-        <div class="layer-tab-bar">
-          <button class="layer-tab active" data-tab="economy">Economy</button>
-          <button class="layer-tab" data-tab="progress">Progress</button>
-          <button class="layer-tab" data-tab="collection">Collection</button>
-          <button class="layer-tab" data-tab="characters">Characters</button>
-        </div>
-
-        <div class="layer-tab-content active" id="tab-economy">
-          <div id="economy-list"></div>
-        </div>
-        <div class="layer-tab-content" id="tab-progress">
-          <div class="progression-grid" id="progression-grid"></div>
-        </div>
-        <div class="layer-tab-content" id="tab-collection">
-          <div class="collection-grid" id="collection-grid"></div>
-        </div>
-        <div class="layer-tab-content" id="tab-characters">
-          <div class="char-cards" id="char-cards"></div>
-        </div>
-      </div>
+      <div id="graph-detail" class="graph-detail"></div>
     </div>
 
-    <!-- COL 3: AI OVERLAY (right panel) -->
+    <!-- COL 3: CONTEXT INSPECTOR (right panel) -->
     <div class="ai-overlay" id="ai-overlay">
       <div class="ai-overlay-header">
-        <span class="ai-overlay-title">AI Insights</span>
+        <span class="ai-overlay-title">Inspector</span>
         <span class="ai-overlay-glow"></span>
       </div>
       <div class="ai-overlay-body" id="ai-overlay-body">

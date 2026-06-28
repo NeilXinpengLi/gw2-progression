@@ -153,15 +153,15 @@ function renderTree(data) {
   if (!tree) return;
   const charItems = (data.characters||[]).map(c => {
     const cid = escHtml(c.name).replace(/\s+/g,'-').toLowerCase();
-    return `<div class="tn-item tn-grandchild${_activeSub===escHtml(c.name)?' selected':''}" data-tab="characters" data-sub="${escHtml(c.name)}" id="tn-char-${cid}"><span class="tn-icon">⛨</span><span class="tn-label">${escHtml(c.name)}</span></div>`;
+    return `<div class="tn-item tn-grandchild${_activeSub===escHtml(c.name)?' selected':''}" data-tab="characters" data-sub="${escHtml(c.name)}" id="tn-char-${cid}"><span class="tn-node-icon tn-char-glyph">⛨</span><span class="tn-label">${escHtml(c.name)}</span></div>`;
   }).join('');
-  let html = `<div class="tn-section">Account<span class="tn-spacer"></span><span class="tn-expand-btn" id="tn-expand-all" title="Expand all">⊕</span><span class="tn-expand-btn" id="tn-collapse-all" title="Collapse all">⊖</span></div>`;
+  let html = `<div class="tn-section">Account<span class="tn-spacer"></span><button class="tn-expand-btn tn-expand-plus" id="tn-expand-all" type="button" aria-label="Expand tree" title="Expand"></button><button class="tn-expand-btn tn-expand-minus" id="tn-collapse-all" type="button" aria-label="Collapse tree" title="Collapse"></button></div>`;
   for (const [key, val] of Object.entries(TREE)) {
     const expanded = _activeTab === key;
-    html += `<div class="tn-item tn-root ${_activeTab===key?'expanded':''} ${_activeTab===key?'selected':''}" data-tab="${key}" id="tn-${key}"><svg class="tn-svg" width="16" height="16"><use href="#${val.icon}"/></svg><span class="tn-label">${val.label}</span><span class="tn-toggle">${_activeTab===key?'⊖':'⊕'}</span></div>`;
+    html += `<div class="tn-item tn-root ${_activeTab===key?'expanded':''} ${_activeTab===key?'selected':''}" data-tab="${key}" id="tn-${key}"><span class="tn-node-icon"><svg class="tn-svg" width="16" height="16"><use href="#${val.icon}"/></svg></span><span class="tn-label">${val.label}</span><span class="tn-toggle" data-expanded="${expanded ? 'true' : 'false'}" aria-hidden="true"></span></div>`;
     if (expanded && val.sub.length) {
       val.sub.forEach(s => {
-        html += `<div class="tn-item tn-child ${_activeSub===s.id?'selected':''}" data-tab="${key}" data-sub="${s.id}" id="tn-sub-${s.id}"><svg class="tn-svg" width="14" height="14"><use href="#${s.icon}"/></svg><span class="tn-label">${s.label}</span></div>`;
+        html += `<div class="tn-item tn-child ${_activeSub===s.id?'selected':''}" data-tab="${key}" data-sub="${s.id}" id="tn-sub-${s.id}"><span class="tn-node-icon"><svg class="tn-svg" width="14" height="14"><use href="#${s.icon}"/></svg></span><span class="tn-label">${s.label}</span></div>`;
       });
     }
     if (key === 'characters' && expanded) html += charItems;
@@ -175,14 +175,12 @@ function renderTree(data) {
       const sub = el.dataset.sub || null;
       const root = TREE[tab];
       if (root && root.sub && root.sub.length && sub === null && el.classList.contains('tn-root')) {
-        // Toggle root expansion
         _activeTab = _activeTab === tab ? null : tab;
         _activeSub = null;
       } else {
         _activeTab = tab;
         _activeSub = sub;
       }
-      if (tab === 'characters') console.log('char click:', {tab, sub, activeSub: _activeSub});
       renderTree(data);
       renderDetail(data);
       if (sub && TREE.characters && tab === 'characters') scrollToChar(sub);
@@ -203,6 +201,44 @@ function renderTree(data) {
     renderTree(data);
     renderDetail(data);
   });
+}
+
+function updateTreeSelection(data) {
+  const tree = document.getElementById('explorer-tree');
+  if (!tree) return;
+  // Update classes on existing DOM nodes without full re-render
+  tree.querySelectorAll('.tn-item').forEach(el => {
+    const tab = el.dataset.tab;
+    const sub = el.dataset.sub || null;
+    el.classList.toggle('selected',
+      tab === _activeTab && (sub === null ? _activeSub === null : sub === _activeSub)
+    );
+  });
+  // Update root expanded state (show/hide children)
+  for (const [key, val] of Object.entries(TREE)) {
+    const rootEl = document.getElementById('tn-' + key);
+    if (!rootEl) continue;
+    const toggle = rootEl.querySelector('.tn-toggle');
+    if (toggle) toggle.dataset.expanded = _activeTab === key ? 'true' : 'false';
+    // Show/hide child items via CSS class
+    rootEl.classList.toggle('expanded', _activeTab === key);
+    // Actually toggle sub-node visibility in the DOM
+    if (key === 'characters') {
+      // For characters, the grandchild items need to be shown/hidden
+      let sibling = rootEl.nextElementSibling;
+      while (sibling && sibling.classList.contains('tn-grandchild')) {
+        sibling.style.display = _activeTab === key ? '' : 'none';
+        sibling = sibling.nextElementSibling;
+      }
+    } else {
+      // For other roots, toggle child items
+      let sibling = rootEl.nextElementSibling;
+      while (sibling && sibling.classList.contains('tn-child')) {
+        sibling.style.display = _activeTab === key ? '' : 'none';
+        sibling = sibling.nextElementSibling;
+      }
+    }
+  }
 }
 
 /* ───────── Detail ───────── */
