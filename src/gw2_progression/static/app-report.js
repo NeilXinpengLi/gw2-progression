@@ -1,5 +1,5 @@
 // ── Report Page — Monetization Layer ──
-import { initSession, getToken } from './session-manager.js';
+import { initSession } from './session-manager.js';
 import { fmtCoin } from './app-shared.js';
 
 document.addEventListener('DOMContentLoaded', async () => {

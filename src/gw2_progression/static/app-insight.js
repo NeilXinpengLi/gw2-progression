@@ -1,6 +1,6 @@
 // ── Insight Page — AI Overlay Layer ──
 
-import { fmtCoin, fmtCoinShort } from './app-shared.js';
+import { fmtCoin } from './app-shared.js';
 import { initSession } from './session-manager.js';
 
 document.addEventListener('DOMContentLoaded', async () => {

@@ -1,5 +1,5 @@
-import { fmtCoin, fmtCoinShort } from './app-shared.js';
-import { initSession, createSession, clearSession, getToken, getEffectiveKey } from './session-manager.js';
+import { fmtCoin } from './app-shared.js';
+import { initSession, createSession, getToken, getEffectiveKey } from './session-manager.js';
 
 let _abortController = null;
 let _overviewData = null;

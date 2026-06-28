@@ -1,9 +1,6 @@
 // ── Plan Page — AI Decision Hub ──
 
-import {
-  itemName, itemIcon, fmtCoin, fmtCoinShort,
-  resolveItems, resolveCurrencies,
-} from './app-shared.js';
+import { fmtCoinShort } from './app-shared.js';
 import { initSession, getToken } from './session-manager.js';
 
 let _abortController = null;
@@ -86,7 +83,7 @@ async function generatePlan() {
         body: JSON.stringify({goal_text: goalText}),
         signal: _abortController.signal,
       });
-      if (!interpretRes.ok) throw new Error('Failed to interpret goal');
+      if (!interpretRes.ok) { const e = await interpretRes.json().catch(()=>({detail:`HTTP ${interpretRes.status}`})); throw new Error(`Failed to interpret goal: ${typeof e.detail==='string'?e.detail:(Array.isArray(e.detail)?e.detail.map(x=>x.msg).join('; '):JSON.stringify(e.detail))}`); }
 
       const generateRes = await fetch('/goal-driven/generate', {
         method: 'POST', headers: {'Content-Type': 'application/json'},
@@ -97,7 +94,7 @@ async function generatePlan() {
         }),
         signal: _abortController.signal,
       });
-      if (!generateRes.ok) throw new Error('Failed to generate plan');
+      if (!generateRes.ok) { const e = await generateRes.json().catch(()=>({detail:`HTTP ${generateRes.status}`})); throw new Error(`Failed to generate plan: ${typeof e.detail==='string'?e.detail:(Array.isArray(e.detail)?e.detail.map(x=>x.msg).join('; '):JSON.stringify(e.detail))}`); }
       planPayload = await generateRes.json();
       accountName = planPayload.plan?.account_name || 'Player';
     } else {
@@ -107,7 +104,7 @@ async function generatePlan() {
         body: JSON.stringify({api_key: apiKey, strategy: _currentStrategy}),
         signal: _abortController.signal,
       });
-      if (!decideRes.ok) throw new Error('Failed to generate decisions');
+      if (!decideRes.ok) { const e = await decideRes.json().catch(()=>({detail:`HTTP ${decideRes.status}`})); throw new Error(`Failed to generate decisions: ${typeof e.detail==='string'?e.detail:(Array.isArray(e.detail)?e.detail.map(x=>x.msg).join('; '):JSON.stringify(e.detail))}`); }
       planPayload = await decideRes.json();
       accountName = planPayload.account_name || 'Player';
     }
@@ -118,7 +115,7 @@ async function generatePlan() {
   } catch (e) {
     if (e.name === 'AbortError') return;
     showLoading(false);
-    showPlanError(e.message);
+    showPlanError(e.message || String(e));
   }
 }
 
@@ -151,7 +148,7 @@ function renderPlan(data, accountName) {
   renderExplanation(allActions, _currentStrategy);
 
   // Quests
-  renderQuests(accountName);
+  await renderQuests(accountName);
 
   // Coach
   renderCoach(data);
