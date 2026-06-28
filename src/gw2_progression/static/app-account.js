@@ -155,7 +155,7 @@ function renderTree(data) {
     const cid = escHtml(c.name).replace(/\s+/g,'-').toLowerCase();
     return `<div class="tn-item tn-grandchild${_activeSub===escHtml(c.name)?' selected':''}" data-tab="characters" data-sub="${escHtml(c.name)}" id="tn-char-${cid}"><span class="tn-icon">⛨</span><span class="tn-label">${escHtml(c.name)}</span></div>`;
   }).join('');
-  let html = `<div class="tn-section">Account<span class="tn-spacer"></span><span class="tn-collapse-all" id="tn-expand-all" title="Expand all">⊕</span><span class="tn-collapse-all" id="tn-collapse-all" title="Collapse all">⊖</span></div>`;
+  let html = `<div class="tn-section">Account<span class="tn-spacer"></span><span class="tn-expand-btn" id="tn-expand-all" title="Expand all">⊕</span><span class="tn-expand-btn" id="tn-collapse-all" title="Collapse all">⊖</span></div>`;
   for (const [key, val] of Object.entries(TREE)) {
     const expanded = _activeTab === key;
     html += `<div class="tn-item tn-root ${_activeTab===key?'expanded':''} ${_activeTab===key?'selected':''}" data-tab="${key}" id="tn-${key}"><svg class="tn-svg" width="16" height="16"><use href="#${val.icon}"/></svg><span class="tn-label">${val.label}</span><span class="tn-toggle">${_activeTab===key?'⊖':'⊕'}</span></div>`;
@@ -182,6 +182,7 @@ function renderTree(data) {
         _activeTab = tab;
         _activeSub = sub;
       }
+      if (tab === 'characters') console.log('char click:', {tab, sub, activeSub: _activeSub});
       renderTree(data);
       renderDetail(data);
       if (sub && TREE.characters && tab === 'characters') scrollToChar(sub);
