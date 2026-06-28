@@ -26,7 +26,7 @@ router = APIRouter(prefix="/api/account", tags=["account"])
 _fetch_cache: dict[str, tuple[datetime, Any]] = {}
 _CACHE_TTL_S = 120
 
-async def _cached_fetch(resolved_key: str, refresh: bool = False):
+async def _cached_fetch(resolved_key: str, refresh: int = 0):
     now = datetime.now(timezone.utc)
     if not refresh and resolved_key in _fetch_cache:
         ts, contents = _fetch_cache[resolved_key]
@@ -38,7 +38,7 @@ async def _cached_fetch(resolved_key: str, refresh: bool = False):
 
 
 @router.get("/overview")
-async def account_overview(api_key: str = Query(...), lite: bool = Query(False), refresh: bool = Query(False)):
+async def account_overview(api_key: str = Query(...), lite: bool = Query(False), refresh: int = Query(0)):
     """
     Structured account overview via three-layer pipeline.
 

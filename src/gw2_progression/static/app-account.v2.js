@@ -98,14 +98,14 @@ async function runAnalyze() {
 
   try {
     const r1 = await fetch(`/api/account/overview?api_key=${encKey}&lite=true&refresh=${refresh}`, { signal });
-    if (!r1.ok) { const e = await r1.json().catch(() => ({})); throw new Error(e.detail || `HTTP ${r1.status}`); }
+    if (!r1.ok) { const e = await r1.json().catch(() => ({detail:`HTTP ${r1.status}`})); throw new Error(Array.isArray(e.detail)?e.detail.map(x=>x.msg||JSON.stringify(x)).join('; '):(typeof e.detail==='string'?e.detail:JSON.stringify(e.detail))); }
     const lite = await r1.json();
     showLoading(false);
     renderLite(lite);
     showStatusBadge('active');
 
     const r2 = await fetch(`/api/account/overview?api_key=${encKey}&refresh=${refresh}`, { signal });
-    if (!r2.ok) { const e = await r2.json().catch(() => ({})); throw new Error(e.detail || `HTTP ${r2.status}`); }
+    if (!r2.ok) { const e = await r2.json().catch(() => ({detail:`HTTP ${r2.status}`})); throw new Error(Array.isArray(e.detail)?e.detail.map(x=>x.msg||JSON.stringify(x)).join('; '):(typeof e.detail==='string'?e.detail:JSON.stringify(e.detail))); }
     _overviewData = await r2.json();
     renderFull(_overviewData);
   } catch (e) {
