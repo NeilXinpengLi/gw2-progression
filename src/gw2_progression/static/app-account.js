@@ -1,4 +1,4 @@
-import { fmtCoin, fmtCoinShort, loadIconSprite } from './app-shared.js';
+import { fmtCoin, fmtCoinShort } from './app-shared.js';
 import { initSession, createSession, clearSession, getToken, getEffectiveKey } from './session-manager.js';
 
 let _abortController = null;
