@@ -46,6 +46,10 @@ async def account_overview(api_key: str = Query(...)):
     if contents.account_age_hours:
         raw_dict["account"]["age"] = int(contents.account_age_hours * 3600)
 
+    # Build object graph (gw2efficiency-level full data model)
+    from gw2_progression.object_graph.mapper import map_to_graph
+    object_graph = map_to_graph(contents)
+
     from gw2_progression.services.snapshot_service import create_snapshot, derive_value, derive_breakdown, normalize_account
 
     normalized = normalize_account(raw_dict)
@@ -101,6 +105,16 @@ async def account_overview(api_key: str = Query(...)):
         if entry.get("id") in (2, 3, 4):  # karma, laurels, spirit shards
             wallet_currencies.append({"id": entry["id"], "value": entry.get("value", 0)})
 
+    # ── Enrich object graph with market prices ──
+    for item in object_graph.items:
+        price = prices.get(item.item_id)
+        if price:
+            item.price_buy = price.buy_unit_price
+            item.price_sell = price.sell_unit_price
+            item.value_buy = item.count * price.buy_unit_price
+            item.value_sell = item.count * price.sell_unit_price
+            item.value_after_fee = int(item.value_sell * 0.85)
+
     return {
         "account": {
             "name": contents.account_name or "unknown",
@@ -132,6 +146,42 @@ async def account_overview(api_key: str = Query(...)):
             "percentage": b.percentage,
             "risk_flag": b.risk,
         } for b in breakdown],
+        "object_graph": {
+            "item_count": len(object_graph.items),
+            "character_count": len(object_graph.characters),
+            "currencies": {c.currency_id: c.value for c in [
+                object_graph.currencies.gold,
+                object_graph.currencies.karma,
+                object_graph.currencies.laurels,
+                object_graph.currencies.spirit_shards,
+                object_graph.currencies.fractal_relics,
+                object_graph.currencies.magnetite,
+                object_graph.currencies.gaeting,
+                object_graph.currencies.gems,
+                object_graph.currencies.volatile_magic,
+                object_graph.currencies.unbound_magic,
+            ] if c.value > 0},
+            "unlock_counts": {
+                "skins": object_graph.unlocks.skin_count,
+                "dyes": object_graph.unlocks.dye_count,
+                "minis": object_graph.unlocks.mini_count,
+                "finishers": object_graph.unlocks.finisher_count,
+            },
+            "progression": {
+                "daily_ap": object_graph.progression.daily_ap,
+                "monthly_ap": object_graph.progression.monthly_ap,
+                "fractal_level": object_graph.progression.fractal_level,
+                "wvw_rank": object_graph.progression.wvw_rank,
+                "build_templates": object_graph.progression.build_count,
+                "masteries": object_graph.progression.mastery_count,
+            },
+            "market_orders": {
+                "buy_count": len(object_graph.market.buy_orders),
+                "sell_count": len(object_graph.market.sell_orders),
+                "total_buy_value": object_graph.market.total_buy_value,
+                "total_sell_value": object_graph.market.total_sell_value,
+            },
+        },
         "additional_data": {
             "wallet_currencies": wallet_currencies,
             "build_storage_count": len(contents.builds or []),
