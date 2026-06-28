@@ -151,7 +151,7 @@ function renderTree(data) {
   const charItems = (data.characters||[]).map(c =>
     `<div class="tn-item tn-grandchild" data-tab="characters" data-sub="${escHtml(c.name)}" id="tn-char-${escHtml(c.name).replace(/\s+/g,'-').toLowerCase()}"><span class="tn-icon">⛨</span><span class="tn-label">${escHtml(c.name)}</span></div>`
   ).join('');
-  let html = `<div class="tn-section">OBJECT GRAPH <span class="tn-collapse-all" id="tn-collapse-all" title="Collapse all">⊖</span></div>`;
+  let html = `<div class="tn-section">OBJECT GRAPH <span class="tn-collapse-all" id="tn-expand-all" title="Expand all">⊕</span><span class="tn-collapse-all" id="tn-collapse-all" title="Collapse all">⊖</span></div>`;
   for (const [key, val] of Object.entries(TREE)) {
     const expanded = _activeTab === key;
     html += `<div class="tn-item tn-root ${_activeTab===key?'expanded':''} ${_activeTab===key?'selected':''}" data-tab="${key}" id="tn-${key}"><svg class="tn-svg" width="16" height="16"><use href="#${val.icon}"/></svg><span class="tn-label">${val.label}</span><span class="tn-toggle">${_activeTab===key?'⊖':'⊕'}</span></div>`;
@@ -187,6 +187,13 @@ function renderTree(data) {
   document.getElementById('tn-collapse-all')?.addEventListener('click', e => {
     e.stopPropagation();
     _activeTab = null;
+    _activeSub = null;
+    renderTree(data);
+    renderDetail(data);
+  });
+  document.getElementById('tn-expand-all')?.addEventListener('click', e => {
+    e.stopPropagation();
+    _activeTab = 'economy';
     _activeSub = null;
     renderTree(data);
     renderDetail(data);

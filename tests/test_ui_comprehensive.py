@@ -642,7 +642,7 @@ class TestFrontendBackendInterface:
         "loading-state", "error-state", "error-message", "api-status-badge",
     }
     # IDs created dynamically by JS (verified self-consistent via renderTree/renderCharacters)
-    DYNAMIC_IDS = {"tn-collapse-all"}
+    DYNAMIC_IDS = {"tn-collapse-all", "tn-expand-all"}
 
     def test_account_html_has_all_js_referenced_ids(self, client):
         resp = client.get("/account")
