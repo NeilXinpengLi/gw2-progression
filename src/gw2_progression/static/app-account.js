@@ -90,7 +90,8 @@ async function runAnalyze() {
   } catch (e) {
     if (e.name === 'AbortError') return;
     showLoading(false);
-    showError(e.message);
+    console.error('Account page error:', e);
+    showError(e.message || String(e));
     showStatusBadge('error');
   }
 }
@@ -125,9 +126,9 @@ function renderFull(data) {
   document.getElementById('ov-liquid-value').textContent = fmtCoin(k.liquid_sell_after_fee||0);
   document.getElementById('ov-hidden-wealth').textContent = fmtCoin(k.hidden_wealth||0);
 
-  renderTree(data);
-  renderDetail(data);
-  renderOverlay(k);
+  try { renderTree(data); } catch(e) { console.error('renderTree:', e); }
+  try { renderDetail(data); } catch(e) { console.error('renderDetail:', e); }
+  try { renderOverlay(k); } catch(e) { console.error('renderOverlay:', e); }
 }
 
 /* ───────── Tree ───────── */
@@ -191,10 +192,12 @@ function renderDetail(data) {
     return;
   }
 
-  if (_activeTab === 'economy') renderEconomyDetail(data, _activeSub);
-  else if (_activeTab === 'progress') renderProgressDetail(data, _activeSub);
-  else if (_activeTab === 'collection') renderCollectionDetail(data, _activeSub);
-  else if (_activeTab === 'characters') renderCharactersDetail(data, _activeSub);
+  try {
+    if (_activeTab === 'economy') renderEconomyDetail(data, _activeSub);
+    else if (_activeTab === 'progress') renderProgressDetail(data, _activeSub);
+    else if (_activeTab === 'collection') renderCollectionDetail(data, _activeSub);
+    else if (_activeTab === 'characters') renderCharactersDetail(data, _activeSub);
+  } catch(e) { console.error('renderDetail dispatch:', e); gd.innerHTML = '<div class=gd-empty>Render error: '+e.message+'</div>'; }
 }
 
 function renderEconomyDetail(data, sub) {
