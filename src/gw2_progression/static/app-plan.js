@@ -8,38 +8,38 @@ let _planData = null;
 let _currentStrategy = 'hybrid';
 
 document.addEventListener('DOMContentLoaded', async () => {
+  // OS nav — must attach FIRST so it survives any error in handlers below
+  try {
+    document.getElementById('os-nav')?.addEventListener('click', e => {
+      const btn = e.target.closest('button[data-nav]');
+      if (!btn) return;
+      const page = btn.dataset.nav;
+      const urls = { account: '/account', insight: '/insight', plan: '/plan', report: '/report' };
+      if (urls[page]) window.location.href = urls[page];
+    });
+  } catch(e) { console.error('Nav handler:', e); }
+
   // Goal input
-  const goalInput = document.getElementById('goal-input');
-  document.getElementById('goal-generate-btn').addEventListener('click', generatePlan);
-  goalInput.addEventListener('keydown', e => { if (e.key === 'Enter') generatePlan(); });
-
-  // Quick goal chips
-  document.querySelectorAll('.quick-goal-chip').forEach(btn => {
-    btn.addEventListener('click', () => {
-      goalInput.value = btn.dataset.goal;
-      generatePlan();
+  try {
+    const goalInput = document.getElementById('goal-input');
+    document.getElementById('goal-generate-btn').addEventListener('click', generatePlan);
+    goalInput.addEventListener('keydown', e => { if (e.key === 'Enter') generatePlan(); });
+    document.querySelectorAll('.quick-goal-chip').forEach(btn => {
+      btn.addEventListener('click', () => {
+        goalInput.value = btn.dataset.goal;
+        generatePlan();
+      });
     });
-  });
-
-  // Strategy buttons
-  document.querySelectorAll('.strategy-btn').forEach(btn => {
-    btn.addEventListener('click', () => {
-      document.querySelectorAll('.strategy-btn').forEach(b => b.classList.remove('active'));
-      btn.classList.add('active');
-      _currentStrategy = btn.dataset.strategy;
-      updateStrategyDesc(_currentStrategy);
-      if (_planData) regeneratePlan();
+    document.querySelectorAll('.strategy-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.strategy-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        _currentStrategy = btn.dataset.strategy;
+        updateStrategyDesc(_currentStrategy);
+        if (_planData) regeneratePlan();
+      });
     });
-  });
-
-  // OS nav — navigate between pages
-  document.getElementById('os-nav')?.addEventListener('click', e => {
-    const btn = e.target.closest('button[data-nav]');
-    if (!btn) return;
-    const page = btn.dataset.nav;
-    const urls = { account: '/account', insight: '/insight', plan: '/plan', report: '/report' };
-    if (urls[page]) window.location.href = urls[page];
-  });
+  } catch(e) { console.error('Plan input handlers:', e); }
 
   // Restore session
   const saved = document.getElementById('plan-account-badge');
