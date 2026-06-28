@@ -114,8 +114,8 @@ function renderDashboard(data) {
   setKpi('liquid-sell', fmtCoin(kpis.liquid_sell || 0));
   setKpi('liquid-buy', fmtCoin(kpis.liquid_buy || 0));
   setKpi('hidden-wealth', fmtCoin(kpis.hidden_wealth || 0));
-  setKpi('legendary', `${kpis.legendary_goals ?? '—'} goals`);
-  setKpi('build-ready', `${kpis.build_ready_count ?? '—'} / ${kpis.character_count || 0}`);
+  setKpi('legendary', `${kpis.character_count || 0} chars`);
+  setKpi('build-ready', `${kpis.skin_count || 0} skins`);
 
   // Asset Table
   const tbody = document.getElementById('asset-tbody');
@@ -162,6 +162,28 @@ function renderDashboard(data) {
   document.getElementById('status-api').textContent = 'active';
   document.getElementById('status-freshness').textContent = 'fresh';
   document.getElementById('status-permissions').textContent = `${data.characters?.length || 0} characters · ${data.assets?.length || 0} asset categories`;
+
+  // Additional stats section
+  const extra = data.additional_data || {};
+  const extraEl = document.getElementById('additional-stats');
+  if (extraEl) {
+    extraEl.innerHTML = `
+      <div class="status-grid">
+        <div class="status-item"><span class="status-label">Skins</span><span class="status-value">${kpis.skin_count || 0}</span></div>
+        <div class="status-item"><span class="status-label">Dyes</span><span class="status-value">${extra.unlocked_dyes || 0}</span></div>
+        <div class="status-item"><span class="status-label">Minis</span><span class="status-value">${extra.unlocked_minis || 0}</span></div>
+        <div class="status-item"><span class="status-label">Achievements</span><span class="status-value">${kpis.achievement_count || 0}</span></div>
+        <div class="status-item"><span class="status-label">Daily AP</span><span class="status-value">${kpis.daily_ap || 0}</span></div>
+        <div class="status-item"><span class="status-label">Masteries</span><span class="status-value">${kpis.mastery_count || 0}</span></div>
+        <div class="status-item"><span class="status-label">Build Storage</span><span class="status-value">${extra.build_storage_count || 0}</span></div>
+        <div class="status-item"><span class="status-label">Guilds</span><span class="status-value">${extra.guild_count || 0}</span></div>
+        <div class="status-item"><span class="status-label">Fractal Lv</span><span class="status-value">${kpis.fractal_level || 0}</span></div>
+        <div class="status-item"><span class="status-label">WvW Rank</span><span class="status-value">${kpis.wvw_rank || 0}</span></div>
+        <div class="status-item"><span class="status-label">PvP Rank</span><span class="status-value">${extra.pvp_rank || 0}</span></div>
+        <div class="status-item"><span class="status-label">Monthly AP</span><span class="status-value">${kpis.monthly_ap || 0}</span></div>
+      </div>`;
+    extraEl.classList.remove('hidden');
+  }
 }
 
 // ── Helpers ──

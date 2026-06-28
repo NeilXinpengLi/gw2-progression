@@ -95,6 +95,12 @@ async def account_overview(api_key: str = Query(...)):
             "last_login": _fmt_last_login(ch.get("created", "")),
         })
 
+    # ── Additional raw data from GW2 API (not shown in asset table) ──
+    wallet_currencies = [{"id": 1, "name": "Gold", "value": normalized.currencies.gold * 10000}]
+    for entry in (contents.wallet or []):
+        if entry.get("id") in (2, 3, 4):  # karma, laurels, spirit shards
+            wallet_currencies.append({"id": entry["id"], "value": entry.get("value", 0)})
+
     return {
         "account": {
             "name": contents.account_name or "unknown",
@@ -110,6 +116,13 @@ async def account_overview(api_key: str = Query(...)):
             "hidden_wealth": value.hidden_value,
             "wallet_gold": normalized.currencies.gold * 10000,
             "character_count": normalized.snapshot.character_count,
+            "daily_ap": contents.daily_ap or 0,
+            "monthly_ap": contents.monthly_ap or 0,
+            "wvw_rank": contents.wvw_rank or 0,
+            "fractal_level": contents.fractal_level or 0,
+            "skin_count": contents.unlocked_skins_count or 0,
+            "achievement_count": len(contents.achievements or []),
+            "mastery_count": len(contents.masteries or []),
         },
         "assets": [{
             "category": b.category,
@@ -119,6 +132,14 @@ async def account_overview(api_key: str = Query(...)):
             "percentage": b.percentage,
             "risk_flag": b.risk,
         } for b in breakdown],
+        "additional_data": {
+            "wallet_currencies": wallet_currencies,
+            "build_storage_count": len(contents.builds or []),
+            "pvp_rank": (contents.pvp_stats or {}).get("pvp_rank", 0),
+            "unlocked_dyes": len(contents.unlocked_dyes or []),
+            "unlocked_minis": len(contents.unlocked_minis or []),
+            "guild_count": len(contents.guilds or []),
+        },
         "characters": char_rows,
         "snapshot_time": "",
     }

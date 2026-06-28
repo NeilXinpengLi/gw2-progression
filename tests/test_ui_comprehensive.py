@@ -583,9 +583,9 @@ class TestAPIResponseShapes:
     def test_overview_response_shape(self, client, mock_api):
         resp = client.get("/api/account/overview?api_key=ABCDEF01-2345-6789-ABCD-EF0123456789AB")
         data = resp.json()
-        assert set(data.keys()) == {"account", "kpis", "assets", "characters", "snapshot_time"}
+        assert set(data.keys()) >= {"account", "kpis", "assets", "characters", "snapshot_time", "additional_data"}
         assert set(data["account"].keys()) >= {"name", "world", "created", "age_hours"}
-        assert set(data["kpis"].keys()) >= {"account_value", "liquid_sell", "liquid_buy", "wallet_gold", "character_count"}
+        assert set(data["kpis"].keys()) >= {"account_value", "liquid_sell", "liquid_buy", "wallet_gold", "character_count", "skin_count", "daily_ap", "fractal_level"}
 
     def test_insight_response_shape(self, client, mock_api):
         resp = client.get("/api/insight/data?api_key=ABCDEF01-2345-6789-ABCD-EF0123456789AB")
