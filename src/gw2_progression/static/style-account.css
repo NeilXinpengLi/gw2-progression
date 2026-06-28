@@ -29,6 +29,11 @@
 .ov-stat-lbl { display: block; font-size: 9px; color: #88837a; text-transform: uppercase; letter-spacing: 1px; }
 .ov-stat-val { display: block; font-size: 16px; font-weight: 600; color: #ededed; font-family: var(--gw2-font-display); margin-top: 2px; }
 
+/* ── Skeleton shimmer (progressive loading) ── */
+.tab-skeleton { padding: 8px 0; }
+.sk-block { background: linear-gradient(90deg, #1a1a1f 25%, #22222a 50%, #1a1a1f 75%); background-size: 200% 100%; animation: sk-shimmer 1.5s infinite; border-radius: 4px; margin-bottom: 8px; }
+@keyframes sk-shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+
 /* ── EXPLORER TREE + CONTENT ── */
 .layer-content-wrap { display: flex; gap: 16px; margin-bottom: 24px; }
 .explorer-tree { width: 220px; flex-shrink: 0; background: #141419; border: 1px solid #2a2a2a; padding: 12px 0; }

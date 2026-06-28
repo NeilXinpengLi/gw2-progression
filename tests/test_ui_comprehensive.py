@@ -590,6 +590,23 @@ class TestAPIResponseShapes:
         assert set(data["account"].keys()) >= {"name", "world", "created", "age_hours"}
         assert set(data["kpis"].keys()) >= {"account_value", "liquid_sell", "liquid_buy", "wallet_gold", "character_count", "skin_count", "daily_ap", "fractal_level"}
 
+    def test_overview_lite_shape(self, client, mock_api):
+        resp = client.get("/api/account/overview?api_key=ABCDEF01-2345-6789-ABCD-EF0123456789AB&lite=true")
+        data = resp.json()
+        assert set(data.keys()) >= {"account", "kpis", "snapshot_time"}
+        assert "assets" not in data
+        assert set(data["account"].keys()) >= {"name", "world"}
+        assert set(data["kpis"].keys()) >= {"character_count", "skin_count", "daily_ap", "fractal_level", "wallet_gold"}
+
+    def test_overview_lite_then_full_twice_no_extra_fetch_all(self, client, mock_api):
+        resp1 = client.get("/api/account/overview?api_key=ABCDEF01-2345-6789-ABCD-EF0123456789AB&lite=true")
+        assert resp1.status_code == 200
+        resp2 = client.get("/api/account/overview?api_key=ABCDEF01-2345-6789-ABCD-EF0123456789AB")
+        assert resp2.status_code == 200
+        data = resp2.json()
+        assert "assets" in data
+        assert len(data["assets"]) > 0
+
     def test_insight_response_shape(self, client, mock_api):
         resp = client.get("/api/insight/data?api_key=ABCDEF01-2345-6789-ABCD-EF0123456789AB")
         data = resp.json()

@@ -1,6 +1,8 @@
 """Account Dashboard API — structured data for the Account Overview page."""
 
 import logging
+from datetime import datetime, timezone
+from typing import Any, Optional
 
 from fastapi import APIRouter, HTTPException, Query
 
@@ -20,15 +22,60 @@ from gw2_progression.services.holdings_service import (
 
 router = APIRouter(prefix="/api/account", tags=["account"])
 
+# ── Per-key cache: avoid redundant fetch_all() across lite → full handshake ──
+_fetch_cache: dict[str, tuple[datetime, Any]] = {}
+_CACHE_TTL_S = 120
+
+async def _cached_fetch(resolved_key: str, refresh: bool = False):
+    now = datetime.now(timezone.utc)
+    if not refresh and resolved_key in _fetch_cache:
+        ts, contents = _fetch_cache[resolved_key]
+        if (now - ts).total_seconds() < _CACHE_TTL_S:
+            return contents
+    contents = await fetch_all(resolved_key)
+    _fetch_cache[resolved_key] = (now, contents)
+    return contents
+
 
 @router.get("/overview")
-async def account_overview(api_key: str = Query(...)):
-    """Structured account overview via three-layer pipeline (Raw → Normalized → Derived)."""
+async def account_overview(api_key: str = Query(...), lite: bool = Query(False), refresh: bool = Query(False)):
+    """
+    Structured account overview via three-layer pipeline.
+
+    Query params:
+    - `lite=true`:  account + KPIs only (skips price enrichment, object graph, normalization).
+                    Returns in ~5ms after fetch_all. Frontend renders overview immediately.
+    - `lite=false`: full data with prices, assets breakdown, character gear, object graph.
+    """
     resolved_key = await get_api_key(api_key)
     try:
-        contents = await fetch_all(resolved_key)
+        contents = await _cached_fetch(resolved_key, refresh=refresh)
     except Gw2ApiError as e:
         raise HTTPException(status_code=401, detail=e.message)
+
+    if lite:
+        wallet_gold = 0
+        for entry in (contents.wallet or []):
+            if entry.get("id") == 1:
+                wallet_gold = entry.get("value", 0) // 10000
+        return {
+            "account": {
+                "name": contents.account_name or "unknown",
+                "world": contents.account_world,
+            },
+            "kpis": {
+                "character_count": len(contents.characters or []),
+                "achievement_count": len(contents.achievements or []),
+                "mastery_count": len(contents.masteries or []),
+                "daily_ap": contents.daily_ap or 0,
+                "monthly_ap": contents.monthly_ap or 0,
+                "wvw_rank": contents.wvw_rank or 0,
+                "fractal_level": contents.fractal_level or 0,
+                "skin_count": contents.unlocked_skins_count or 0,
+                "wallet_gold": wallet_gold * 10000,
+            },
+            "snapshot_time": "",
+        }
 
     # Layer 1 → Layer 2: Normalize raw data
     raw_dict = {

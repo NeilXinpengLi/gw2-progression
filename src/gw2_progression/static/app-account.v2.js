@@ -66,13 +66,24 @@ async function runAnalyze() {
     else useKey = rawKey;
   }
 
+  const encKey = encodeURIComponent(useKey);
+  const signal = _abortController.signal;
+  const refresh = Date.now(); // bust cache on manual refresh
+
   try {
-    const r = await fetch(`/api/account/overview?api_key=${encodeURIComponent(useKey)}`, { signal: _abortController.signal });
-    if (!r.ok) { const e = await r.json().catch(() => ({})); throw new Error(e.detail || `HTTP ${r.status}`); }
-    _overviewData = await r.json();
+    // ── PHASE 1: lite — get account name + KPIs, render overview immediately ──
+    const r1 = await fetch(`/api/account/overview?api_key=${encKey}&lite=true&refresh=${refresh}`, { signal });
+    if (!r1.ok) { const e = await r1.json().catch(() => ({})); throw new Error(e.detail || `HTTP ${r1.status}`); }
+    const lite = await r1.json();
     showLoading(false);
-    renderOverview(_overviewData);
+    renderLite(lite);
     showStatusBadge('active');
+
+    // ── PHASE 2: full — get assets, characters, progression, collection ──
+    const r2 = await fetch(`/api/account/overview?api_key=${encKey}&refresh=${refresh}`, { signal });
+    if (!r2.ok) { const e = await r2.json().catch(() => ({})); throw new Error(e.detail || `HTTP ${r2.status}`); }
+    _overviewData = await r2.json();
+    renderFull(_overviewData);
   } catch (e) {
     if (e.name === 'AbortError') return;
     showLoading(false);
@@ -81,7 +92,7 @@ async function runAnalyze() {
   }
 }
 
-function renderOverview(data) {
+function renderLite(data) {
   document.getElementById('key-section').style.display = 'none';
   document.getElementById('layer-overview').classList.remove('hidden');
   document.getElementById('layer-content').classList.remove('hidden');
@@ -90,19 +101,33 @@ function renderOverview(data) {
   const a = data.account || {};
   const k = data.kpis || {};
   document.getElementById('header-account-name').textContent = a.name || '—';
-  document.getElementById('header-last-sync').textContent = `Last sync: ${data.snapshot_time || 'just now'}`;
-
-  document.getElementById('ov-total-value').textContent = fmtCoin(k.account_value || 0);
-  document.getElementById('ov-liquid-value').textContent = fmtCoin(k.liquid_sell_after_fee || 0);
-  document.getElementById('ov-hidden-wealth').textContent = fmtCoin(k.hidden_wealth || 0);
-
-  const og = data.object_graph || {};
-  const prog = og.progression || {};
+  document.getElementById('header-last-sync').textContent = `Loading full data…`;
+  document.getElementById('ov-total-value').textContent = '…';
+  document.getElementById('ov-liquid-value').textContent = '…';
+  document.getElementById('ov-hidden-wealth').textContent = '…';
   document.getElementById('overview-progress').innerHTML = `
     <div class="ov-stat"><span class="ov-stat-lbl">Skins</span><span class="ov-stat-val">${k.skin_count || 0}</span></div>
     <div class="ov-stat"><span class="ov-stat-lbl">Masteries</span><span class="ov-stat-val">${k.mastery_count || 0}</span></div>
     <div class="ov-stat"><span class="ov-stat-lbl">Fractal</span><span class="ov-stat-val">${k.fractal_level || 0}</span></div>
     <div class="ov-stat"><span class="ov-stat-lbl">WvW Rank</span><span class="ov-stat-val">${k.wvw_rank || 0}</span></div>`;
+
+  document.querySelectorAll('.tab-skeleton').forEach(el => el.remove());
+  document.querySelectorAll('.layer-tab-content').forEach(t => {
+    const sk = document.createElement('div');
+    sk.className = 'tab-skeleton';
+    sk.innerHTML = '<div class="sk-shimmer"><div class="sk-block" style="height:80px"></div><div class="sk-block" style="height:120px;margin-top:8px"></div><div class="sk-block" style="height:60px;margin-top:8px"></div></div>';
+    t.appendChild(sk);
+  });
+}
+
+function renderFull(data) {
+  const k = data.kpis || {};
+  document.getElementById('header-last-sync').textContent = `Last sync: ${data.snapshot_time || 'just now'}`;
+  document.getElementById('ov-total-value').textContent = fmtCoin(k.account_value || 0);
+  document.getElementById('ov-liquid-value').textContent = fmtCoin(k.liquid_sell_after_fee || 0);
+  document.getElementById('ov-hidden-wealth').textContent = fmtCoin(k.hidden_wealth || 0);
+
+  document.querySelectorAll('.tab-skeleton').forEach(el => el.remove());
 
   renderExplorerTree(data);
   renderEconomy(data.assets || []);
