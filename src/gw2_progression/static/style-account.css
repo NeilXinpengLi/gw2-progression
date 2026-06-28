@@ -67,9 +67,9 @@
 .footer-strip-link:hover { text-decoration: underline; }
 
 /* ── Object Explorer Tree ── */
-.tn-section { display: flex; align-items: center; gap: 4px; font-size: 9px; letter-spacing: 2px; text-transform: uppercase; color: #555; padding: 8px 16px 4px; font-weight: 600; }
+.tn-section { display: flex; align-items: center; gap: 4px; font-size: 11px; letter-spacing: 1.5px; text-transform: uppercase; color: #777; padding: 8px 16px 6px; font-weight: 700; }
 .tn-section .tn-spacer { flex: 1; min-width: 0; }
-.tn-item { display: flex; align-items: center; gap: 8px; padding: 7px 14px; cursor: pointer; font-size: 13px; color: #a0a0a0; transition: all .15s; border-left: 2px solid transparent; min-height: 30px; }
+.tn-item { display: flex; align-items: center; gap: 8px; padding: 8px 14px; cursor: pointer; font-size: 13px; color: #a0a0a0; transition: all .15s; border-left: 2px solid transparent; min-height: 32px; }
 .tn-item:hover { background: rgba(200,149,108,0.04); color: #ededed; }
 .tn-item.selected { color: #dfb48c; background: rgba(200,149,108,0.06); border-left-color: #c8956c; }
 .tn-item.tn-root { font-weight: 500; }
@@ -81,8 +81,8 @@
 .tn-label { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .tn-count { margin-left: auto; color: #666; font-size: 10px; font-family: var(--gw2-font-mono); white-space: nowrap; }
 .tn-toggle { margin-left: auto; color: #555; font-size: 9px; }
-.tn-expand-btn { display: inline-flex; align-items: center; justify-content: center; cursor: pointer; color: #555; width: 22px; height: 22px; font-size: 16px; line-height: 1; transition: color .15s; user-select: none; }
-.tn-expand-btn:hover { color: #c8956c; }
+.tn-expand-btn { display: inline-flex; align-items: center; justify-content: center; cursor: pointer; color: #555; width: 26px; height: 26px; font-size: 18px; line-height: 1; transition: color .15s; user-select: none; border-radius: 3px; }
+.tn-expand-btn:hover { color: #c8956c; background: rgba(200,149,108,0.08); }
 
 /* ── Graph Detail ── */
 .graph-detail { min-height: 520px; }
