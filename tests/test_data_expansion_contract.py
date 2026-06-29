@@ -305,6 +305,56 @@ def test_coverage_requires_craft_profit_opportunities():
     assert any(request.entity_type == "craft_profit_opportunity" for request in requests)
 
 
+def test_craft_profit_ranker_sorts_and_filters_opportunities():
+    from gw2_progression.data_acquisition.contract import DataExpansionRecord
+    from gw2_progression.data_acquisition.opportunities import CraftProfitRanker
+    from gw2_progression.data_acquisition.persistence import DataExpansionStore
+
+    def opportunity(entity_id, net_profit, roi, profit_per_output):
+        return DataExpansionRecord.from_entity(
+            {
+                "id": entity_id,
+                "type": "craft_profit_opportunity",
+                "name": f"Opportunity {entity_id}",
+                "properties": {
+                    "output_item_id": entity_id.split(":", 1)[-1],
+                    "recipe_id": f"recipe:{entity_id}",
+                    "craft_cost": 100,
+                    "net_profit": net_profit,
+                    "roi": roi,
+                    "profit_per_output": profit_per_output,
+                    "ingredient_item_ids": [1, 2],
+                },
+            },
+            source_id="fixture",
+            source_type="api",
+            collected_at=1.0,
+            observed_at=1.0,
+            confidence=0.9,
+            privacy_scope="public",
+        )
+
+    low = opportunity("profit:low", 12, 0.1, 4)
+    high = opportunity("profit:high", 20, 0.5, 6)
+    negative = opportunity("profit:negative", -1, 0.0, -1)
+    ranker = CraftProfitRanker()
+    ranked = ranker.rank([low, high, negative])
+    assert [item.entity_id for item in ranked] == ["profit:high", "profit:low"]
+    assert ranked[0].rank == 1
+    assert ranked[0].score > ranked[1].score
+    assert ranked[0].ingredient_item_ids == ["1", "2"]
+
+    filtered = ranker.rank([low, high], min_net_profit=15, min_roi=0.2)
+    assert [item.entity_id for item in filtered] == ["profit:high"]
+
+    workdir = _test_dir()
+    store = DataExpansionStore(workdir / "expansion.sqlite3")
+    store.write_records([low, high, negative])
+    from_store = ranker.rank_from_store(store, limit=1)
+    assert len(from_store) == 1
+    assert from_store[0].entity_id == "profit:high"
+
+
 def test_dataset_builder_writes_manifest_with_lineage():
     from gw2_progression.data_acquisition.contract import DataExpansionRecord
     from gw2_progression.data_acquisition.flywheel.dataset_builder import DatasetBuilder

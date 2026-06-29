@@ -14,6 +14,7 @@ from gw2_progression.data_acquisition.ingestion.adapters import FetchAdapter, GW
 from gw2_progression.data_acquisition.ingestion.fetcher import Fetcher
 from gw2_progression.data_acquisition.ingestion.normalizer import Normalizer
 from gw2_progression.data_acquisition.ingestion.orchestrator import IngestionEvent, IngestionOrchestrator, IngestionResult
+from gw2_progression.data_acquisition.opportunities import CraftProfitRanker, RankedCraftOpportunity
 from gw2_progression.data_acquisition.persistence import DataExpansionMirror, DataExpansionStore
 from gw2_progression.data_acquisition.registry.source_registry import SourceConfig, SourcePriority, SourceRegistry, SourceType
 from gw2_progression.data_acquisition.scheduler.task_scheduler import RefreshQueueItem, ScheduledTask, TaskFrequency, TaskScheduler
@@ -32,6 +33,7 @@ __all__ = [
     "DataFlywheel", "FlywheelConfig", "FlywheelIteration",
     "DatasetBuilder", "Dataset", "TrainingSample",
     "DataExpansionRecord", "DataCoverageReport", "ActiveRefreshRequest", "DatasetManifest",
+    "CraftProfitRanker", "RankedCraftOpportunity",
     "CoverageAnalyzer", "ActiveRefreshPlanner", "DataExpansionStore", "DataExpansionMirror", "RefreshQueueItem",
     "DataFactory", "FactoryStatus",
 ]
