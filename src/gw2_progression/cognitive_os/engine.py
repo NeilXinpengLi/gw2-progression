@@ -6,13 +6,18 @@ from typing import Any
 
 from gw2_progression.cognitive_os.agents.base import BaseAgent
 from gw2_progression.cognitive_os.agents.crafter import CrafterAgent
+from gw2_progression.cognitive_os.agents.explorer import ExplorerAgent
+from gw2_progression.cognitive_os.agents.farmer import FarmerAgent
 from gw2_progression.cognitive_os.agents.meta import MetaAgent
+from gw2_progression.cognitive_os.agents.optimizer import OptimizerAgent
 from gw2_progression.cognitive_os.agents.raider import RaiderAgent
 from gw2_progression.cognitive_os.agents.trader import TraderAgent
 from gw2_progression.cognitive_os.behavior import Archetype, BehaviorModel
 from gw2_progression.cognitive_os.calibration import CalibrationLoop
 from gw2_progression.cognitive_os.cognition_graph.graph import CognitionGraph, EdgeType, NodeType
 from gw2_progression.cognitive_os.economy.lifecycle import EconomicLifecycle
+from gw2_progression.cognitive_os.maturity import GCOSMaturityEvaluator
+from gw2_progression.cognitive_os.population import PopulationIntelligence
 from gw2_progression.cognitive_os.probabilistic import (
     CausalReasoningLayer,
     ProbabilisticBORS,
@@ -83,6 +88,8 @@ class CognitiveOSEngine:
         self.probabilistic_policy = ProbabilisticPolicy()
         self.probabilistic_causal = CausalReasoningLayer()
         self.probabilistic_world = ProbabilisticWorldInferenceLoop()
+        self.population_layer = PopulationIntelligence()
+        self.maturity_evaluator = GCOSMaturityEvaluator()
 
         # Data Acquisition OS
         self.source_registry = SourceRegistry()
@@ -214,6 +221,9 @@ class CognitiveOSEngine:
     def _register_default_agents(self) -> None:
         self.agents["trader"] = TraderAgent(capital=1000.0)
         self.agents["crafter"] = CrafterAgent(skill_level=0.7)
+        self.agents["farmer"] = FarmerAgent(efficiency=0.75)
+        self.agents["explorer"] = ExplorerAgent(curiosity=0.8)
+        self.agents["optimizer"] = OptimizerAgent(skill_level=0.9)
         self.agents["raider"] = RaiderAgent(skill_level=0.8)
         self.agents["meta"] = MetaAgent(skill_level=0.85)
 
@@ -486,6 +496,61 @@ class CognitiveOSEngine:
         graph_data = self.cognition.to_dict()
         return self.probabilistic_gnn.forward(graph_data)
 
+    def population_intelligence(self) -> dict[str, Any]:
+        """Summarize population-level behavior, strategy, and economy signals."""
+        return self.population_layer.summarize(self)
+
+    def evaluate_maturity(self) -> dict[str, Any]:
+        """Evaluate the current implementation against the final GCOS L0-L10 stack."""
+        return self.maturity_evaluator.evaluate(self)
+
+    def run_closed_loop_cycle(
+        self,
+        iterations: int = 1,
+        simulation_steps: int = 5,
+        train_episodes: int = 0,
+    ) -> dict[str, Any]:
+        """Run observe → graph → simulate → dataset → evaluate loop."""
+        if not self._initialized:
+            self.initialize({"gold": 100.0, "inventory": {"ore": 5}, "achievements": [], "market": {}})
+
+        loop_results: list[dict[str, Any]] = []
+        for iteration in range(max(1, iterations)):
+            scheduler = self.data_factory.run_scheduler()
+            simulation = self.run_simulation(steps=max(1, simulation_steps), mode="auto")
+            datasets = self.generate_datasets()
+            training = None
+            if train_episodes > 0:
+                training = self.train(episodes=train_episodes, max_steps=max(1, simulation_steps), verbose=False)
+            population = self.population_intelligence()
+            maturity = self.evaluate_maturity()
+            loop_results.append({
+                "iteration": iteration + 1,
+                "scheduler": {
+                    "tasks_run": len(scheduler),
+                    "results": scheduler,
+                },
+                "simulation": {
+                    "simulation_id": simulation["simulation_id"],
+                    "steps": simulation["steps"],
+                    "total_reward": simulation["total_reward"],
+                    "final_t": simulation["final_t"],
+                },
+                "datasets": datasets,
+                "training": training,
+                "population": population,
+                "maturity": maturity,
+            })
+
+        return {
+            "status": "completed",
+            "iterations": len(loop_results),
+            "final_t": self.temporal.t,
+            "results": loop_results,
+            "population": self.population_intelligence(),
+            "maturity": self.evaluate_maturity(),
+        }
+
     # ─── Data Acquisition OS Methods ────────────────────────────────
 
     def ingest_source(self, source_id: str | None = None) -> dict[str, Any]:
@@ -584,6 +649,8 @@ class CognitiveOSEngine:
             "behavior_model": self.behavior_model.to_dict(),
             "calibration": self.calibration.to_dict(),
             "probabilistic": self.probabilistic_world.to_dict(),
+            "population_intelligence": self.population_intelligence(),
+            "maturity": self.evaluate_maturity(),
             "data_acquisition": {
                 "source_registry": self.source_registry.to_dict(),
                 "graph_builder": self.graph_builder.to_dict(),

@@ -3,7 +3,10 @@ from __future__ import annotations
 import pytest
 
 from gw2_progression.cognitive_os.agents.crafter import CrafterAgent
+from gw2_progression.cognitive_os.agents.explorer import ExplorerAgent
+from gw2_progression.cognitive_os.agents.farmer import FarmerAgent
 from gw2_progression.cognitive_os.agents.meta import MetaAgent
+from gw2_progression.cognitive_os.agents.optimizer import OptimizerAgent
 from gw2_progression.cognitive_os.agents.raider import RaiderAgent
 from gw2_progression.cognitive_os.agents.trader import TraderAgent
 from gw2_progression.cognitive_os.behavior.model import BehaviorModel
@@ -246,6 +249,27 @@ class TestAgents:
         action = agent.act(state)
         assert action.action_type == "achievement"
 
+    def test_farmer_act(self):
+        agent = FarmerAgent(efficiency=1.0)
+        state = {"inventory": {"ore": 0}, "market": {"ore": {"price": 50}}}
+        action = agent.act(state)
+        assert action.action_type == "farm"
+        assert action.quantity >= 1
+
+    def test_explorer_act(self):
+        agent = ExplorerAgent(curiosity=1.0)
+        state = {"achievements": []}
+        action = agent.act(state)
+        assert action.action_type == "achievement"
+        assert action.params["mode"] == "explore"
+
+    def test_optimizer_act(self):
+        agent = OptimizerAgent(skill_level=1.0)
+        state = {"gold": 100, "inventory": {}, "market": {"item": {"buy_price": 10, "sell_price": 20}}}
+        action = agent.act(state)
+        assert action.action_type == "trade"
+        assert action.params["policy"] == "max_expected_value"
+
     def test_agent_observe(self):
         agent = TraderAgent()
         action = agent.act({"market": {}, "inventory": {}})
@@ -363,7 +387,7 @@ class TestSimulationFidelity:
         os.initialize({"gold": 500, "inventory": {"item_1": 5, "item_2": 3}, "achievements": ["ach_1"]})
         assert os._initialized
         assert os.temporal.current["gold"] == 500
-        assert len(os.agents) == 4
+        assert len(os.agents) == 7
 
     def test_step(self):
         os = CognitiveOSEngine()
@@ -414,7 +438,7 @@ class TestSimulationFidelity:
         os.initialize({"gold": 100, "inventory": {}, "achievements": []})
         d = os.to_dict()
         assert d["initialized"]
-        assert len(d["agents"]) == 4
+        assert len(d["agents"]) == 7
 
     def test_cognition_graph_built_on_init(self):
         os = CognitiveOSEngine()
@@ -1151,3 +1175,75 @@ class TestFactoryIntegration:
         os.initialize({"gold": 100, "inventory": {"ore": 3}, "achievements": []})
         result = os.run_flywheel(iterations=1)
         assert result["iterations_run"] == 1
+
+
+class TestFinalGCOSIntegration:
+    def test_maturity_evaluator_covers_l0_to_l10(self):
+        from gw2_progression.cognitive_os.engine import CognitiveOSEngine
+        os = CognitiveOSEngine()
+        os.initialize({"gold": 250, "inventory": {"ore": 8}, "achievements": ["first_login"]})
+
+        report = os.evaluate_maturity()
+        layers = {layer["layer"]: layer for layer in report["layers"]}
+
+        assert report["system"] == "GW2 Cognitive Intelligence Operating System"
+        assert report["overall_maturity"] >= 0.75
+        assert set(layers) == {f"L{i}" for i in range(11)}
+        assert layers["L0"]["score"] > 0
+        assert "recommendations" in report
+
+    def test_population_intelligence_summarizes_behavior_strategy_and_economy(self):
+        from gw2_progression.cognitive_os.engine import CognitiveOSEngine
+        os = CognitiveOSEngine()
+        os.initialize({"gold": 5000, "inventory": {"mystic_coin": 20}, "achievements": []})
+        os.step({"type": "trade", "item_id": "mystic_coin", "quantity": 2})
+        os.step({"type": "farm", "item_id": "gold", "quantity": 1})
+
+        summary = os.population_intelligence()
+
+        assert "behavior_distribution" in summary
+        assert "strategy_adoption" in summary
+        assert summary["strategy_adoption"]["dominant_strategy"] in {"trade", "farm"}
+        assert summary["signals"]["trajectory_length"] >= 2
+        assert any(cluster["basis"] == "agent_role" for cluster in summary["clusters"])
+
+    def test_closed_loop_cycle_generates_datasets_and_maturity(self):
+        from gw2_progression.cognitive_os.engine import CognitiveOSEngine
+        os = CognitiveOSEngine()
+        os.initialize({"gold": 100, "inventory": {"ore": 5}, "achievements": []})
+
+        result = os.run_closed_loop_cycle(iterations=1, simulation_steps=2, train_episodes=1)
+
+        assert result["status"] == "completed"
+        assert result["iterations"] == 1
+        assert result["results"][0]["simulation"]["steps"] == 2
+        assert result["results"][0]["datasets"]["total_samples"] > 0
+        assert result["maturity"]["overall_maturity"] >= 0.75
+        assert result["population"]["signals"]["trajectory_length"] >= 2
+
+    def test_cognitive_os_final_api_endpoints(self):
+        from fastapi.testclient import TestClient
+
+        from gw2_progression.api.main import app
+
+        with TestClient(app) as client:
+            init = client.post(
+                "/cognitive-os/initialize",
+                json={"gold": 100, "inventory": {"ore": 3}, "achievements": [], "market": {}},
+            )
+            assert init.status_code == 200
+
+            maturity = client.get("/cognitive-os/maturity")
+            assert maturity.status_code == 200
+            assert maturity.json()["overall_maturity"] >= 0.75
+
+            population = client.get("/cognitive-os/population")
+            assert population.status_code == 200
+            assert "clusters" in population.json()
+
+            closed_loop = client.post(
+                "/cognitive-os/closed-loop",
+                json={"iterations": 1, "simulation_steps": 1, "train_episodes": 0},
+            )
+            assert closed_loop.status_code == 200
+            assert closed_loop.json()["status"] == "completed"

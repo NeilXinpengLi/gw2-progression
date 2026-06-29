@@ -55,6 +55,12 @@ class CounterfactualRequest(BaseModel):
     alternative_item_id: str = "mystic_coin"
 
 
+class ClosedLoopRequest(BaseModel):
+    iterations: int = 1
+    simulation_steps: int = 5
+    train_episodes: int = 0
+
+
 @router.post("/initialize")
 async def initialize(req: InitializeRequest) -> dict[str, Any]:
     os = get_cognitive_os()
@@ -151,6 +157,28 @@ async def gnn_induction() -> dict[str, Any]:
     return os.gnn_induction()
 
 
+@router.get("/population")
+async def population() -> dict[str, Any]:
+    os = get_cognitive_os()
+    return os.population_intelligence()
+
+
+@router.get("/maturity")
+async def maturity() -> dict[str, Any]:
+    os = get_cognitive_os()
+    return os.evaluate_maturity()
+
+
+@router.post("/closed-loop")
+async def closed_loop(req: ClosedLoopRequest) -> dict[str, Any]:
+    os = get_cognitive_os()
+    return os.run_closed_loop_cycle(
+        iterations=req.iterations,
+        simulation_steps=req.simulation_steps,
+        train_episodes=req.train_episodes,
+    )
+
+
 @router.post("/counterfactual")
 async def counterfactual(req: CounterfactualRequest) -> dict[str, Any]:
     os = get_cognitive_os()
@@ -192,6 +220,8 @@ async def status() -> dict[str, Any]:
             "profile_count": len(os.behavior_model.profiles),
             "population_distribution": os.behavior_model.population_distribution(),
         },
+        "population_intelligence": os.population_intelligence(),
+        "maturity": os.evaluate_maturity(),
         "calibration": {
             "average_loss": os.calibration.average_loss,
             "loss_trend": os.calibration.loss_trend,
