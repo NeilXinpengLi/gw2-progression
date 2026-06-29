@@ -3,7 +3,6 @@ import logging
 import os
 import time
 import uuid
-from datetime import datetime, timezone
 from collections import defaultdict
 from contextlib import asynccontextmanager
 from pathlib import Path
@@ -13,11 +12,14 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
+from gw2_progression.cognitive_os.api import router as cognitive_os_router
 from gw2_progression.database import close_pool, init_db
 from gw2_progression.gw2_client import Gw2ApiError
 from gw2_progression.gw2_client import _close_client as close_gw2_client
+from gw2_progression.lifecycle.api.lifecycle_api import router as lifecycle_router
 from gw2_progression.logging_config import setup_logging
 from gw2_progression.metrics import metrics
+from gw2_progression.rule_engine_v2.api.rule_api import router as rule_v2_router
 from gw2_progression.services.auth_service import SESSION_TTL, create_session, delete_session, get_api_key, get_session, list_sessions
 from gw2_progression.services.event_bus import start as start_event_bus
 from gw2_progression.services.event_bus import stop as stop_event_bus
@@ -28,21 +30,24 @@ from gw2_progression.services.progression_service import seed_templates
 from gw2_progression.services.provider_service import seed_providers
 
 from .routes.account import router as account_router
+from .routes.advice import router as advice_router
 from .routes.affiliates import router as affiliates_router
 from .routes.agent import router as agent_router
 from .routes.analyze import router as analyze_router
+from .routes.arena import router as arena_router
 from .routes.audit import router as audit_router
 from .routes.builds import router as builds_router
 from .routes.commerce import router as commerce_router
 from .routes.commercial import router as commercial_router
 from .routes.crafting import router as crafting_router
 from .routes.credentials import router as credentials_router
+from .routes.data_mesh import router as data_mesh_router
 from .routes.engine import router as engine_router
 from .routes.expert_ai import router as expert_ai_router
 from .routes.goal_driven import router as goal_driven_router
 from .routes.goals import router as goals_router
-from .routes.insight import router as insight_router
 from .routes.guild import router as guild_router
+from .routes.insight import router as insight_router
 from .routes.payment import router as payment_router
 from .routes.production import router as production_router
 from .routes.progression import router as progression_router
@@ -55,11 +60,6 @@ from .routes.v4 import router as v4_router
 from .routes.v5 import router as v5_router
 from .routes.valuation import router as valuation_router
 from .routes.workspaces import router as workspaces_router
-from .routes.arena import router as arena_router
-from .routes.data_mesh import router as data_mesh_router
-from gw2_progression.lifecycle.api.lifecycle_api import router as lifecycle_router
-from gw2_progression.rule_engine_v2.api.rule_api import router as rule_v2_router
-from gw2_progression.cognitive_os.api import router as cognitive_os_router
 
 STATIC_DIR = Path(__file__).parent.parent / "static"
 
@@ -197,6 +197,7 @@ async def rate_limit_middleware(request: Request, call_next):
 
 
 app.include_router(account_router)
+app.include_router(advice_router)
 app.include_router(analyze_router)
 app.include_router(reports_router)
 app.include_router(resolve_router)
