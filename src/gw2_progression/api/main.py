@@ -55,6 +55,11 @@ from .routes.v4 import router as v4_router
 from .routes.v5 import router as v5_router
 from .routes.valuation import router as valuation_router
 from .routes.workspaces import router as workspaces_router
+from .routes.arena import router as arena_router
+from .routes.data_mesh import router as data_mesh_router
+from gw2_progression.lifecycle.api.lifecycle_api import router as lifecycle_router
+from gw2_progression.rule_engine_v2.api.rule_api import router as rule_v2_router
+from gw2_progression.cognitive_os.api import router as cognitive_os_router
 
 STATIC_DIR = Path(__file__).parent.parent / "static"
 
@@ -219,6 +224,11 @@ app.include_router(agent_router)
 app.include_router(goal_driven_router)
 app.include_router(insight_router)
 app.include_router(subscriptions_router)
+app.include_router(arena_router)
+app.include_router(data_mesh_router)
+app.include_router(lifecycle_router)
+app.include_router(rule_v2_router)
+app.include_router(cognitive_os_router)
 app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 
 

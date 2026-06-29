@@ -280,7 +280,7 @@ async def run_full_analysis(api_key: str) -> Any:
     """Full account analysis — kept for /value/analyze backward compat."""
     from ..analyzer import fetch_all
     from ..database import get_db, save_account_snapshot
-    from ..models import ValueAnalyzeResponse
+    from ..models import TopItem, ValueAnalyzeResponse
     from .holdings_service import (
         extract_bank_holdings,
         extract_character_holdings,
@@ -350,10 +350,25 @@ async def run_full_analysis(api_key: str) -> Any:
     finally:
         await db.close()
 
+    from gw2_progression.services.valuation_service import compute_breakdown
+
+    breakdown = compute_breakdown(summary, all_holdings)
+    top_item_models = [
+        TopItem(
+            item_id=h.item_id, count=h.count, location_type=h.location_type,
+            location_ref=h.location_ref, price_buy=h.price_buy, price_sell=h.price_sell,
+            value_buy=h.value_buy, value_sell=h.value_sell, tradable=h.tradable,
+            valuation_status=h.valuation_status, quality_status=h.quality_status,
+            liquidity_score=h.liquidity_score, liquidity_reason=h.liquidity_reason,
+            confidence=h.confidence, data_sources=h.data_sources,
+            price_timestamp=h.price_timestamp, risk_reason=h.risk_reason,
+        )
+        for h in sorted(all_holdings, key=lambda h: h.value_sell, reverse=True)[:20]
+    ]
     result = ValueAnalyzeResponse(
         summary=summary,
-        breakdown=summary.breakdown,
-        top_items=sorted(all_holdings, key=lambda h: h.value_sell, reverse=True)[:20],
+        breakdown=breakdown,
+        top_items=top_item_models,
         holdings=all_holdings,
         warnings=[],
         history=[],

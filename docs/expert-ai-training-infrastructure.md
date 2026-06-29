@@ -36,17 +36,31 @@ GET  /runtime/neighbors/{node_id}
 GET  /runtime/trace/{node_id}
 POST /runtime/action
 POST /runtime/rollback
+POST /runtime/simulate
+GET  /runtime/history
+POST /simulation/run
+POST /simulation/reset
+GET  /world/snapshot
+POST /agents/spawn
 
 POST /reasoning/analyze
 POST /reasoning/trace
+POST /reasoning/build
 
 POST /economy/simulate
+POST /economy/update
+POST /data/economy
 POST /meta/analyze_build
+POST /meta/analyze
+POST /data/meta
+POST /etl/account_raw
 POST /plan/generate
+POST /agents/run
 POST /decision/evaluate
 
 POST /memory/append
 GET  /memory/search
+POST /memory/query
 POST /memory/update_patterns
 POST /memory/feedback
 GET  /memory/feedback/status
@@ -62,11 +76,23 @@ POST /queue/dequeue
 GET  /memory/vector/search
 
 POST /expert/explain
+GET  /expert/provider
+POST /expert/provider/key_file
 POST /expert/counterfactuals
 POST /expert/think
 
 POST /training/dataset
 POST /training/account_snapshot
+POST /train/run
+POST /train/model
+POST /train/schedule
+POST /train/scheduler/run_due
+GET  /train/jobs
+
+GET  /observability/metrics
+GET  /observability/audit
+POST /labels/generate
+POST /dataset/export
 ```
 
 ## Phase 2 Production Adapters
@@ -86,6 +112,43 @@ docker compose -f docker-compose.expert-ai.yml up --build
 ```
 
 The default test suite uses deterministic local adapters and does not require external services to be running.
+
+## Phase 3 Full Production Pipeline
+
+- OOSK now supports `update_state`, `simulate_step`, and `trace_history`.
+- `/runtime/simulate` executes one or more deterministic simulation steps and records state transitions.
+- `/runtime/history` exposes replayable transition history.
+- `/memory/query` returns in-memory episodic results and can optionally include vector search.
+- `/train/run` executes a deterministic ETL -> simulation -> reasoning graph -> BORS labeling -> dataset versioning -> training metrics -> feedback loop.
+- Dataset versions are deterministic from dataset type and graph size, for example `full_production-n2-e1`.
+
+## Phase 4 Scheduler, Trainer, Data Sources, Agents
+
+- `EconomyDataSource` and `MetaBuildDataSource` provide injectable real-data facades for market and meta build inputs.
+- `AgentOrchestrator` coordinates Economy, Meta, Build, Planner, and Coordinator decisions.
+- `ModelTrainer` emits auditable model artifacts and metrics for deterministic training execution.
+- `TrainingScheduler` schedules one-shot or recurring training jobs, optionally dispatching through Redis.
+- `/train/model`, `/train/schedule`, `/train/scheduler/run_due`, and `/train/jobs` expose trainer/scheduler operations.
+
+## Phase 5 Real Provider, Raw Account ETL, Observability
+
+- `LLMExpertLayer` supports OpenAI-compatible chat/completions providers via env vars or a local key file. Provider status always redacts the API key.
+- `raw_account_to_runtime_payload()` imports exported account raw JSON such as `gw2-account-Netro.7195-2026-06-28.json` into runtime graph entities and relations.
+- Raw account ETL also derives economy simulator rows and meta build rows.
+- `ModelTrainer` writes auditable model artifact JSON files under `data/expert_ai_models`.
+- `ObservabilityHub` tracks counters and audit events for train, agent, and ETL flows.
+- Celery task dispatch supports `train_run`, `model_train`, `agents_run`, `run_due`, `feedback`, `migrate`, and `health`.
+
+## Phase 6 Synthetic World Simulation Engine
+
+- `SyntheticSimulationEngine` is embedded in `gw2_progression.expert_ai` rather than shipped as a standalone system.
+- `SyntheticPlayer` agents cover trader, crafter, raider, collector, and flipper styles.
+- The simulation shares OOSK runtime state, writes synthetic players into the runtime graph, and emits replayable simulation steps.
+- Economy updates use supply, demand, and velocity to update item prices deterministically.
+- BORS-style labels are generated as `HOLD`, `SELL`, `CRAFT`, or `REVIEW`.
+- Reasoning output follows the `Item -> System -> Meta -> Decision` chain shape.
+- Dataset export emits `{state, graph, trajectory, labels, reasoning}` with deterministic simulation seed versioning.
+- Celery task dispatch supports `simulation_run`.
 
 To run the external-service smoke test after the compose stack is healthy:
 

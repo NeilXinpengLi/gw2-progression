@@ -6,8 +6,12 @@ from fastapi.testclient import TestClient
 
 from gw2_progression.api.main import app
 from gw2_progression.expert_ai.adapters import account_contents_to_runtime_payload
+from gw2_progression.expert_ai.celery_app import process_expert_ai_task
 from gw2_progression.expert_ai.core import ExpertAISystem
+from gw2_progression.expert_ai.data_sources import DataSourceConfig, EconomyDataSource, MetaBuildDataSource
+from gw2_progression.expert_ai.expert_layer import LLMExpertLayer, LLMProviderConfig
 from gw2_progression.expert_ai.persistence import ExpertAIPersistence, ExpertAIServiceConfig, Neo4jGraphAdapter, PostgresStateAdapter, RedisQueueAdapter
+from gw2_progression.expert_ai.scheduler import ModelTrainer
 from gw2_progression.expert_ai.training import build_dataset
 from gw2_progression.expert_ai.worker import consume_once, run_once
 
@@ -31,6 +35,19 @@ def test_runtime_action_snapshot_and_reasoning_trace():
     assert relation_result["status"] == "completed"
     trace = system.reasoning.trace("account:1")
     assert trace["visited"] == ["account:1", "item:1"]
+
+
+def test_runtime_simulate_step_updates_state_and_history():
+    system = ExpertAISystem()
+    system.runtime.add_entity({"id": "character:sim", "type": "Character", "properties": {"level": 1}})
+
+    transition = system.runtime.simulate_step({"type": "update_state", "entity_id": "character:sim", "patch": {"level": 80}})
+    history = system.runtime.trace_history()
+
+    assert transition["result"]["status"] == "completed"
+    assert system.runtime.get_entity("character:sim").properties["level"] == 80
+    assert any(row["type"] == "state_update" for row in history)
+    assert history[-1]["type"] == "simulation_step"
 
 
 def test_runtime_rollback_restores_previous_graph_state():
@@ -153,7 +170,134 @@ def test_decision_economy_meta_plan_memory_and_training():
     assert meta["raid_viability"] == "ready"
     assert plan["plan"][0]["decision"] == "APPROVE"
     assert memory["id"]
+    assert dataset["version"] == "reasoning_graph-n1-e0"
     assert dataset["examples"][0]["decision"]["status"] == "REVIEW"
+
+
+def test_training_pipeline_runs_full_production_loop():
+    system = ExpertAISystem()
+    system.runtime.add_entity({"id": "account:train", "type": "account_snapshot"})
+    system.runtime.add_entity({"id": "goal:train", "type": "legendary_goal"})
+    system.runtime.add_relation({"source": "account:train", "target": "goal:train", "relation_type": "pursues"})
+
+    result = system.run_training_pipeline({
+        "dataset_type": "full_production",
+        "start": "account:train",
+        "goal": "goal:train",
+        "simulation_steps": [{"type": "noop"}],
+    })
+
+    assert result["status"] == "completed"
+    assert result["dataset"]["version"].startswith("full_production-")
+    assert result["metrics"]["example_count"] == 1
+    assert result["model"]["status"] == "trained"
+    assert result["label"]["decision"]["decision"] in {"APPROVE", "REVIEW", "REJECT"}
+    assert result["feedback"]["evaluation"]["success"] is True
+
+
+def test_data_sources_agents_trainer_and_scheduler():
+    economy_source = EconomyDataSource(
+        DataSourceConfig(economy_url="memory://economy"),
+        fetcher=lambda _url: {"items": [{"item_id": 1, "price": 100, "supply": 10, "demand": 20}, {"item_id": 2, "price": 50, "supply": 100, "demand": 0}]},
+    )
+    meta_source = MetaBuildDataSource(
+        DataSourceConfig(meta_url="memory://meta"),
+        fetcher=lambda _url: {"builds": [{"profession": "Guardian", "gear_completion_percent": 92, "role": "dps", "review_status": "reviewed"}]},
+    )
+    system = ExpertAISystem()
+    system.economy_source = economy_source
+    system.meta_source = meta_source
+    from gw2_progression.expert_ai.agents import AgentOrchestrator
+
+    system.agents = AgentOrchestrator(system, economy_source, meta_source)
+    agent_result = system.run_agents({
+        "item_ids": [1],
+        "profession": "Guardian",
+        "build": {"gear_completion_percent": 95, "role": "dps", "review_status": "reviewed", "missing_items": []},
+        "goals": [{"name": "Legendary", "missing_cost": 10, "progress": 0.9}],
+        "constraints": {"budget": 100},
+    })
+    dataset = build_dataset({"graph": {"nodes": [{"id": "n1"}], "edges": []}})
+    trained = ModelTrainer().train(dataset)
+    scheduled = system.scheduler.schedule({"kind": "model_train", "payload": {"dataset": dataset}, "next_run_at": 0})
+    due = system.scheduler.run_due(now=1)
+
+    assert economy_source.fetch_items([1])["items"][0]["item_id"] == 1
+    assert meta_source.fetch_builds("Guardian")["builds"][0]["profession"] == "Guardian"
+    assert agent_result["coordination"]["decision"]["decision"] in {"APPROVE", "REVIEW", "REJECT"}
+    assert trained["artifact"]["status"] == "trained"
+    assert scheduled["job"]["status"] == "scheduled"
+    assert due["run_count"] == 1
+    assert system.scheduler.list_jobs()[0]["status"] == "completed"
+
+
+def test_synthetic_simulation_engine_generates_dataset_labels_and_reasoning():
+    system = ExpertAISystem()
+    reset = system.simulation.reset(seed=42)
+    spawned = system.simulation.spawn_agents(count=3, styles=["trader", "crafter", "raider"])
+    run = system.simulation.run(ticks=2)
+    labels = system.simulation.generate_labels()
+    reasoning = system.simulation.build_reasoning()
+    dataset = system.simulation.export_dataset()
+    worker_result = process_expert_ai_task({"type": "simulation_run", "payload": {"seed": 7, "agent_count": 2, "ticks": 1}})
+
+    assert reset["seed"] == 42
+    assert spawned["count"] == 3
+    assert run["world"]["time"] == 2
+    assert run["trajectory"]
+    assert labels
+    assert reasoning[0]["chain"][-1]["relation"] == "leads_to"
+    assert dataset["version"] == "sim-v1-seed-42-t2"
+    assert {"state", "graph", "trajectory", "labels", "reasoning"} <= set(dataset)
+    assert worker_result["world"]["time"] == 1
+
+
+def test_llm_provider_config_raw_account_etl_and_observability():
+    key_path = Path("data/test_llm_key.txt")
+    key_path.write_text("api KEY = sk-test-secret\nbase url = https://llm.example/v1\nmodel = test-model\n", encoding="utf-8")
+
+    class FakeResponse:
+        def raise_for_status(self):
+            return None
+
+        def json(self):
+            return {"model": "test-model", "choices": [{"message": {"content": "Use the safest account progression action."}}]}
+
+    class FakeClient:
+        def __init__(self):
+            self.requests = []
+
+        def post(self, url, headers=None, json=None):
+            self.requests.append((url, headers, json))
+            return FakeResponse()
+
+    config = LLMProviderConfig().with_key_file(key_path)
+    layer = LLMExpertLayer(config=config, client=FakeClient())
+    explanation = layer.explain_decision({"decision": "APPROVE", "factors": []}, use_provider=True)
+    failing_layer = LLMExpertLayer(config=config, client=object())
+    fallback = failing_layer.explain_decision({"decision": "REVIEW", "factors": []}, use_provider=True)
+
+    raw = {
+        "exported_at": "2026-06-28T00:00:00Z",
+        "account": {"name": "Netro.7195", "world": 1013},
+        "kpis": {"account_value": 10},
+        "assets": [{"category": "Wallet", "total_value": 10, "liquid_sell": 10, "percentage": 100, "count": 1}],
+        "characters": [{"name": "Netro Test", "profession": "Guardian", "gear_completion_percent": 95}],
+    }
+    system = ExpertAISystem()
+    ingested = system.ingest_raw_account({"raw": raw})
+    audit = system.observability.audit.query(action="etl.raw_account")
+
+    assert config.redacted()["api_key"].startswith("sk-t")
+    assert explanation["provider"] == "openai_compatible"
+    assert "safest" in explanation["explanation"]["content"]
+    assert fallback["mode"] == "read_only_fallback"
+    assert fallback["explanation"]["decision"] == "REVIEW"
+    assert ingested["summary"]["account_id"] == "account:Netro.7195"
+    assert ingested["economy_items"][0]["category"] == "Wallet"
+    assert ingested["meta_builds"][0]["profession"] == "Guardian"
+    assert audit[0]["subject"] == "completed"
+    key_path.unlink()
 
 
 def test_decision_economy_meta_and_memory_edge_cases():
@@ -431,6 +575,107 @@ def test_expert_ai_routes_smoke():
     think = client.post("/expert/think", json={"prompt": "Plan next step"})
     assert think.status_code == 200
     assert think.json()["mutates_state"] is False
+
+    simulate = client.post("/runtime/simulate", json={"steps": [{"type": "noop"}]})
+    assert simulate.status_code == 200
+    assert simulate.json()["transitions"][0]["type"] == "simulation_step"
+
+    history = client.get("/runtime/history")
+    assert history.status_code == 200
+    assert history.json()["history"]
+
+    meta_alias = client.post("/meta/analyze", json={"gear_completion_percent": 90, "role": "dps"})
+    assert meta_alias.status_code == 200
+    assert meta_alias.json()["raid_viability"] == "ready"
+
+    economy_data = client.post("/data/economy", json={"item_ids": [1]})
+    assert economy_data.status_code == 200
+    assert "items" in economy_data.json()
+
+    sim_reset = client.post("/simulation/reset", json={"seed": 99})
+    assert sim_reset.status_code == 200
+    assert sim_reset.json()["seed"] == 99
+
+    spawn = client.post("/agents/spawn", json={"count": 2, "styles": ["trader", "collector"]})
+    assert spawn.status_code == 200
+    assert spawn.json()["count"] == 2
+
+    sim_run = client.post("/simulation/run", json={"ticks": 1})
+    assert sim_run.status_code == 200
+    assert sim_run.json()["dataset"]["version"] == "sim-v1-seed-99-t1"
+
+    world = client.get("/world/snapshot")
+    assert world.status_code == 200
+    assert world.json()["time"] == 1
+
+    econ_update = client.post("/economy/update", json={"updates": {"mystic_coin": {"supply": 10, "demand": 50, "velocity": 2}}})
+    assert econ_update.status_code == 200
+    assert "mystic_coin" in econ_update.json()["market"]
+
+    labels = client.post("/labels/generate")
+    reasoning_graph = client.post("/reasoning/build")
+    dataset_export = client.post("/dataset/export")
+    assert labels.status_code == 200
+    assert reasoning_graph.status_code == 200
+    assert dataset_export.status_code == 200
+    assert "trajectory" in dataset_export.json()
+
+    meta_data = client.post("/data/meta", json={"profession": "Guardian"})
+    assert meta_data.status_code == 200
+    assert "builds" in meta_data.json()
+
+    agents = client.post("/agents/run", json={
+        "items": [{"item_id": 1, "price": 100, "supply": 10, "demand": 20}],
+        "build": {"gear_completion_percent": 95, "role": "dps", "review_status": "reviewed", "missing_items": []},
+        "goals": [{"name": "Legendary", "missing_cost": 10, "progress": 0.9}],
+        "constraints": {"budget": 100},
+    })
+    assert agents.status_code == 200
+    assert "coordination" in agents.json()
+
+    raw_ingest = client.post("/etl/account_raw", json={"raw": {
+        "account": {"name": "Route.1234"},
+        "assets": [{"category": "Wallet", "total_value": 1, "liquid_sell": 1, "percentage": 1, "count": 1}],
+        "characters": [],
+    }})
+    assert raw_ingest.status_code == 200
+    assert raw_ingest.json()["summary"]["account_id"] == "account:Route.1234"
+
+    memory_query = client.post("/memory/query", json={"query": "owns", "limit": 5})
+    assert memory_query.status_code == 200
+    assert "episodic" in memory_query.json()
+
+    training_run = client.post("/train/run", json={"dataset_type": "api_full_production"})
+    assert training_run.status_code == 200
+    assert training_run.json()["status"] == "completed"
+
+    model_train = client.post("/train/model", json={"dataset_type": "api_model_train"})
+    assert model_train.status_code == 200
+    assert model_train.json()["artifact"]["status"] == "trained"
+    assert Path(model_train.json()["artifact"]["path"]).exists()
+
+    scheduled = client.post("/train/schedule", json={"kind": "train_run", "payload": {"dataset_type": "scheduled"}, "next_run_at": 0})
+    assert scheduled.status_code == 200
+    run_due = client.post("/train/scheduler/run_due", json={"now": 1})
+    assert run_due.status_code == 200
+    assert run_due.json()["run_count"] >= 1
+    jobs = client.get("/train/jobs")
+    assert jobs.status_code == 200
+    assert jobs.json()["jobs"]
+
+    provider_file = Path("data/test_route_llm_key.txt")
+    provider_file.write_text("api KEY = sk-route-secret\nbase url = https://llm.example/v1\n", encoding="utf-8")
+    provider = client.post("/expert/provider/key_file", json={"path": str(provider_file)})
+    assert provider.status_code == 200
+    assert provider.json()["configured"] is True
+    assert "***" in provider.json()["api_key"]
+    provider_file.unlink()
+
+    metrics = client.get("/observability/metrics")
+    audit = client.get("/observability/audit")
+    assert metrics.status_code == 200
+    assert audit.status_code == 200
+    assert "events" in audit.json()
 
     queue = client.post("/queue/enqueue", json={"type": "health"})
     assert queue.status_code == 200

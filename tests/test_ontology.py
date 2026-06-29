@@ -1,5 +1,6 @@
 """Tests for the Ontology layer — object store, relations, impact analysis, QA gate."""
 
+import datetime
 import json
 from unittest.mock import AsyncMock, patch
 
@@ -12,6 +13,10 @@ from gw2_progression.ontology.qa_gate import check_report_publishable, validate_
 from gw2_progression.ontology.account_mapper import sync_account_to_ontology
 from gw2_progression.ontology.goal_mapper import map_goal_to_ontology, sync_goal_reservations
 from gw2_progression.models import TrackedGoal
+
+
+def _fresh_ts() -> str:
+    return datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%S")
 
 
 # ── Fixtures ──────────────────────────────────────────────────────────
@@ -385,7 +390,7 @@ class TestQAGate:
     async def test_check_report_publishable_fresh(self):
         qa = await check_report_publishable({
             "report_id": 1,
-            "snapshot_time": "2026-06-26T12:00:00",
+            "snapshot_time": _fresh_ts(),
             "access_level": "private",
             "recommendations": ["Do X", "Do Y"],
         })
@@ -553,7 +558,7 @@ class TestEndToEnd:
     async def test_report_qa_gate_flow(self):
         qa = await check_report_publishable({
             "report_id": 42,
-            "snapshot_time": "2026-06-26T12:00:00",
+            "snapshot_time": _fresh_ts(),
             "access_level": "public",
             "recommendations": ["Sell excess Mystic Coins"],
         })
@@ -674,7 +679,7 @@ class TestReportMapper:
                 "report_id": 1,
                 "report_type": "full",
                 "access_level": "private",
-                "snapshot_time": "2026-06-26T12:00:00",
+                "snapshot_time": _fresh_ts(),
                 "recommendations": ["Do X", "Do Y", "Do Z"],
             },
             account_name="Player.1",
@@ -690,7 +695,7 @@ class TestReportMapper:
 
         qa = QAReport(target_object_id="r1", target_class="report", passed=1, failed=0, status="pass", checked_at="now")
         result = check_publication_requirements(
-            {"report_id": 1, "access_level": "private", "snapshot_time": "2026-06-26T12:00:00"},
+            {"report_id": 1, "access_level": "private", "snapshot_time": _fresh_ts()},
             qa,
         )
         assert result["publishable"] is True
@@ -711,7 +716,7 @@ class TestBuildAndReportE2E:
 
         qa = await check_report_publishable({
             "report_id": 100,
-            "snapshot_time": "2026-06-26T12:00:00",
+            "snapshot_time": _fresh_ts(),
             "access_level": "public",
             "recommendations": ["Try Dragonhunter build"],
             "build_details": [
@@ -759,7 +764,7 @@ class TestBuildAndReportE2E:
             "report_id": 200,
             "report_type": "commercial",
             "access_level": "public",
-            "snapshot_time": "2026-06-26T12:00:00",
+            "snapshot_time": _fresh_ts(),
             "recommendations": ["Sell excess materials"],
         }
         qa = await check_report_publishable(report_data)
@@ -832,7 +837,7 @@ class TestMarketMapper:
         from gw2_progression.ontology.market_mapper import check_price_freshness, map_signal_to_ontology
         from gw2_progression.models import TradingPostSignal
 
-        map_signal_to_ontology(TradingPostSignal(item_id=19976, signal_type="sell_candidate", price_timestamp="2026-06-26T12:00:00"), "Player.1")
+        map_signal_to_ontology(TradingPostSignal(item_id=19976, signal_type="sell_candidate", price_timestamp=_fresh_ts()), "Player.1")
         result = check_price_freshness(19976, "Player.1")
         assert result["is_stale"] is False
         assert result["item_id"] == 19976

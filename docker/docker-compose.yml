@@ -1,0 +1,122 @@
+# GW2 Data Factory v1 — Docker Configuration
+#
+# Architecture:
+#   collector (api.py) → dgsk (graph builder) → oosk (simulation)
+#   → inference (behavior engine) → flywheel (data loop)
+#
+# All services are modular Docker containers that share data
+# through Redis (streaming) and Postgres (persistent store).
+
+version: "3.9"
+
+services:
+  # ─── API Gateway ───────────────────────────────────────────────
+  api:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+    ports:
+      - "8000:8000"
+    environment:
+      - GW2_API_KEY=${GW2_API_KEY:-}
+      - DATA_DIR=/data
+      - REDIS_URL=redis://redis:6379
+      - DATABASE_URL=postgresql://gw2:gw2@postgres:5432/gw2_factory
+    volumes:
+      - .:/app
+      - data_volume:/data
+    depends_on:
+      - redis
+      - postgres
+    command: ["uvicorn", "src.gw2_progression.api.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
+
+  # ─── Data Collector ────────────────────────────────────────────
+  collector:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+    environment:
+      - GW2_API_KEY=${GW2_API_KEY:-}
+      - COLLECTOR_INTERVAL=60
+    volumes:
+      - .:/app
+      - data_volume:/data
+    depends_on:
+      - redis
+      - postgres
+    command: ["python", "-m", "src.gw2_progression.data_acquisition.factory_entry", "--mode", "collector"]
+
+  # ─── Graph Builder ─────────────────────────────────────────────
+  dgsk:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+    volumes:
+      - .:/app
+      - data_volume:/data
+    depends_on:
+      - collector
+    command: ["python", "-m", "src.gw2_progression.data_acquisition.factory_entry", "--mode", "dgsk"]
+
+  # ─── Simulation Engine ─────────────────────────────────────────
+  oosk:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+    volumes:
+      - .:/app
+      - data_volume:/data
+    depends_on:
+      - dgsk
+    command: ["python", "-m", "src.gw2_progression.data_acquisition.factory_entry", "--mode", "oosk"]
+
+  # ─── Inference Engine ──────────────────────────────────────────
+  inference:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+    volumes:
+      - .:/app
+      - data_volume:/data
+    depends_on:
+      - oosk
+    command: ["python", "-m", "src.gw2_progression.data_acquisition.factory_entry", "--mode", "inference"]
+
+  # ─── Data Flywheel ─────────────────────────────────────────────
+  flywheel:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+    volumes:
+      - .:/app
+      - data_volume:/data
+    depends_on:
+      - collector
+      - dgsk
+      - oosk
+      - inference
+    command: ["python", "-m", "src.gw2_progression.data_acquisition.factory_entry", "--mode", "flywheel"]
+
+  # ─── Infrastructure ────────────────────────────────────────────
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+
+  postgres:
+    image: postgres:15-alpine
+    environment:
+      - POSTGRES_USER=gw2
+      - POSTGRES_PASSWORD=gw2
+      - POSTGRES_DB=gw2_factory
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+volumes:
+  data_volume:
+  redis_data:
+  postgres_data:

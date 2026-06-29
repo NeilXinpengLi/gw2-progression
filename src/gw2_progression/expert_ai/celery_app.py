@@ -43,6 +43,18 @@ def process_expert_ai_task(task: dict) -> dict:
         return system.persistence.migrate()
     if task_type == "health":
         return system.persistence.health()
+    if task_type == "train_run":
+        return system.run_training_pipeline(task.get("payload", {}))
+    if task_type == "model_train":
+        dataset = task.get("payload", {}).get("dataset") or system.run_training_pipeline(task.get("payload", {})).get("dataset", {})
+        return system.scheduler.trainer.train(dataset, model_type=task.get("payload", {}).get("model_type", "expert_reasoner"))
+    if task_type == "agents_run":
+        return system.run_agents(task.get("payload", {}))
+    if task_type == "run_due":
+        return system.scheduler.run_due()
+    if task_type == "simulation_run":
+        payload = task.get("payload", {})
+        return system.simulation.run(ticks=int(payload.get("ticks", 1)), seed=payload.get("seed"), agent_count=payload.get("agent_count", 5))
     return {"status": "ignored", "task_type": task_type}
 
 

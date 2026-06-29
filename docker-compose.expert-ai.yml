@@ -89,6 +89,25 @@ services:
     volumes:
       - expert-qdrant:/qdrant/storage
 
+  trainer:
+    build:
+      context: .
+      dockerfile: Dockerfile.trainer
+    restart: unless-stopped
+    command: ["--checkpoint-dir", "/app/models", "--min-batch", "20", "--interval", "30"]
+    volumes:
+      - model-checkpoints:/app/models
+      - gw2-data:/app/data
+    environment:
+      - TRAINER_CHECKPOINT_DIR=/app/models
+      - TRAINER_MIN_BATCH=20
+      - TRAINER_INTERVAL=30
+      - EXPERT_AI_REDIS_URL=redis://redis:6379/0
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+    depends_on:
+      redis:
+        condition: service_healthy
+
   redis:
     image: redis:7-alpine
     restart: unless-stopped
@@ -104,3 +123,4 @@ volumes:
   expert-neo4j-data:
   expert-neo4j-logs:
   expert-qdrant:
+  model-checkpoints:

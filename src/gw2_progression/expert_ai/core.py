@@ -16,9 +16,14 @@ from typing import Any
 
 from gw2_progression.bors.business_decision import DecisionEngine, DecisionFactor
 from gw2_progression.domain_graph.domain_engine import DomainGraphEngine
+from gw2_progression.expert_ai.agents import AgentOrchestrator
+from gw2_progression.expert_ai.data_sources import EconomyDataSource, MetaBuildDataSource
 from gw2_progression.expert_ai.expert_layer import LLMExpertLayer
 from gw2_progression.expert_ai.feedback import MemoryFeedbackLoop
+from gw2_progression.expert_ai.observability import ObservabilityHub
 from gw2_progression.expert_ai.persistence import ExpertAIPersistence
+from gw2_progression.expert_ai.scheduler import TrainingScheduler
+from gw2_progression.expert_ai.simulation import SyntheticSimulationEngine
 
 
 @dataclass
@@ -140,6 +145,7 @@ class ExpertRuntime:
         self.graph = GraphStore()
         self.snapshots: dict[str, RuntimeSnapshot] = {}
         self.action_log: list[dict[str, Any]] = []
+        self.transition_log: list[dict[str, Any]] = []
 
     def add_entity(self, entity: dict[str, Any]) -> GraphNode:
         node = GraphNode(id=entity.get("id") or str(uuid.uuid4()), type=entity.get("type", "entity"), properties=entity.get("properties", {}))
@@ -158,6 +164,23 @@ class ExpertRuntime:
         )
         return self.graph.add_edge(edge)
 
+    def update_state(self, entity_id: str, patch: dict[str, Any]) -> dict[str, Any]:
+        node = self.graph.get_node(entity_id)
+        if not node:
+            raise ValueError(f"Entity not found: {entity_id}")
+        before = dict(node.properties)
+        node.properties.update(patch)
+        transition = {
+            "id": str(uuid.uuid4()),
+            "type": "state_update",
+            "entity_id": entity_id,
+            "before": before,
+            "after": dict(node.properties),
+            "created_at": time.time(),
+        }
+        self.transition_log.append(transition)
+        return transition
+
     def execute(self, action: dict[str, Any]) -> dict[str, Any]:
         action_type = action.get("type", "")
         before = self.snapshot()
@@ -166,6 +189,8 @@ class ExpertRuntime:
                 result = node_to_dict(self.add_entity(action.get("entity", {})))
             elif action_type == "add_relation":
                 result = edge_to_dict(self.add_relation(action.get("relation", {})))
+            elif action_type == "update_state":
+                result = self.update_state(action["entity_id"], action.get("patch", {}))
             else:
                 raise ValueError(f"Unsupported action type: {action_type}")
             record = {"action": action, "status": "completed", "result": result, "rollback_snapshot": before.id}
@@ -173,6 +198,35 @@ class ExpertRuntime:
             record = {"action": action, "status": "failed", "error": str(exc), "rollback_snapshot": before.id}
         self.action_log.append(record)
         return record
+
+    def simulate_step(self, step: dict[str, Any]) -> dict[str, Any]:
+        step_type = step.get("type", "noop")
+        if step_type == "noop":
+            snapshot = self.snapshot()
+            result: dict[str, Any] = {"status": "completed", "result": {"message": "no state change"}}
+        elif step_type in {"add_entity", "add_relation", "update_state"}:
+            result = self.execute(step)
+            snapshot = self.snapshot()
+        elif step_type == "batch":
+            results = [self.execute(action) for action in step.get("actions", [])]
+            snapshot = self.snapshot()
+            result = {"status": "completed" if all(r["status"] == "completed" for r in results) else "partial", "result": results}
+        else:
+            result = {"status": "failed", "error": f"Unsupported simulation step: {step_type}"}
+            snapshot = self.snapshot()
+        transition = {
+            "id": str(uuid.uuid4()),
+            "type": "simulation_step",
+            "step": step,
+            "result": result,
+            "snapshot_id": snapshot.id,
+            "created_at": time.time(),
+        }
+        self.transition_log.append(transition)
+        return transition
+
+    def trace_history(self, limit: int = 50) -> list[dict[str, Any]]:
+        return self.transition_log[-limit:]
 
     def rollback(self, snapshot_id: str) -> bool:
         snapshot = self.snapshots.get(snapshot_id)
@@ -194,7 +248,7 @@ class ExpertRuntime:
         return snap
 
     def state(self) -> dict[str, Any]:
-        return {**self.graph.to_dict(), "actions": self.action_log[-50:], "snapshot_count": len(self.snapshots)}
+        return {**self.graph.to_dict(), "actions": self.action_log[-50:], "transitions": self.trace_history(), "snapshot_count": len(self.snapshots)}
 
 
 class ReasoningEngine:
@@ -322,8 +376,46 @@ class ExpertAISystem:
         self.feedback = MemoryFeedbackLoop(self.runtime, self.memory)
         self.expert_layer = LLMExpertLayer()
         self.persistence = ExpertAIPersistence()
+        self.observability = ObservabilityHub()
+        self.economy_source = EconomyDataSource()
+        self.meta_source = MetaBuildDataSource()
+        self.agents = AgentOrchestrator(self, self.economy_source, self.meta_source)
+        self.scheduler = TrainingScheduler(self)
+        self.simulation = SyntheticSimulationEngine(self)
         self.decision = DecisionEngine()
         self.compiled_graphs: dict[str, dict[str, Any]] = {}
+
+    def run_training_pipeline(self, body: dict[str, Any] | None = None) -> dict[str, Any]:
+        from gw2_progression.expert_ai.training import TrainingPipeline
+
+        pipeline = TrainingPipeline(self)
+        result = pipeline.run(body or {})
+        self.observability.record_flow("train.run", result.get("status", "unknown"), {"run_id": result.get("run_id")})
+
+        from gw2_progression.trainer.publisher import publish_from_training_pipeline
+        publish_from_training_pipeline(result, self)
+
+        return result
+
+    def run_agents(self, body: dict[str, Any] | None = None) -> dict[str, Any]:
+        result = self.agents.run(body or {})
+        self.observability.record_flow("agents.run", result.get("coordination", {}).get("decision", {}).get("decision", "unknown"))
+        return result
+
+    def ingest_raw_account(self, body: dict[str, Any]) -> dict[str, Any]:
+        from gw2_progression.expert_ai.raw_account import load_raw_account, raw_account_to_economy_items, raw_account_to_meta_builds, raw_account_to_runtime_payload
+
+        raw = load_raw_account(body["path"]) if body.get("path") else body.get("raw", {})
+        payload = raw_account_to_runtime_payload(raw)
+        for entity in payload["entities"]:
+            self.runtime.add_entity(entity)
+        for relation in payload["relations"]:
+            self.runtime.add_relation(relation)
+        economy_items = raw_account_to_economy_items(raw)
+        meta_builds = raw_account_to_meta_builds(raw)
+        snapshot = self.runtime.snapshot()
+        self.observability.record_flow("etl.raw_account", "completed", {"snapshot_id": snapshot.id, "account_id": payload["summary"]["account_id"]})
+        return {"summary": payload["summary"], "snapshot_id": snapshot.id, "economy_items": economy_items, "meta_builds": meta_builds}
 
     def compile_graph(self, payload: dict[str, Any] | None = None, file_path: str | None = None) -> dict[str, Any]:
         if file_path:
