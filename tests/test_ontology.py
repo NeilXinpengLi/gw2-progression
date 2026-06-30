@@ -1162,6 +1162,130 @@ class TestQuestMapper:
         assert prog["progress_pct"] == 66.7
 
 
+class TestOntologyRuntimeKernel:
+    def test_registry_loads_project_schema_and_rejects_invalid_entity(self):
+        from gw2_progression.ontology import OntologyRegistry
+
+        registry = OntologyRegistry.from_project_config()
+        errors = registry.validate_action(
+            {
+                "type": "add_entity",
+                "entity": {
+                    "id": "asset:1",
+                    "type": "account_asset",
+                    "properties": {"item_id": 19721, "count": 5},
+                },
+            },
+            None,
+        )
+
+        assert "account_asset" in registry.entities
+        assert "owns" in registry.relations
+        assert "add_entity" in registry.actions
+        assert "Missing required property: location" in errors
+
+    def test_kernel_executes_actions_records_lineage_and_queries_graph(self):
+        from gw2_progression.ontology import OntologyRuntimeKernel
+
+        kernel = OntologyRuntimeKernel()
+        account = {
+            "type": "add_entity",
+            "entity": {
+                "id": "account:Netro.7195",
+                "type": "account_snapshot",
+                "properties": {"account_name": "Netro.7195", "snapshot_id": "snap-1"},
+            },
+        }
+        asset = {
+            "type": "add_entity",
+            "entity": {
+                "id": "asset:19721",
+                "type": "account_asset",
+                "properties": {"item_id": 19721, "count": 5, "location": "material_storage", "unit_value": 3},
+            },
+        }
+        relation = {
+            "type": "add_relation",
+            "relation": {
+                "source": "account:Netro.7195",
+                "target": "asset:19721",
+                "relation_type": "owns",
+            },
+        }
+
+        first = kernel.execute(account)
+        kernel.execute(asset)
+        third = kernel.execute(relation)
+        trace = kernel.query().traverse("account:Netro.7195")
+        impact = kernel.query().economy_impact("asset:19721")
+
+        assert first["delta"]["added_entities"] == ["account:Netro.7195"]
+        assert third["delta"]["relation_delta"] == 1
+        assert len(kernel.snapshot()["lineage"]) == 3
+        assert trace["visited"] == ["account:Netro.7195", "asset:19721"]
+        assert impact["estimated_value"] == 15
+
+    def test_kernel_state_transition_is_deterministic_for_same_actions(self):
+        from gw2_progression.ontology import OntologyRuntimeKernel
+
+        actions = [
+            {
+                "type": "add_entity",
+                "entity": {
+                    "id": "asset:1",
+                    "type": "account_asset",
+                    "properties": {"item_id": 1, "count": 1, "location": "bank"},
+                },
+            },
+            {"type": "update_entity", "entity_id": "asset:1", "patch": {"count": 2}},
+        ]
+        left = OntologyRuntimeKernel()
+        right = OntologyRuntimeKernel()
+        for action in actions:
+            left.execute(action)
+            right.execute(action)
+
+        assert left.snapshot()["state_hash"] == right.snapshot()["state_hash"]
+        assert left.snapshot()["state"] == right.snapshot()["state"]
+
+    def test_llm_constrained_reasoning_rejects_invalid_graph_action(self):
+        from gw2_progression.ontology import OntologyRuntimeKernel
+
+        kernel = OntologyRuntimeKernel()
+        invalid = kernel.execute_llm_action({
+            "type": "add_relation",
+            "relation": {
+                "source": "missing:source",
+                "target": "missing:target",
+                "relation_type": "owns",
+            },
+        })
+
+        assert invalid["status"] == "rejected"
+        assert invalid["validation"]["accepted"] is False
+        assert any("does not exist" in error for error in invalid["validation"]["errors"])
+
+    def test_replay_reconstructs_final_state_from_lineage(self):
+        from gw2_progression.ontology import OntologyRuntimeKernel
+
+        kernel = OntologyRuntimeKernel()
+        kernel.execute({
+            "type": "add_entity",
+            "entity": {
+                "id": "asset:2",
+                "type": "account_asset",
+                "properties": {"item_id": 2, "count": 3, "location": "wallet"},
+            },
+        })
+        kernel.execute({"type": "update_entity", "entity_id": "asset:2", "patch": {"count": 8}})
+        snapshot = kernel.snapshot()
+        replay = kernel.replay()
+
+        assert replay["deterministic"] is True
+        assert replay["mismatches"] == []
+        assert replay["state"].to_dict() == snapshot["state"]
+
+
 # ── Phase D3: Performance Tests ───────────────────────────────────────
 
 class TestPerformance:
