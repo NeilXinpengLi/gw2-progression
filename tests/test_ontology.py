@@ -1285,6 +1285,133 @@ class TestOntologyRuntimeKernel:
         assert replay["mismatches"] == []
         assert replay["state"].to_dict() == snapshot["state"]
 
+    def test_ingestion_pipeline_normalizes_raw_gw2_payload_into_runtime_graph(self):
+        from gw2_progression.ontology import GW2APINormalizer, GraphBuilder, OntologyRuntimeKernel
+
+        raw = {
+            "account": {"name": "Pipe.1234"},
+            "snapshot_id": "snap-pipe",
+            "assets": [{"item_id": 19721, "count": 4, "category": "material_storage", "total_value": 12}],
+        }
+        normalized = GW2APINormalizer().normalize(raw)
+        graph = GraphBuilder().build(normalized["entities"], normalized["relations"])
+        result = OntologyRuntimeKernel().ingest_normalized(normalized)
+
+        assert len(graph.nodes) == 2
+        assert len(graph.edges) == 1
+        assert result["entity_count"] == 2
+        assert result["relation_count"] == 1
+        assert result["status"] == "completed"
+
+    def test_execution_graph_runs_actions_in_dependency_order(self):
+        from gw2_progression.ontology import OntologyRuntimeKernel
+
+        kernel = OntologyRuntimeKernel()
+        result = kernel.execute_graph([
+            {
+                "node_id": "account",
+                "type": "add_entity",
+                "entity": {
+                    "id": "account:Dag.1234",
+                    "type": "account_snapshot",
+                    "properties": {"account_name": "Dag.1234", "snapshot_id": "dag-1"},
+                },
+            },
+            {
+                "node_id": "asset",
+                "depends_on": ["account"],
+                "type": "add_entity",
+                "entity": {
+                    "id": "asset:dag",
+                    "type": "account_asset",
+                    "properties": {"item_id": 19721, "count": 1, "location": "bank"},
+                },
+            },
+            {
+                "node_id": "owns",
+                "depends_on": ["asset"],
+                "type": "add_relation",
+                "relation": {"source": "account:Dag.1234", "target": "asset:dag", "relation_type": "owns"},
+            },
+        ])
+
+        assert result["status"] == "completed"
+        assert [row["node_id"] for row in result["results"]] == ["account", "asset", "owns"]
+        assert kernel.query().traverse("account:Dag.1234")["visited"] == ["account:Dag.1234", "asset:dag"]
+
+    def test_execution_graph_rejects_cycles(self):
+        from gw2_progression.ontology import ExecutionGraph, OntologyViolation
+
+        graph = ExecutionGraph.from_actions([
+            {
+                "node_id": "a",
+                "depends_on": ["b"],
+                "type": "add_entity",
+                "entity": {"id": "asset:a", "type": "account_asset", "properties": {"item_id": 1, "count": 1, "location": "bank"}},
+            },
+            {
+                "node_id": "b",
+                "depends_on": ["a"],
+                "type": "add_entity",
+                "entity": {"id": "asset:b", "type": "account_asset", "properties": {"item_id": 2, "count": 1, "location": "bank"}},
+            },
+        ])
+
+        with pytest.raises(OntologyViolation):
+            graph.topological_order()
+
+    def test_oosk_simulation_runs_ticks_through_validated_actions(self):
+        from gw2_progression.ontology import OntologyRuntimeKernel
+
+        kernel = OntologyRuntimeKernel()
+        kernel.execute({
+            "type": "add_entity",
+            "entity": {
+                "id": "asset:sim",
+                "type": "account_asset",
+                "properties": {"item_id": 3, "count": 1, "location": "bank"},
+            },
+        })
+        result = kernel.simulate(
+            [{"type": "update_entity", "entity_id": "asset:sim", "patch": {"count": 5}}],
+            ticks=2,
+        )
+
+        assert result["status"] == "completed"
+        assert result["time"] == 2
+        assert len(result["timeline"]) == 2
+        assert kernel.snapshot()["state"]["entities"]["asset:sim"]["properties"]["count"] == 5
+        assert len(kernel.snapshot()["lineage"]) == 3
+
+    def test_lineage_store_dgsk_ingestor_gw2_api_and_reasoning_hook(self):
+        from gw2_progression.ontology import GW2API, GW2APINormalizer, OntologyRuntimeKernel
+
+        fetched = GW2API(fetcher=lambda url: {"url": url}).fetch("/account")
+        assert fetched["url"].endswith("/account")
+
+        kernel = OntologyRuntimeKernel()
+        normalized = GW2APINormalizer().normalize({
+            "account": {"name": "Hook.1234"},
+            "assets": [{"item_id": 19721, "count": 1, "category": "bank"}],
+        })
+        ingested = kernel.ingest_normalized(normalized)
+        valid = kernel.reasoning.execute({
+            "type": "update_entity",
+            "entity_id": "asset:Hook.1234:bank:19721:0",
+            "patch": {"count": 2},
+        })
+        invalid = kernel.reasoning.execute({
+            "type": "update_entity",
+            "entity_id": "missing",
+            "patch": {"count": 2},
+        })
+
+        assert ingested["dgsk"]["edge_count"] == 1
+        assert valid["status"] == "accepted"
+        assert invalid["status"] == "rejected"
+        assert len(kernel.lineage_store.list()) == 4
+        assert len(kernel.lineage_store.replayable_actions()) == 4
+
 
 # ── Phase D3: Performance Tests ───────────────────────────────────────
 

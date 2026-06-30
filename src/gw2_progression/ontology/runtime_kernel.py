@@ -10,8 +10,11 @@ from __future__ import annotations
 import copy
 import hashlib
 import json
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from typing import Any
+
+import httpx
 
 from .config import ACTION_DEFINITIONS, CLASS_DEFINITIONS, RELATION_DEFINITIONS
 
@@ -62,6 +65,154 @@ class KernelState:
             entities=copy.deepcopy(value.get("entities", {})),
             relations=copy.deepcopy(value.get("relations", [])),
         )
+
+
+@dataclass(frozen=True)
+class Entity:
+    id: str
+    type: str
+    attributes: dict[str, Any] = field(default_factory=dict)
+
+    def to_action_entity(self) -> dict[str, Any]:
+        return {"id": self.id, "type": self.type, "properties": copy.deepcopy(self.attributes)}
+
+
+@dataclass(frozen=True)
+class Relation:
+    src: str
+    dst: str
+    rtype: str
+    attributes: dict[str, Any] = field(default_factory=dict)
+
+    def to_action_relation(self) -> dict[str, Any]:
+        return {
+            "source": self.src,
+            "target": self.dst,
+            "relation_type": self.rtype,
+            "properties": copy.deepcopy(self.attributes),
+        }
+
+
+class Graph:
+    """Minimal graph representation produced by ingestion/normalization."""
+
+    def __init__(self) -> None:
+        self.nodes: dict[str, Entity] = {}
+        self.edges: list[Relation] = []
+
+    def add_node(self, node: Entity) -> Entity:
+        self.nodes[node.id] = node
+        return node
+
+    def add_edge(self, relation: Relation) -> Relation:
+        self.edges.append(relation)
+        return relation
+
+    def to_actions(self) -> list[dict[str, Any]]:
+        actions = [{"type": "add_entity", "entity": entity.to_action_entity()} for entity in self.nodes.values()]
+        actions.extend({"type": "add_relation", "relation": relation.to_action_relation()} for relation in self.edges)
+        return actions
+
+
+class GraphBuilder:
+    """Build a deterministic action graph from normalized entities/relations."""
+
+    def build(self, entities: list[dict[str, Any]], relations: list[dict[str, Any]]) -> Graph:
+        graph = Graph()
+        for entity in entities:
+            graph.add_node(Entity(
+                id=str(entity.get("id") or entity.get("object_id") or ""),
+                type=str(entity.get("type") or entity.get("class_name") or ""),
+                attributes=copy.deepcopy(entity.get("properties", entity.get("attributes", {}))),
+            ))
+        for relation in relations:
+            graph.add_edge(Relation(
+                src=str(relation.get("source") or relation.get("src") or relation.get("source_id") or ""),
+                dst=str(relation.get("target") or relation.get("dst") or relation.get("target_id") or ""),
+                rtype=str(relation.get("relation_type") or relation.get("rtype") or relation.get("type") or ""),
+                attributes=copy.deepcopy(relation.get("properties", relation.get("attributes", {}))),
+            ))
+        return graph
+
+
+class GW2APINormalizer:
+    """Normalize small GW2 account-like payloads into ontology entities."""
+
+    def normalize(self, raw: dict[str, Any]) -> dict[str, Any]:
+        account = raw.get("account", {}) if isinstance(raw.get("account"), dict) else {}
+        account_name = str(account.get("name") or raw.get("account_name") or "unknown")
+        snapshot_id = str(raw.get("snapshot_id") or raw.get("run_id") or raw.get("exported_at") or "snapshot")
+        account_id = f"account:{account_name}"
+        entities = [{
+            "id": account_id,
+            "type": "account_snapshot",
+            "properties": {"account_name": account_name, "snapshot_id": snapshot_id},
+        }]
+        relations: list[dict[str, Any]] = []
+        assets = raw.get("assets", [])
+        if isinstance(assets, list):
+            for index, asset in enumerate(asset for asset in assets if isinstance(asset, dict)):
+                item_id = int(asset.get("item_id", asset.get("id", index + 1)) or index + 1)
+                location = str(asset.get("location", asset.get("category", "unknown")))
+                asset_id = f"asset:{account_name}:{location}:{item_id}:{index}"
+                entities.append({
+                    "id": asset_id,
+                    "type": "account_asset",
+                    "properties": {
+                        "item_id": item_id,
+                        "count": int(asset.get("count", 1) or 0),
+                        "location": location,
+                        "value": int(asset.get("total_value", asset.get("value", 0)) or 0),
+                    },
+                })
+                relations.append({"source": account_id, "target": asset_id, "relation_type": "owns"})
+        return {"entities": entities, "relations": relations}
+
+
+class GW2API:
+    """Tiny GW2 API wrapper for runtime ingestion pipelines."""
+
+    BASE = "https://api.guildwars2.com/v2"
+
+    def __init__(self, fetcher: Callable[[str], Any] | None = None, base_url: str | None = None) -> None:
+        self.fetcher = fetcher
+        self.base_url = (base_url or self.BASE).rstrip("/")
+
+    def fetch(self, endpoint: str) -> Any:
+        endpoint = endpoint.strip("/")
+        url = f"{self.base_url}/{endpoint}"
+        if self.fetcher:
+            return self.fetcher(url)
+        with httpx.Client(timeout=30.0) as client:
+            response = client.get(url)
+            response.raise_for_status()
+            return response.json()
+
+
+class DGSKIngestor:
+    """Convert normalized ontology payloads into runtime graph actions."""
+
+    def __init__(self, graph_builder: GraphBuilder | None = None) -> None:
+        self.graph_builder = graph_builder or GraphBuilder()
+
+    def build_graph(self, normalized: dict[str, Any]) -> Graph:
+        return self.graph_builder.build(
+            list(normalized.get("entities", [])),
+            list(normalized.get("relations", [])),
+        )
+
+    def ingest(self, normalized: dict[str, Any], kernel: "OntologyRuntimeKernel") -> dict[str, Any]:
+        graph = self.build_graph(normalized)
+        results = [kernel.execute(action) for action in graph.to_actions()]
+        return {
+            "status": "completed",
+            "entity_count": len(graph.nodes),
+            "relation_count": len(graph.edges),
+            "action_count": len(results),
+            "state_hash": _stable_hash(kernel.state.to_dict()),
+            "results": results,
+            "dgsk": {"node_ids": sorted(graph.nodes), "edge_count": len(graph.edges)},
+        }
 
 
 class OntologyRegistry:
@@ -240,8 +391,9 @@ class StateEngine:
 class LineageTracker:
     """Records deterministic before/action/after lineage for replay."""
 
-    def __init__(self) -> None:
+    def __init__(self, store: "LineageStore | None" = None) -> None:
         self.records: list[dict[str, Any]] = []
+        self.store = store or LineageStore()
 
     def record(self, before: KernelState, action: dict[str, Any], after: KernelState) -> dict[str, Any]:
         record = {
@@ -253,10 +405,32 @@ class LineageTracker:
             "timestamp": len(self.records) + 1,
         }
         self.records.append(record)
+        self.store.append(record)
         return copy.deepcopy(record)
 
     def export(self) -> list[dict[str, Any]]:
         return copy.deepcopy(self.records)
+
+
+class LineageStore:
+    """Durable-store-shaped in-memory lineage log for the MVP runtime."""
+
+    def __init__(self) -> None:
+        self._records: list[dict[str, Any]] = []
+
+    def append(self, record: dict[str, Any]) -> dict[str, Any]:
+        self._records.append(copy.deepcopy(record))
+        return copy.deepcopy(record)
+
+    def list(self, limit: int | None = None) -> list[dict[str, Any]]:
+        records = self._records if limit is None else self._records[-max(int(limit), 0):]
+        return copy.deepcopy(records)
+
+    def clear(self) -> None:
+        self._records.clear()
+
+    def replayable_actions(self) -> list[dict[str, Any]]:
+        return [copy.deepcopy(record.get("action", {})) for record in self._records]
 
 
 class ExecutionEngine:
@@ -374,14 +548,147 @@ class ReplayEngine:
         }
 
 
+@dataclass(frozen=True)
+class ExecutionGraphNode:
+    node_id: str
+    action: dict[str, Any]
+    depends_on: tuple[str, ...] = ()
+
+
+class ExecutionGraph:
+    """Deterministic DAG of ontology actions."""
+
+    def __init__(self, nodes: list[ExecutionGraphNode] | None = None) -> None:
+        self.nodes: dict[str, ExecutionGraphNode] = {}
+        for node in nodes or []:
+            self.add_node(node)
+
+    def add_node(self, node: ExecutionGraphNode) -> ExecutionGraphNode:
+        if node.node_id in self.nodes:
+            raise OntologyViolation(f"Duplicate execution node: {node.node_id}")
+        self.nodes[node.node_id] = node
+        return node
+
+    @classmethod
+    def from_actions(cls, actions: list[dict[str, Any]]) -> "ExecutionGraph":
+        nodes = []
+        previous = ""
+        for index, action in enumerate(actions, start=1):
+            node_id = str(action.get("node_id") or f"step:{index}")
+            depends_on = tuple(action.get("depends_on", [previous] if previous else []))
+            clean_action = {key: copy.deepcopy(value) for key, value in action.items() if key not in {"node_id", "depends_on"}}
+            nodes.append(ExecutionGraphNode(node_id=node_id, action=clean_action, depends_on=depends_on))
+            previous = node_id
+        return cls(nodes)
+
+    def topological_order(self) -> list[ExecutionGraphNode]:
+        ordered: list[ExecutionGraphNode] = []
+        temporary: set[str] = set()
+        permanent: set[str] = set()
+
+        def visit(node_id: str) -> None:
+            if node_id in permanent:
+                return
+            if node_id in temporary:
+                raise OntologyViolation(f"Cycle detected in execution graph at {node_id}")
+            node = self.nodes.get(node_id)
+            if not node:
+                raise OntologyViolation(f"Missing dependency node: {node_id}")
+            temporary.add(node_id)
+            for dependency in sorted(node.depends_on):
+                visit(dependency)
+            temporary.remove(node_id)
+            permanent.add(node_id)
+            ordered.append(node)
+
+        for node_id in sorted(self.nodes):
+            visit(node_id)
+        return ordered
+
+
+class DAGExecutor:
+    """Executes ontology action DAGs through the same validated runtime path."""
+
+    def __init__(self, kernel: "OntologyRuntimeKernel") -> None:
+        self.kernel = kernel
+
+    def execute(self, graph: ExecutionGraph) -> dict[str, Any]:
+        results = []
+        for node in graph.topological_order():
+            result = self.kernel.execute(node.action)
+            results.append({"node_id": node.node_id, "status": result["status"], "result": result})
+        return {
+            "status": "completed",
+            "executed": len(results),
+            "results": results,
+            "state_hash": self.kernel.snapshot()["state_hash"],
+        }
+
+
+class OOSKSimulation:
+    """Time-stepped world evolution using validated ontology actions."""
+
+    def __init__(self, kernel: "OntologyRuntimeKernel") -> None:
+        self.kernel = kernel
+        self.time = 0
+
+    def run(self, steps: list[dict[str, Any]], ticks: int = 1) -> dict[str, Any]:
+        ticks = max(int(ticks), 1)
+        timeline = []
+        for _ in range(ticks):
+            self.time += 1
+            executed = []
+            for step in steps:
+                result = self.kernel.execute(step)
+                executed.append(result)
+            timeline.append({
+                "tick": self.time,
+                "executed": len(executed),
+                "state_hash": self.kernel.snapshot()["state_hash"],
+                "results": executed,
+            })
+        return {
+            "status": "completed",
+            "time": self.time,
+            "timeline": timeline,
+            "state_hash": self.kernel.snapshot()["state_hash"],
+        }
+
+
+class LLMConstrainedReasoning:
+    """Accepts only LLM-proposed actions that validate against ontology state."""
+
+    def __init__(self, kernel: "OntologyRuntimeKernel") -> None:
+        self.kernel = kernel
+
+    def validate(self, candidate: dict[str, Any]) -> dict[str, Any]:
+        validation = self.kernel.validate_llm_action(candidate)
+        return {
+            "accepted": validation["accepted"],
+            "errors": validation["errors"],
+            "reasoning_mode": "ontology_constrained",
+            "action": validation["action"],
+        }
+
+    def execute(self, candidate: dict[str, Any]) -> dict[str, Any]:
+        validation = self.validate(candidate)
+        if not validation["accepted"]:
+            return {"status": "rejected", "validation": validation}
+        return {"status": "accepted", "validation": validation, "execution": self.kernel.execute(candidate)}
+
+
 class OntologyRuntimeKernel:
     """High-level facade combining registry, execution, queries, and replay."""
 
     def __init__(self, registry: OntologyRegistry | None = None) -> None:
         self.registry = registry or OntologyRegistry.from_project_config()
         self.state = KernelState()
-        self.lineage = LineageTracker()
+        self.lineage_store = LineageStore()
+        self.lineage = LineageTracker(self.lineage_store)
         self.execution = ExecutionEngine(self.registry, lineage=self.lineage)
+        self.simulation = OOSKSimulation(self)
+        self.reasoning = LLMConstrainedReasoning(self)
+        self.ingestor = DGSKIngestor()
 
     def execute(self, action: dict[str, Any]) -> dict[str, Any]:
         result = self.execution.execute(action, self.state)
@@ -393,6 +700,21 @@ class OntologyRuntimeKernel:
             "lineage": result["lineage"],
         }
 
+    def ingest_normalized(self, normalized: dict[str, Any]) -> dict[str, Any]:
+        return self.ingestor.ingest(normalized, self)
+
+    def ingest_raw_gw2(self, raw: dict[str, Any]) -> dict[str, Any]:
+        normalized = GW2APINormalizer().normalize(raw)
+        result = self.ingest_normalized(normalized)
+        return {**result, "normalized": normalized}
+
+    def execute_graph(self, actions: list[dict[str, Any]]) -> dict[str, Any]:
+        graph = ExecutionGraph.from_actions(actions)
+        return DAGExecutor(self).execute(graph)
+
+    def simulate(self, steps: list[dict[str, Any]], ticks: int = 1) -> dict[str, Any]:
+        return self.simulation.run(steps, ticks=ticks)
+
     def validate_llm_action(self, candidate: dict[str, Any]) -> dict[str, Any]:
         errors = self.registry.validate_action(candidate, self.state)
         return {
@@ -402,10 +724,7 @@ class OntologyRuntimeKernel:
         }
 
     def execute_llm_action(self, candidate: dict[str, Any]) -> dict[str, Any]:
-        validation = self.validate_llm_action(candidate)
-        if not validation["accepted"]:
-            return {"status": "rejected", "validation": validation}
-        return self.execute(candidate)
+        return self.reasoning.execute(candidate)
 
     def query(self) -> QueryEngine:
         return QueryEngine(self.state)
@@ -417,7 +736,7 @@ class OntologyRuntimeKernel:
         return {
             "state": self.state.to_dict(),
             "state_hash": _stable_hash(self.state.to_dict()),
-            "lineage": self.lineage.export(),
+            "lineage": self.lineage_store.list(),
         }
 
 

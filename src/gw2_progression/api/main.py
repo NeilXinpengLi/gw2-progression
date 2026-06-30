@@ -48,6 +48,7 @@ from .routes.goal_driven import router as goal_driven_router
 from .routes.goals import router as goals_router
 from .routes.guild import router as guild_router
 from .routes.insight import router as insight_router
+from .routes.ontology_runtime import router as ontology_runtime_router
 from .routes.payment import router as payment_router
 from .routes.production import router as production_router
 from .routes.progression import router as progression_router
@@ -230,6 +231,7 @@ app.include_router(data_mesh_router)
 app.include_router(lifecycle_router)
 app.include_router(rule_v2_router)
 app.include_router(cognitive_os_router)
+app.include_router(ontology_runtime_router)
 app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 
 
