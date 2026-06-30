@@ -120,6 +120,71 @@ nodes:
     qa_checks: ["evidence_source_valid"]
     privacy_scope: "private"
 
+  - type: "account_event"
+    description: "An evidence-backed change detected between two account snapshots"
+    properties:
+      - name: "event_id (string, required)"
+      - name: "account_name (string, required)"
+      - name: "from_snapshot_id (int, required)"
+      - name: "to_snapshot_id (int, required)"
+      - name: "event_type (enum: asset_gain/asset_loss/currency_gain/currency_spend/material_accumulation/material_consumption/goal_progress/goal_regression/character_level_up/gear_upgrade/unlock_gain/build_progress/tradingpost_activity/wealth_revaluation, required)"
+      - name: "subject_type (string, required)"
+      - name: "subject_id (string, required)"
+      - name: "delta (json, required)"
+      - name: "primary_effect (enum: quantity_effect/price_effect/state_effect/mixed, required)"
+      - name: "confidence (float, required)"
+      - name: "created_at (string, required)"
+    constraints:
+      - "from_snapshot_id and to_snapshot_id must be different"
+      - "confidence must be 0..1"
+      - "delta must be non-empty"
+    qa_checks: ["event_has_snapshot_pair", "event_has_evidence", "event_confidence_valid"]
+    privacy_scope: "private"
+
+  - type: "progression_arc"
+    description: "A multi-snapshot account trajectory inferred from repeated account events"
+    properties:
+      - name: "arc_id (string, required)"
+      - name: "account_name (string, required)"
+      - name: "arc_type (enum: fresh_account_growth/gold_accumulation/legendary_push/build_optimization/crafting_preparation/market_trading/collection_growth/returning_player_recovery/casual_drift, required)"
+      - name: "start_snapshot_id (int, required)"
+      - name: "end_snapshot_id (int, required)"
+      - name: "supporting_event_ids (json, required)"
+      - name: "momentum_score (float, required)"
+      - name: "confidence (float, required)"
+      - name: "blockers (json)"
+      - name: "summary (string)"
+      - name: "created_at (string, required)"
+    constraints:
+      - "start_snapshot_id must be older than end_snapshot_id"
+      - "momentum_score must be 0..1"
+      - "confidence must be 0..1"
+      - "supporting_event_ids must contain at least one account_event"
+    qa_checks: ["arc_has_supporting_events", "arc_window_valid", "arc_confidence_valid"]
+    privacy_scope: "private"
+
+  - type: "trajectory_recommendation"
+    description: "A recommendation derived from current account state plus progression arc context"
+    properties:
+      - name: "recommendation_id (string, required)"
+      - name: "account_name (string, required)"
+      - name: "arc_id (string)"
+      - name: "plan_id (string)"
+      - name: "action_type (string, required)"
+      - name: "title (string, required)"
+      - name: "reason (string, required)"
+      - name: "priority (int, required)"
+      - name: "confidence (float, required)"
+      - name: "data_sources (json, required)"
+      - name: "risk_reason (string)"
+      - name: "created_at (string, required)"
+    constraints:
+      - "priority must be >= 1"
+      - "confidence must be 0..1"
+      - "reason must cite at least one account_event or progression_arc"
+    qa_checks: ["recommendation_has_trajectory_context", "recommendation_confidence_valid", "recommendation_has_evidence"]
+    privacy_scope: "private"
+
   - type: "action_record"
     description: "Record of a controlled action execution"
     properties:
@@ -198,6 +263,42 @@ edges:
     target: ["account_snapshot"]
     cardinality: "N:1"
 
+  - type: "diffs"
+    description: "An account event is derived from a before/after snapshot pair"
+    source: ["account_event"]
+    target: ["account_snapshot"]
+    cardinality: "N:2"
+
+  - type: "cites_evidence"
+    description: "An event, arc, or recommendation cites evidence for explainability"
+    source: ["account_event", "progression_arc", "trajectory_recommendation"]
+    target: ["evidence"]
+    cardinality: "N:N"
+
+  - type: "supports_arc"
+    description: "An account event supports an inferred progression arc"
+    source: ["account_event"]
+    target: ["progression_arc"]
+    cardinality: "N:N"
+
+  - type: "summarizes_window"
+    description: "A progression arc summarizes a snapshot time window"
+    source: ["progression_arc"]
+    target: ["account_snapshot"]
+    cardinality: "N:2"
+
+  - type: "recommends_from"
+    description: "A trajectory recommendation is derived from a progression arc"
+    source: ["trajectory_recommendation"]
+    target: ["progression_arc"]
+    cardinality: "N:1"
+
+  - type: "feeds_plan"
+    description: "A trajectory recommendation contributes to a generated plan"
+    source: ["trajectory_recommendation"]
+    target: ["action_record", "report"]
+    cardinality: "N:N"
+
   - type: "evaluates"
     description: "Build readiness evaluates a build template"
     source: ["build_readiness"]
@@ -234,6 +335,24 @@ events:
     source: "account_snapshot"
     triggers: ["sync_account_to_ontology"]
     produces: ["account_asset"]
+
+  - name: "snapshot_diffed"
+    description: "Two account snapshots are compared and account events are extracted"
+    source: "account_snapshot"
+    triggers: ["compare_snapshots", "extract_account_events", "bind_event_evidence"]
+    produces: ["account_event", "evidence"]
+
+  - name: "arc_detected"
+    description: "A progression arc is inferred from recent account events"
+    source: "account_event"
+    triggers: ["detect_progression_arcs", "score_arc_momentum"]
+    produces: ["progression_arc"]
+
+  - name: "trajectory_recommendation_generated"
+    description: "A recommendation is generated from current state plus trajectory context"
+    source: "progression_arc"
+    triggers: ["generate_trajectory_recommendations", "rank_plan_actions"]
+    produces: ["trajectory_recommendation", "action_record"]
 
   - name: "goal_created"
     description: "A new legendary goal is tracked"
@@ -316,3 +435,28 @@ rules:
     description: "Goal status must be one of active/paused/completed"
     rule: "legendary_goal.status must be in [active, paused, completed]"
     severity: "error"
+
+  - name: "event_requires_snapshot_pair"
+    description: "Every account event must compare exactly two different snapshots"
+    rule: "account_event.from_snapshot_id must differ from account_event.to_snapshot_id"
+    severity: "error"
+
+  - name: "event_requires_evidence"
+    description: "Every account event must cite at least one evidence object"
+    rule: "account_event must be connected via cites_evidence to >= 1 evidence"
+    severity: "error"
+
+  - name: "arc_requires_events"
+    description: "Every progression arc must be supported by account events"
+    rule: "progression_arc.supporting_event_ids must contain >= 1 account_event.event_id"
+    severity: "error"
+
+  - name: "arc_confidence_valid"
+    description: "Progression arc confidence and momentum must be normalized"
+    rule: "progression_arc.confidence and progression_arc.momentum_score must be within 0..1"
+    severity: "error"
+
+  - name: "recommendation_requires_trajectory_context"
+    description: "Trajectory recommendations must explain which event or arc caused the recommendation"
+    rule: "trajectory_recommendation.reason must cite account_event or progression_arc context"
+    severity: "warning"
