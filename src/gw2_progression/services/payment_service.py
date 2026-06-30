@@ -68,7 +68,8 @@ async def handle_webhook(payload: bytes, sig_header: str) -> str:
         product_id = int(session.get("metadata", {}).get("product_id", 0))
         customer_email = session.get("customer_details", {}).get("email", "")
         if product_id and customer_email:
-            order = await create_order(product_id, customer_email)
+            idempotency_key = f"stripe:{event.get('id') or session.get('id') or product_id}"
+            order = await create_order(product_id, customer_email, idempotency_key=idempotency_key)
             logger.info("Order fulfilled via Stripe: %s -> license %s", order["order_id"], order["license_key"])
             return "fulfilled"
 

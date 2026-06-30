@@ -10,6 +10,11 @@ services:
       - ./src:/app/src
       - gw2-data:/app/data
     environment:
+      - ENV=${ENV:-development}
+      - ENABLE_COMMERCE_ROUTES=${ENABLE_COMMERCE_ROUTES:-true}
+      - ENABLE_INFRASTRUCTURE_ROUTES=${ENABLE_INFRASTRUCTURE_ROUTES:-true}
+      - ENABLE_AI_LAB_ROUTES=${ENABLE_AI_LAB_ROUTES:-true}
+      - ENABLE_EXPERIMENTAL_ROUTES=${ENABLE_EXPERIMENTAL_ROUTES:-true}
       - RATE_LIMIT_REQUESTS=${RATE_LIMIT_REQUESTS:-30}
       - RATE_LIMIT_WINDOW=${RATE_LIMIT_WINDOW:-60}
       - GW2_API_BASE=${GW2_API_BASE:-https://api.guildwars2.com}

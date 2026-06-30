@@ -29,6 +29,7 @@ from gw2_progression.services.product_service import seed_products
 from gw2_progression.services.progression_service import seed_templates
 from gw2_progression.services.provider_service import seed_providers
 
+from .governance import governance_snapshot, include_governed_routers
 from .routes.account import router as account_router
 from .routes.advice import router as advice_router
 from .routes.affiliates import router as affiliates_router
@@ -197,41 +198,45 @@ async def rate_limit_middleware(request: Request, call_next):
     return await call_next(request)
 
 
-app.include_router(account_router)
-app.include_router(advice_router)
-app.include_router(analyze_router)
-app.include_router(reports_router)
-app.include_router(resolve_router)
-app.include_router(valuation_router)
-app.include_router(crafting_router)
-app.include_router(goals_router)
-app.include_router(guild_router)
-app.include_router(progression_router)
-app.include_router(quests_router)
-app.include_router(tp_router)
-app.include_router(builds_router)
-app.include_router(commerce_router)
-app.include_router(credentials_router)
-app.include_router(engine_router)
-app.include_router(expert_ai_router)
-app.include_router(affiliates_router)
-app.include_router(audit_router)
-app.include_router(workspaces_router)
-app.include_router(v4_router)
-app.include_router(v5_router)
-app.include_router(production_router)
-app.include_router(commercial_router)
-app.include_router(payment_router)
-app.include_router(agent_router)
-app.include_router(goal_driven_router)
-app.include_router(insight_router)
-app.include_router(subscriptions_router)
-app.include_router(arena_router)
-app.include_router(data_mesh_router)
-app.include_router(lifecycle_router)
-app.include_router(rule_v2_router)
-app.include_router(cognitive_os_router)
-app.include_router(ontology_runtime_router)
+ROUTER_BINDINGS = [
+    ("account", account_router),
+    ("advice", advice_router),
+    ("analyze", analyze_router),
+    ("reports", reports_router),
+    ("resolve", resolve_router),
+    ("valuation", valuation_router),
+    ("crafting", crafting_router),
+    ("goals", goals_router),
+    ("guild", guild_router),
+    ("progression", progression_router),
+    ("quests", quests_router),
+    ("tp", tp_router),
+    ("builds", builds_router),
+    ("commerce", commerce_router),
+    ("credentials", credentials_router),
+    ("engine", engine_router),
+    ("expert_ai", expert_ai_router),
+    ("affiliates", affiliates_router),
+    ("audit", audit_router),
+    ("workspaces", workspaces_router),
+    ("v4", v4_router),
+    ("v5", v5_router),
+    ("production", production_router),
+    ("commercial", commercial_router),
+    ("payment", payment_router),
+    ("agent", agent_router),
+    ("goal_driven", goal_driven_router),
+    ("insight", insight_router),
+    ("subscriptions", subscriptions_router),
+    ("arena", arena_router),
+    ("data_mesh", data_mesh_router),
+    ("lifecycle", lifecycle_router),
+    ("rule_v2", rule_v2_router),
+    ("cognitive_os", cognitive_os_router),
+    ("ontology_runtime", ontology_runtime_router),
+]
+
+API_ROUTE_RELEASE_SNAPSHOT = include_governed_routers(app, ROUTER_BINDINGS)
 app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 
 
@@ -349,6 +354,11 @@ async def report_page() -> FileResponse:
 @app.get("/metrics")
 async def get_metrics():
     return metrics.snapshot()
+
+
+@app.get("/api/governance/routes")
+async def get_api_governance():
+    return {"routes": governance_snapshot()}
 
 
 _ws_clients: set = set()

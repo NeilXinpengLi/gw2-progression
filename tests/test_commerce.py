@@ -41,6 +41,88 @@ async def test_create_product_order():
     assert result["order_id"] == 1
     assert result["license_key"].startswith("GWR-")
     assert result["amount_copper"] == 30000
+    assert result["idempotent_replay"] is False
+
+
+@pytest.mark.asyncio
+async def test_create_order_replays_existing_idempotency_key():
+    from gw2_progression.services.commerce_service import create_order
+
+    with (
+        patch("gw2_progression.services.commerce_service.get_product") as mock_get,
+        patch("gw2_progression.services.commerce_service.using_db") as mock_db,
+    ):
+        mock_get.return_value = {"id": 1, "slug": "test", "price_copper": 30000}
+        mock_conn = AsyncMock()
+        mock_conn.execute.return_value = _async_cursor(fetch_result=(42, 1, 30000, "paid", "GWR-EXISTING", 7))
+        mock_db.return_value.__aenter__.return_value = mock_conn
+
+        result = await create_order(1, "test@example.com", "Test User", idempotency_key="checkout-123")
+
+    assert result == {
+        "order_id": 42,
+        "license_key": "GWR-EXISTING",
+        "license_id": 7,
+        "product_id": 1,
+        "amount_copper": 30000,
+        "status": "paid",
+        "idempotent_replay": True,
+    }
+    assert mock_conn.execute.call_count == 1
+
+
+@pytest.mark.asyncio
+async def test_create_order_records_idempotency_key():
+    from gw2_progression.services.commerce_service import create_order
+
+    with (
+        patch("gw2_progression.services.commerce_service.get_product") as mock_get,
+        patch("gw2_progression.services.commerce_service.using_db") as mock_db,
+    ):
+        mock_get.return_value = {"id": 1, "slug": "test", "price_copper": 30000}
+        mock_conn = AsyncMock()
+        mock_conn.execute.side_effect = [
+            _async_cursor(fetch_result=None),
+            _async_cursor(lastrowid=42),
+            _async_cursor(lastrowid=7),
+            _async_cursor(fetch_result=(7,)),
+            _async_cursor(lastrowid=3),
+            _async_cursor(lastrowid=4),
+        ]
+        mock_db.return_value.__aenter__.return_value = mock_conn
+
+        result = await create_order(1, "test@example.com", "Test User", idempotency_key="checkout-123")
+
+    assert result["order_id"] == 42
+    assert result["license_id"] == 7
+    assert "order_idempotency_keys" in mock_conn.execute.call_args_list[-1][0][0]
+
+
+@pytest.mark.asyncio
+async def test_payment_webhook_uses_stripe_event_as_idempotency_key():
+    from gw2_progression.services.payment_service import handle_webhook
+
+    event = {
+        "id": "evt_123",
+        "type": "checkout.session.completed",
+        "data": {
+            "object": {
+                "id": "cs_123",
+                "metadata": {"product_id": "1"},
+                "customer_details": {"email": "test@example.com"},
+            }
+        },
+    }
+
+    with (
+        patch("gw2_progression.services.payment_service.STRIPE_WEBHOOK_SECRET", "whsec_test"),
+        patch("gw2_progression.services.payment_service.stripe.Webhook.construct_event", return_value=event),
+        patch("gw2_progression.services.payment_service.create_order", AsyncMock(return_value={"order_id": 42, "license_key": "GWR-TEST"})) as mock_create,
+    ):
+        result = await handle_webhook(b"{}", "sig")
+
+    assert result == "fulfilled"
+    mock_create.assert_awaited_once_with(1, "test@example.com", idempotency_key="stripe:evt_123")
 
 
 @pytest.mark.asyncio

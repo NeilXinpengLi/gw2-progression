@@ -15,15 +15,49 @@ def _generate_license_key() -> str:
     return f"GWR-{secrets.token_hex(8).upper()[:8]}-{secrets.token_hex(4).upper()}"
 
 
-async def create_order(product_id: int, customer_email: str, customer_name: str = "") -> dict:
+def _order_result(order_id: int, license_key: str, license_id: int | None, product_id: int, amount_copper: int, status: str, idempotent_replay: bool = False) -> dict:
+    return {
+        "order_id": order_id,
+        "license_key": license_key,
+        "license_id": license_id,
+        "product_id": product_id,
+        "amount_copper": amount_copper,
+        "status": status,
+        "idempotent_replay": idempotent_replay,
+    }
+
+
+async def create_order(product_id: int, customer_email: str, customer_name: str = "", idempotency_key: str = "") -> dict:
     product = await get_product(product_id)
     if not product:
         raise ValueError(f"Product {product_id} not found")
 
     license_key = _generate_license_key()
     now = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S")
+    idem_key = idempotency_key.strip()
 
     async with using_db() as conn:
+        if idem_key:
+            cursor = await conn.execute(
+                """SELECT o.id, o.product_id, o.amount_copper, o.status, o.license_key, l.id
+                   FROM order_idempotency_keys k
+                   JOIN orders o ON o.id = k.order_id
+                   LEFT JOIN licenses l ON l.order_id = o.id
+                   WHERE k.idempotency_key = ?""",
+                (idem_key,),
+            )
+            existing = await cursor.fetchone()
+            if existing:
+                return _order_result(
+                    order_id=existing[0],
+                    license_key=existing[4],
+                    license_id=existing[5],
+                    product_id=existing[1],
+                    amount_copper=existing[2],
+                    status=existing[3],
+                    idempotent_replay=True,
+                )
+
         cursor = await conn.execute(
             """INSERT INTO orders (product_id, customer_email, customer_name, amount_copper, status, license_key, created_at)
                VALUES (?, ?, ?, ?, 'paid', ?, ?)""",
@@ -43,7 +77,8 @@ async def create_order(product_id: int, customer_email: str, customer_name: str 
             (license_key, product_id, order_id, feature_flags),
         )
         cursor = await conn.execute("SELECT last_insert_rowid()")
-        license_id = cursor.lastrowid
+        row = await cursor.fetchone()
+        license_id = row[0] if row else None
 
         # Create delivery job
         await conn.execute(
@@ -52,14 +87,13 @@ async def create_order(product_id: int, customer_email: str, customer_name: str 
             (order_id, product_id),
         )
 
-    return {
-        "order_id": order_id,
-        "license_key": license_key,
-        "license_id": license_id,
-        "product_id": product_id,
-        "amount_copper": product["price_copper"],
-        "status": "paid",
-    }
+        if idem_key:
+            await conn.execute(
+                "INSERT OR IGNORE INTO order_idempotency_keys (idempotency_key, order_id, created_at) VALUES (?, ?, ?)",
+                (idem_key, order_id, now),
+            )
+
+    return _order_result(order_id, license_key, license_id, product_id, product["price_copper"], "paid")
 
 
 async def verify_license(license_key: str) -> dict | None:
@@ -124,14 +158,17 @@ async def get_orders(customer_email: str | None = None) -> list[dict]:
     ]
 
 
-async def process_pending_deliveries():
+async def process_pending_deliveries(retry_failed: bool = False):
     """Process all pending delivery jobs by generating reports."""
     from gw2_progression.services.report_service import generate_report
 
     rows = []
+    statuses = ("pending", "failed") if retry_failed else ("pending",)
+    placeholders = ",".join("?" for _ in statuses)
     async with using_db() as conn:
         cursor = await conn.execute(
-            "SELECT dj.id, dj.order_id, dj.product_id, o.customer_email, o.customer_name FROM delivery_jobs dj JOIN orders o ON dj.order_id = o.id WHERE dj.status = 'pending' LIMIT 10"
+            f"SELECT dj.id, dj.order_id, dj.product_id, o.customer_email, o.customer_name FROM delivery_jobs dj JOIN orders o ON dj.order_id = o.id WHERE dj.status IN ({placeholders}) LIMIT 10",
+            statuses,
         )
         rows = await cursor.fetchall()
     for row in rows:

@@ -177,3 +177,31 @@ def test_send_email_smtp_not_configured():
     # Should not raise even though SMTP is not configured
     _send_email("test@example.com", report)
     assert True
+
+
+@pytest.mark.asyncio
+async def test_process_pending_deliveries_can_retry_failed_jobs():
+    from gw2_progression.services.commerce_service import process_pending_deliveries
+
+    report = MagicMock()
+    report.report_id = 77
+    mock_conn = AsyncMock()
+    mock_conn.execute.side_effect = [
+        _acursor(fetchall_result=[(5, 42, 1, "test@example.com", "Player.Test")]),
+        _acursor(),
+    ]
+
+    with (
+        patch("gw2_progression.services.commerce_service.using_db") as mock_db,
+        patch("gw2_progression.services.report_service.generate_report", AsyncMock(return_value=report)) as mock_report,
+        patch("gw2_progression.services.delivery_service._send_email") as mock_send,
+    ):
+        mock_db.return_value.__aenter__.return_value = mock_conn
+        await process_pending_deliveries(retry_failed=True)
+
+    select_sql = mock_conn.execute.call_args_list[0][0][0]
+    update_sql = mock_conn.execute.call_args_list[1][0][0]
+    assert "dj.status IN (?,?)" in select_sql
+    assert "UPDATE delivery_jobs SET status = 'done'" in update_sql
+    mock_report.assert_awaited_once()
+    mock_send.assert_called_once_with("test@example.com", report)

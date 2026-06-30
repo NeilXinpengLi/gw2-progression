@@ -1412,6 +1412,106 @@ class TestOntologyRuntimeKernel:
         assert len(kernel.lineage_store.list()) == 4
         assert len(kernel.lineage_store.replayable_actions()) == 4
 
+    def test_foundry_compiler_manifest_and_guarantees_execute_as_dag(self):
+        from gw2_progression.ontology import OntologyRuntimeKernel
+
+        kernel = OntologyRuntimeKernel()
+        compiled = kernel.compile(
+            [
+                {
+                    "node_id": "account",
+                    "type": "add_entity",
+                    "entity": {
+                        "id": "account:Foundry.1234",
+                        "type": "account_snapshot",
+                        "properties": {"account_name": "Foundry.1234", "snapshot_id": "foundry-1"},
+                    },
+                },
+                {
+                    "node_id": "asset",
+                    "depends_on": ["account"],
+                    "type": "add_entity",
+                    "entity": {
+                        "id": "asset:foundry",
+                        "type": "account_asset",
+                        "properties": {"item_id": 19721, "count": 2, "location": "bank", "value": 6000},
+                    },
+                },
+                {
+                    "node_id": "owns",
+                    "depends_on": ["asset"],
+                    "type": "add_relation",
+                    "relation": {
+                        "source": "account:Foundry.1234",
+                        "target": "asset:foundry",
+                        "relation_type": "owns",
+                    },
+                },
+            ],
+            graph_id="foundry",
+        )
+        manifest = compiled.to_dict()
+        result = kernel.execute_compiled(compiled)
+
+        assert manifest["manifest"]["kernel_version"] == "v2-foundry"
+        assert manifest["manifest"]["guarantees"]["dag_compilation"] is True
+        assert manifest["manifest"]["guarantees"]["ontology_enforcement"] is True
+        assert [node["node_id"] for node in manifest["nodes"]] == ["account", "asset", "owns"]
+        assert result["executed"] == 3
+        assert result["manifest"]["node_count"] == 3
+        assert kernel.guarantees()["lineage_replay"] is True
+
+    def test_bors_and_rl_layers_emit_validated_execution_graphs(self):
+        from gw2_progression.ontology import OntologyRuntimeKernel
+
+        kernel = OntologyRuntimeKernel()
+        kernel.execute({
+            "type": "add_entity",
+            "entity": {
+                "id": "asset:portfolio",
+                "type": "account_asset",
+                "properties": {"item_id": 19721, "count": 4, "location": "bank", "value": 4000},
+            },
+        })
+
+        decision = kernel.decide(objective="LIQUIDITY")
+        policy = kernel.optimize_policy({"sell": 2.0, "hold": 1.0})
+        entities = kernel.snapshot()["state"]["entities"]
+
+        assert decision["decision"]["source"] == "BORS"
+        assert decision["compiled_graph"]["manifest"]["guarantees"]["ontology_enforcement"] is True
+        assert decision["execution"]["executed"] == 1
+        assert policy["compiled_graph"]["manifest"]["guarantees"]["dag_compilation"] is True
+        assert policy["execution"]["executed"] == 2
+        assert any(entity["type"] == "decision_record" for entity in entities.values())
+        assert sum(1 for entity in entities.values() if entity["type"] == "policy_weight") == 2
+
+    def test_foundry_guarantees_are_replayable_after_decision_and_policy(self):
+        from gw2_progression.ontology import OntologyRuntimeKernel
+
+        kernel = OntologyRuntimeKernel()
+        kernel.execute({
+            "type": "add_entity",
+            "entity": {
+                "id": "asset:replay",
+                "type": "account_asset",
+                "properties": {"item_id": 2, "count": 3, "location": "wallet", "value": 9},
+            },
+        })
+        kernel.decide(objective="BALANCED", weights={"BUY": 0.2, "SELL": 0.1, "HOLD": 0.7})
+        kernel.optimize_policy({"hold": 3.0})
+        guarantees = kernel.guarantees()
+
+        assert guarantees["kernel_version"] == "v2-foundry"
+        assert guarantees["everything_is_execution_graph"] is True
+        assert guarantees["deterministic_execution"] is True
+        assert guarantees["full_traceability"] is True
+        assert guarantees["ontology_enforcement"] is True
+        assert guarantees["graph_compilation"] is True
+        assert guarantees["constrained_ai_reasoning"] is True
+        assert guarantees["lineage_replay"] is True
+        assert guarantees["mismatches"] == []
+
 
 # ── Phase D3: Performance Tests ───────────────────────────────────────
 

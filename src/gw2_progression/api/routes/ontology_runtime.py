@@ -1,4 +1,4 @@
-"""Ontology Runtime v1 API endpoints."""
+"""Ontology Runtime v2 Foundry API endpoints."""
 
 from __future__ import annotations
 
@@ -14,6 +14,11 @@ _kernel = OntologyRuntimeKernel()
 @router.get("/state")
 async def ontology_runtime_state():
     return _kernel.snapshot()
+
+
+@router.get("/guarantees")
+async def ontology_runtime_guarantees():
+    return _kernel.guarantees()
 
 
 @router.post("/reset")
@@ -42,6 +47,29 @@ async def ontology_runtime_execute(body: dict = Body(default_factory=dict)):
         raise HTTPException(status_code=422, detail=str(exc)) from exc
 
 
+@router.post("/compile")
+async def ontology_runtime_compile(body: dict = Body(default_factory=dict)):
+    actions = body.get("actions", [])
+    if not isinstance(actions, list):
+        raise HTTPException(status_code=422, detail="actions must be a list")
+    try:
+        return _kernel.compile(actions, graph_id=str(body.get("graph_id", "runtime"))).to_dict()
+    except OntologyViolation as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+
+@router.post("/compiled/execute")
+async def ontology_runtime_execute_compiled(body: dict = Body(default_factory=dict)):
+    actions = body.get("actions", [])
+    if not isinstance(actions, list) or not actions:
+        raise HTTPException(status_code=422, detail="actions must be a non-empty list")
+    try:
+        compiled = _kernel.compile(actions, graph_id=str(body.get("graph_id", "runtime")))
+        return _kernel.execute_compiled(compiled)
+    except OntologyViolation as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+
 @router.post("/simulate")
 async def ontology_runtime_simulate(body: dict = Body(default_factory=dict)):
     steps = body.get("steps", [])
@@ -61,6 +89,22 @@ async def ontology_runtime_llm_action(body: dict = Body(...)):
 @router.post("/reasoning/action")
 async def ontology_runtime_reasoning_action(body: dict = Body(...)):
     return _kernel.reasoning.execute(body)
+
+
+@router.post("/decision/decide")
+async def ontology_runtime_decide(body: dict = Body(default_factory=dict)):
+    try:
+        return _kernel.decide(objective=str(body.get("objective", "BALANCED")), weights=body.get("weights"))
+    except OntologyViolation as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+
+@router.post("/rl/optimize")
+async def ontology_runtime_optimize_policy(body: dict = Body(default_factory=dict)):
+    try:
+        return _kernel.optimize_policy(rewards=body.get("rewards"))
+    except OntologyViolation as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
 
 
 @router.post("/ingest")

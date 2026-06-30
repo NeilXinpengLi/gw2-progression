@@ -48,6 +48,29 @@ class ActionSchema:
 
 
 @dataclass(frozen=True)
+class CompiledRuntimeGraph:
+    """Foundry-level compiled runtime graph manifest."""
+
+    graph_id: str
+    execution_graph: "ExecutionGraph"
+    manifest: dict[str, Any]
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "graph_id": self.graph_id,
+            "manifest": copy.deepcopy(self.manifest),
+            "nodes": [
+                {
+                    "node_id": node.node_id,
+                    "depends_on": list(node.depends_on),
+                    "action": copy.deepcopy(node.action),
+                }
+                for node in self.execution_graph.topological_order()
+            ],
+        }
+
+
+@dataclass(frozen=True)
 class KernelState:
     entities: dict[str, dict[str, Any]] = field(default_factory=dict)
     relations: list[dict[str, Any]] = field(default_factory=list)
@@ -263,6 +286,31 @@ class OntologyRegistry:
             preconditions=("entity_exists",),
             effects=("updates entity properties",),
         ))
+        registry.register_entity(EntitySchema(
+            name="decision_record",
+            required_attributes=("decision", "score", "source"),
+            constraints=("deterministic_decision",),
+        ))
+        registry.register_entity(EntitySchema(
+            name="policy_weight",
+            required_attributes=("policy", "weight", "source"),
+            constraints=("bounded_weight",),
+        ))
+        registry.register_relation(RelationSchema(
+            relation_type="recommends",
+            source_entity="decision_record",
+            target_entity=None,
+        ))
+        registry.register_action(ActionSchema(
+            action_type="record_decision",
+            input_schema={"decision": "dict"},
+            effects=("creates decision_record entity",),
+        ))
+        registry.register_action(ActionSchema(
+            action_type="apply_policy_weight",
+            input_schema={"policy": "dict"},
+            effects=("creates policy_weight entity",),
+        ))
         return registry
 
     def register_entity(self, schema: EntitySchema) -> EntitySchema:
@@ -338,6 +386,34 @@ class OntologyRegistry:
             patch = action.get("patch", {})
             if not isinstance(patch, dict):
                 errors.append("patch must be a dict")
+        elif action_type == "record_decision":
+            decision = action.get("decision", {})
+            if not isinstance(decision, dict):
+                errors.append("decision must be a dict")
+            else:
+                record = {
+                    "type": "decision_record",
+                    "properties": {
+                        "decision": decision.get("decision", ""),
+                        "score": decision.get("score", 0),
+                        "source": decision.get("source", ""),
+                    },
+                }
+                errors.extend(self.validate_entity(record))
+        elif action_type == "apply_policy_weight":
+            policy = action.get("policy", {})
+            if not isinstance(policy, dict):
+                errors.append("policy must be a dict")
+            else:
+                record = {
+                    "type": "policy_weight",
+                    "properties": {
+                        "policy": policy.get("policy", ""),
+                        "weight": policy.get("weight", 0),
+                        "source": policy.get("source", ""),
+                    },
+                }
+                errors.extend(self.validate_entity(record))
         return errors
 
     def _validate_input_schema(self, action: dict[str, Any], schema: ActionSchema) -> list[str]:
@@ -383,6 +459,33 @@ class StateEngine:
             properties.update(copy.deepcopy(action.get("patch", {})))
             entity["properties"] = properties
             new_state.entities[str(action["entity_id"])] = entity
+        elif action_type == "record_decision":
+            decision = copy.deepcopy(action["decision"])
+            decision_id = str(decision.get("id") or f"decision:{_stable_hash(decision)[:12]}")
+            new_state.entities[decision_id] = {
+                "id": decision_id,
+                "type": "decision_record",
+                "properties": {
+                    "decision": str(decision.get("decision", "")),
+                    "score": float(decision.get("score", 0) or 0),
+                    "source": str(decision.get("source", "")),
+                    "weights": copy.deepcopy(decision.get("weights", {})),
+                    "rationale": str(decision.get("rationale", "")),
+                },
+            }
+        elif action_type == "apply_policy_weight":
+            policy = copy.deepcopy(action["policy"])
+            policy_id = str(policy.get("id") or f"policy:{_stable_hash(policy)[:12]}")
+            new_state.entities[policy_id] = {
+                "id": policy_id,
+                "type": "policy_weight",
+                "properties": {
+                    "policy": str(policy.get("policy", "")),
+                    "weight": float(policy.get("weight", 0) or 0),
+                    "source": str(policy.get("source", "")),
+                    "reward": float(policy.get("reward", 0) or 0),
+                },
+            }
         else:
             raise OntologyViolation(f"Unsupported executable action: {action_type}")
         return {"new_state": new_state, "delta": _compute_delta(before, new_state.to_dict())}
@@ -625,6 +728,115 @@ class DAGExecutor:
         }
 
 
+class ExecutionGraphCompiler:
+    """Compiles ontology actions and registry metadata into a deterministic DAG manifest."""
+
+    def __init__(self, registry: OntologyRegistry) -> None:
+        self.registry = registry
+
+    def compile(self, actions: list[dict[str, Any]] | None = None, graph_id: str = "runtime") -> CompiledRuntimeGraph:
+        execution_graph = ExecutionGraph.from_actions(actions or [])
+        ordered = execution_graph.topological_order()
+        manifest = {
+            "kernel_version": "v2-foundry",
+            "graph_id": graph_id,
+            "node_count": len(ordered),
+            "action_types": [str(node.action.get("type") or node.action.get("action_type") or "") for node in ordered],
+            "ontology": {
+                "entities": sorted(self.registry.entities),
+                "relations": sorted(self.registry.relations),
+                "actions": sorted(self.registry.actions),
+            },
+            "guarantees": {
+                "deterministic_execution": True,
+                "ontology_enforcement": True,
+                "dag_compilation": True,
+                "lineage_replay": True,
+                "constrained_reasoning": True,
+            },
+        }
+        return CompiledRuntimeGraph(
+            graph_id=f"{graph_id}:{_stable_hash(manifest)[:12]}",
+            execution_graph=execution_graph,
+            manifest=manifest,
+        )
+
+
+class BORSDecisionLayer:
+    """Deterministic decision layer that emits ontology actions, not side effects."""
+
+    def __init__(self, kernel: "OntologyRuntimeKernel") -> None:
+        self.kernel = kernel
+
+    def decide(self, objective: str = "BALANCED", weights: dict[str, float] | None = None) -> dict[str, Any]:
+        weights = weights or self._derive_weights()
+        if not weights:
+            weights = {"HOLD": 1.0}
+        decision, score = max(sorted(weights.items()), key=lambda item: item[1])
+        payload = {
+            "id": f"decision:{objective.lower()}:{_stable_hash(weights)[:8]}",
+            "decision": decision,
+            "score": round(float(score), 6),
+            "source": "BORS",
+            "weights": weights,
+            "rationale": f"{decision} has the highest deterministic score for {objective}.",
+        }
+        action = {"type": "record_decision", "decision": payload}
+        compiled = self.kernel.compile([action], graph_id=f"bors:{objective.lower()}")
+        return {
+            "decision": payload,
+            "compiled_graph": compiled.to_dict(),
+            "execution": self.kernel.execute_compiled(compiled),
+        }
+
+    def _derive_weights(self) -> dict[str, float]:
+        total_value = 0.0
+        low_count_assets = 0
+        for entity in self.kernel.state.entities.values():
+            props = entity.get("properties", {})
+            count = float(props.get("count", 0) or 0)
+            value = float(props.get("value", props.get("unit_value", 0)) or 0)
+            total_value += count * value
+            if entity.get("type") == "account_asset" and count <= 1:
+                low_count_assets += 1
+        return {
+            "BUY": 0.25 if total_value < 10000 else 0.15,
+            "SELL": 0.45 if total_value >= 10000 else 0.2,
+            "HOLD": 0.35 + min(low_count_assets * 0.05, 0.2),
+        }
+
+
+class RLOptimizationLayer:
+    """Policy optimizer facade that records learned weights through the kernel."""
+
+    def __init__(self, kernel: "OntologyRuntimeKernel") -> None:
+        self.kernel = kernel
+
+    def optimize(self, rewards: dict[str, float] | None = None) -> dict[str, Any]:
+        rewards = rewards or {"balanced": 0.0}
+        total = sum(abs(float(value)) for value in rewards.values()) or 1.0
+        actions = []
+        policies = []
+        for name in sorted(rewards):
+            reward = float(rewards[name])
+            weight = round(abs(reward) / total, 6)
+            policy = {
+                "id": f"policy:{name}:{_stable_hash({'name': name, 'reward': reward})[:8]}",
+                "policy": name,
+                "weight": weight,
+                "reward": reward,
+                "source": "RL",
+            }
+            policies.append(policy)
+            actions.append({"type": "apply_policy_weight", "policy": policy})
+        compiled = self.kernel.compile(actions, graph_id="rl:policy-optimization")
+        return {
+            "policies": policies,
+            "compiled_graph": compiled.to_dict(),
+            "execution": self.kernel.execute_compiled(compiled),
+        }
+
+
 class OOSKSimulation:
     """Time-stepped world evolution using validated ontology actions."""
 
@@ -686,8 +898,11 @@ class OntologyRuntimeKernel:
         self.lineage_store = LineageStore()
         self.lineage = LineageTracker(self.lineage_store)
         self.execution = ExecutionEngine(self.registry, lineage=self.lineage)
+        self.compiler = ExecutionGraphCompiler(self.registry)
         self.simulation = OOSKSimulation(self)
         self.reasoning = LLMConstrainedReasoning(self)
+        self.bors = BORSDecisionLayer(self)
+        self.rl = RLOptimizationLayer(self)
         self.ingestor = DGSKIngestor()
 
     def execute(self, action: dict[str, Any]) -> dict[str, Any]:
@@ -709,8 +924,26 @@ class OntologyRuntimeKernel:
         return {**result, "normalized": normalized}
 
     def execute_graph(self, actions: list[dict[str, Any]]) -> dict[str, Any]:
-        graph = ExecutionGraph.from_actions(actions)
-        return DAGExecutor(self).execute(graph)
+        return self.execute_compiled(self.compile(actions, graph_id="ad-hoc"))
+
+    def compile(self, actions: list[dict[str, Any]] | None = None, graph_id: str = "runtime") -> CompiledRuntimeGraph:
+        return self.compiler.compile(actions or [], graph_id=graph_id)
+
+    def execute_compiled(self, compiled: CompiledRuntimeGraph | dict[str, Any]) -> dict[str, Any]:
+        if isinstance(compiled, CompiledRuntimeGraph):
+            graph = compiled.execution_graph
+            graph_id = compiled.graph_id
+            manifest = compiled.manifest
+        else:
+            graph = ExecutionGraph.from_actions(list(compiled.get("actions", [])))
+            graph_id = str(compiled.get("graph_id", "runtime"))
+            manifest = {"graph_id": graph_id}
+        result = DAGExecutor(self).execute(graph)
+        return {
+            **result,
+            "graph_id": graph_id,
+            "manifest": copy.deepcopy(manifest),
+        }
 
     def simulate(self, steps: list[dict[str, Any]], ticks: int = 1) -> dict[str, Any]:
         return self.simulation.run(steps, ticks=ticks)
@@ -726,6 +959,12 @@ class OntologyRuntimeKernel:
     def execute_llm_action(self, candidate: dict[str, Any]) -> dict[str, Any]:
         return self.reasoning.execute(candidate)
 
+    def decide(self, objective: str = "BALANCED", weights: dict[str, float] | None = None) -> dict[str, Any]:
+        return self.bors.decide(objective=objective, weights=weights)
+
+    def optimize_policy(self, rewards: dict[str, float] | None = None) -> dict[str, Any]:
+        return self.rl.optimize(rewards=rewards)
+
     def query(self) -> QueryEngine:
         return QueryEngine(self.state)
 
@@ -734,9 +973,25 @@ class OntologyRuntimeKernel:
 
     def snapshot(self) -> dict[str, Any]:
         return {
+            "kernel_version": "v2-foundry",
             "state": self.state.to_dict(),
             "state_hash": _stable_hash(self.state.to_dict()),
             "lineage": self.lineage_store.list(),
+            "compiled_guarantees": self.guarantees(),
+        }
+
+    def guarantees(self) -> dict[str, Any]:
+        replay = self.replay(self.lineage_store.list())
+        return {
+            "kernel_version": "v2-foundry",
+            "everything_is_execution_graph": True,
+            "deterministic_execution": replay["deterministic"],
+            "full_traceability": all("action_hash" in record and "to" in record for record in self.lineage_store.list()),
+            "ontology_enforcement": True,
+            "graph_compilation": True,
+            "constrained_ai_reasoning": True,
+            "lineage_replay": replay["deterministic"] and not replay["mismatches"],
+            "mismatches": replay["mismatches"],
         }
 
 

@@ -386,6 +386,13 @@ CREATE TABLE IF NOT EXISTS orders (
     FOREIGN KEY (product_id) REFERENCES products(id)
 );
 
+CREATE TABLE IF NOT EXISTS order_idempotency_keys (
+    idempotency_key TEXT PRIMARY KEY,
+    order_id INTEGER NOT NULL,
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    FOREIGN KEY (order_id) REFERENCES orders(id)
+);
+
 CREATE TABLE IF NOT EXISTS licenses (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     license_key TEXT NOT NULL UNIQUE,

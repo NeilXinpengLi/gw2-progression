@@ -89,3 +89,46 @@ def test_ontology_runtime_api_ingest_trace_replay_and_llm_guard():
     replay = client.post("/ontology/runtime/replay")
     assert replay.status_code == 200
     assert replay.json()["deterministic"] is True
+
+
+def test_ontology_runtime_v2_foundry_compile_decision_rl_and_guarantees_api():
+    client = TestClient(app)
+
+    reset = client.post("/ontology/runtime/reset")
+    assert reset.status_code == 200
+
+    actions = [
+        {
+            "node_id": "asset",
+            "type": "add_entity",
+            "entity": {
+                "id": "asset:api-foundry",
+                "type": "account_asset",
+                "properties": {"item_id": 19721, "count": 3, "location": "bank", "value": 5000},
+            },
+        }
+    ]
+    compiled = client.post("/ontology/runtime/compile", json={"graph_id": "api-foundry", "actions": actions})
+    assert compiled.status_code == 200
+    assert compiled.json()["manifest"]["kernel_version"] == "v2-foundry"
+    assert compiled.json()["manifest"]["guarantees"]["dag_compilation"] is True
+
+    executed = client.post("/ontology/runtime/compiled/execute", json={"graph_id": "api-foundry", "actions": actions})
+    assert executed.status_code == 200
+    assert executed.json()["executed"] == 1
+    assert executed.json()["manifest"]["guarantees"]["ontology_enforcement"] is True
+
+    decision = client.post("/ontology/runtime/decision/decide", json={"objective": "LIQUIDITY"})
+    assert decision.status_code == 200
+    assert decision.json()["decision"]["source"] == "BORS"
+    assert decision.json()["execution"]["executed"] == 1
+
+    optimized = client.post("/ontology/runtime/rl/optimize", json={"rewards": {"sell": 2.0, "hold": 1.0}})
+    assert optimized.status_code == 200
+    assert optimized.json()["execution"]["executed"] == 2
+
+    guarantees = client.get("/ontology/runtime/guarantees")
+    assert guarantees.status_code == 200
+    assert guarantees.json()["everything_is_execution_graph"] is True
+    assert guarantees.json()["deterministic_execution"] is True
+    assert guarantees.json()["lineage_replay"] is True
