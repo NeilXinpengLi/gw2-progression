@@ -72,6 +72,24 @@ CLASS_DEFINITIONS: dict[str, dict] = {
         "qa_checks": ["action_has_preconditions"],
         "privacy_scope": "private",
     },
+    "explanation_candidate": {
+        "description": "A provider or deterministic player-facing explanation candidate",
+        "required_properties": ["output_item_id", "note", "source", "report_language"],
+        "qa_checks": ["explanation_note_non_empty", "explanation_language_valid", "explanation_source_valid"],
+        "privacy_scope": "shared",
+    },
+    "explanation_constraint_profile": {
+        "description": "Ontology constraint profile used to validate generated explanation text",
+        "required_properties": ["profile_id", "entity_layer", "relation_layer", "action_layer", "governance_layer"],
+        "qa_checks": ["constraint_profile_complete"],
+        "privacy_scope": "shared",
+    },
+    "explanation_validation": {
+        "description": "Validation result linking an explanation candidate to ontology-backed constraints",
+        "required_properties": ["candidate_id", "passed", "violations"],
+        "qa_checks": ["validation_result_present"],
+        "privacy_scope": "shared",
+    },
 }
 
 RELATION_DEFINITIONS: dict[str, dict] = {
@@ -121,6 +139,24 @@ RELATION_DEFINITIONS: dict[str, dict] = {
         "description": "An action affects an object",
         "source_class": "action_record",
         "target_class": None,
+        "allow_multiple": True,
+    },
+    "explains": {
+        "description": "Explanation candidate explains an account recommendation",
+        "source_class": "explanation_candidate",
+        "target_class": "report",
+        "allow_multiple": True,
+    },
+    "constrained_by": {
+        "description": "Explanation candidate is constrained by an explanation constraint profile",
+        "source_class": "explanation_candidate",
+        "target_class": "explanation_constraint_profile",
+        "allow_multiple": True,
+    },
+    "validated_by": {
+        "description": "Explanation candidate has a validation result",
+        "source_class": "explanation_candidate",
+        "target_class": "explanation_validation",
         "allow_multiple": True,
     },
 }
@@ -189,6 +225,15 @@ ACTION_DEFINITIONS: dict[str, dict] = {
         "privacy_policy": "shared",
         "freshness_policy": "reject_stale",
     },
+    "validate_explanation_candidate": {
+        "description": "Validate provider-generated explanation text against ontology-backed report constraints",
+        "input_schema": {"note": "string", "facts": "dict", "risk": "dict", "category": "string"},
+        "preconditions": ["constraint_profile_complete"],
+        "effects": ["creates explanation_validation", "blocks invalid provider text", "allows deterministic fallback"],
+        "rollback_strategy": "discard_candidate",
+        "privacy_policy": "shared",
+        "freshness_policy": "any",
+    },
 }
 
 QA_CHECK_DEFINITIONS: dict[str, dict] = {
@@ -209,6 +254,11 @@ QA_CHECK_DEFINITIONS: dict[str, dict] = {
     "no_api_key_leak": {"check_type": "api_key", "description": "No API keys in report data"},
     "evidence_source_valid": {"check_type": "non_empty", "description": "Evidence source must be non-empty"},
     "action_has_preconditions": {"check_type": "non_empty", "description": "Action must define preconditions"},
+    "explanation_note_non_empty": {"check_type": "non_empty", "description": "Explanation candidate note must be non-empty"},
+    "explanation_language_valid": {"check_type": "enum", "description": "Explanation language must be supported", "values": ["en", "zh"]},
+    "explanation_source_valid": {"check_type": "enum", "description": "Explanation source must be known", "values": ["provider", "codex_style_fallback", "deterministic"]},
+    "constraint_profile_complete": {"check_type": "exists", "description": "Constraint profile must include entity/relation/action/governance layers"},
+    "validation_result_present": {"check_type": "exists", "description": "Explanation validation result must exist"},
     "goal_not_duplicate": {"check_type": "unique", "description": "Goal must not already be tracked"},
     "quantity_available": {"check_type": "sufficient", "description": "Quantity must be <= available count"},
     "goal_active": {"check_type": "enum", "description": "Goal must be active", "values": ["active"]},

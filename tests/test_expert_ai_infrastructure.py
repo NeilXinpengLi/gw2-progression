@@ -300,6 +300,27 @@ def test_llm_provider_config_raw_account_etl_and_observability():
     key_path.unlink()
 
 
+def test_llm_provider_config_prefers_openai_base_url_when_multiple_are_present():
+    key_path = Path("data/test_llm_multi_base_key.txt")
+    key_path.write_text(
+        "\n".join(
+            [
+                "api_key = sk-test-secret",
+                "base_url (OpenAI) = https://api.deepseek.com",
+                "base_url (Anthropic) = https://api.deepseek.com/anthropic",
+                "model = deepseek-v4-flash",
+            ]
+        ),
+        encoding="utf-8",
+    )
+
+    config = LLMProviderConfig().with_key_file(key_path)
+
+    assert config.base_url == "https://api.deepseek.com"
+    assert config.model == "deepseek-v4-flash"
+    key_path.unlink()
+
+
 def test_decision_economy_meta_and_memory_edge_cases():
     system = ExpertAISystem()
 

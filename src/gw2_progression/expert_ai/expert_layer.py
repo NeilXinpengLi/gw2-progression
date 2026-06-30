@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+import time
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -16,6 +17,8 @@ class LLMProviderConfig:
     base_url: str = ""
     model: str = "gpt-4o-mini"
     timeout_seconds: float = 30.0
+    max_retries: int = 2
+    retry_backoff_seconds: float = 1.0
 
     @classmethod
     def from_env(cls) -> "LLMProviderConfig":
@@ -24,6 +27,8 @@ class LLMProviderConfig:
             base_url=os.getenv("EXPERT_AI_LLM_BASE_URL", ""),
             model=os.getenv("EXPERT_AI_LLM_MODEL", "gpt-4o-mini"),
             timeout_seconds=float(os.getenv("EXPERT_AI_LLM_TIMEOUT", "30")),
+            max_retries=int(os.getenv("EXPERT_AI_LLM_MAX_RETRIES", "2")),
+            retry_backoff_seconds=float(os.getenv("EXPERT_AI_LLM_RETRY_BACKOFF", "1")),
         )
         key_file = os.getenv("EXPERT_AI_LLM_KEY_FILE", "")
         return config.with_key_file(key_file) if key_file else config
@@ -35,6 +40,8 @@ class LLMProviderConfig:
             base_url=values.get("base_url", self.base_url),
             model=values.get("model", self.model),
             timeout_seconds=self.timeout_seconds,
+            max_retries=self.max_retries,
+            retry_backoff_seconds=self.retry_backoff_seconds,
         )
 
     def redacted(self) -> dict[str, Any]:
@@ -69,7 +76,7 @@ class LLMExpertLayer:
                 return {
                     "provider": "openai_compatible",
                     "mode": "read_only_fallback",
-                    "error": {"type": type(exc).__name__, "detail": str(exc)},
+                    "error": {"type": type(exc).__name__, "detail": str(exc), "attempts": self.config.max_retries + 1},
                     "explanation": fallback,
                     "config": self.config.redacted(),
                 }
@@ -132,15 +139,25 @@ class LLMExpertLayer:
             url = f"{url}/chat/completions"
         client = self.client or httpx.Client(timeout=self.config.timeout_seconds)
         try:
-            response = client.post(
-                url,
-                headers={"Authorization": f"Bearer {self.config.api_key}", "Content-Type": "application/json"},
-                json={"model": self.config.model, "messages": messages, "temperature": 0.2},
-            )
-            response.raise_for_status()
-            payload = response.json()
-            content = payload.get("choices", [{}])[0].get("message", {}).get("content", "")
-            return {"content": content, "raw_model": payload.get("model", self.config.model)}
+            last_error: Exception | None = None
+            for attempt in range(self.config.max_retries + 1):
+                try:
+                    response = client.post(
+                        url,
+                        headers={"Authorization": f"Bearer {self.config.api_key}", "Content-Type": "application/json"},
+                        json={"model": self.config.model, "messages": messages, "temperature": 0.2},
+                    )
+                    response.raise_for_status()
+                    payload = response.json()
+                    content = payload.get("choices", [{}])[0].get("message", {}).get("content", "")
+                    return {"content": content, "raw_model": payload.get("model", self.config.model), "attempts": attempt + 1}
+                except httpx.HTTPStatusError as exc:
+                    last_error = exc
+                    status = exc.response.status_code
+                    if status != 429 and status < 500 or attempt >= self.config.max_retries:
+                        raise
+                    time.sleep(self.config.retry_backoff_seconds * (attempt + 1))
+            raise last_error or RuntimeError("LLM provider request failed")
         finally:
             if self.client is None and hasattr(client, "close"):
                 client.close()
@@ -155,8 +172,12 @@ def _read_key_file(path: str | Path) -> dict[str, str]:
         normalized = key.lower().replace(" ", "_")
         if normalized in {"api_key", "api", "key", "api_key_"} or "api" in normalized and "key" in normalized:
             values["api_key"] = value
-        elif normalized in {"base_url", "base"} or "base" in normalized and "url" in normalized:
+        elif "base" in normalized and "url" in normalized and "openai" in normalized:
             values["base_url"] = value
+        elif "base" in normalized and "url" in normalized and "anthropic" in normalized:
+            continue
+        elif normalized in {"base_url", "base"} or "base" in normalized and "url" in normalized:
+            values.setdefault("base_url", value)
         elif normalized == "model":
             values["model"] = value
     return values

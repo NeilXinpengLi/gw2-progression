@@ -93,6 +93,12 @@ class TestConfig:
         assert "generate_do_not_sell" in config.ACTION_DEFINITIONS
         assert "analyze_sell_item" in config.ACTION_DEFINITIONS
 
+    def test_explanation_constraint_ontology_definitions_exist(self):
+        assert "explanation_candidate" in config.CLASS_DEFINITIONS
+        assert "explanation_constraint_profile" in config.CLASS_DEFINITIONS
+        assert "validated_by" in config.RELATION_DEFINITIONS
+        assert "validate_explanation_candidate" in config.ACTION_DEFINITIONS
+
 
 # ── Object Store Tests ────────────────────────────────────────────────
 
@@ -353,6 +359,92 @@ class TestQAGate:
         )
         qa = validate_object(obj)
         assert qa.status == "pass"
+
+    def test_validate_explanation_candidate_object_valid(self):
+        obj = OntologyObject(
+            object_id="exp1",
+            class_name="explanation_candidate",
+            properties={
+                "output_item_id": "19865",
+                "note": "Carrion Silk Insignia is suitable for a small first craft.",
+                "source": "provider",
+                "report_language": "en",
+            },
+        )
+        qa = validate_object(obj)
+        assert qa.status == "pass"
+
+    def test_validate_explanation_candidate_language_invalid(self):
+        obj = OntologyObject(
+            object_id="exp2",
+            class_name="explanation_candidate",
+            properties={
+                "output_item_id": "19865",
+                "note": "Carrion Silk Insignia is suitable.",
+                "source": "provider",
+                "report_language": "fr",
+            },
+        )
+        qa = validate_object(obj)
+        assert qa.status == "fail"
+
+
+class TestExplanationConstraints:
+    def test_provider_explanation_passes_ontology_constraints(self):
+        from gw2_progression.ontology.explanation_constraints import build_explanation_facts, validate_explanation_candidate
+
+        risk = {"level": "low"}
+        facts = build_explanation_facts(
+            {
+                "output_item_name": "Carrion Silk Insignia",
+                "output_item_id": "19865",
+                "craftable_now": 273,
+                "missing_total_count": 0,
+                "net_profit": 187,
+                "craft_cost": 237,
+                "roi": 0.789,
+            },
+            risk,
+            language="en",
+        )
+        result = validate_explanation_candidate(
+            "Carrion Silk Insignia is suitable for a small first craft: you can craft it 273 time(s), sample net profit is 1s 87c with ROI 0.789, and market risk is low. Re-check prices before scaling.",
+            facts,
+            risk,
+            category="do_now",
+        )
+
+        assert result.passed is True
+        assert result.checks["profit_preserved"] is True
+        assert "entity_layer" in result.constraint_layers
+
+    def test_provider_explanation_blocks_coin_scale_error(self):
+        from gw2_progression.ontology.explanation_constraints import build_explanation_facts, validate_explanation_candidate
+
+        risk = {"level": "low"}
+        facts = build_explanation_facts(
+            {
+                "output_item_name": "Carrion Silk Insignia",
+                "output_item_id": "19865",
+                "craftable_now": 273,
+                "missing_total_count": 0,
+                "net_profit": 187,
+                "craft_cost": 237,
+                "roi": 0.789,
+            },
+            risk,
+            language="en",
+        )
+        result = validate_explanation_candidate(
+            "Carrion Silk Insignia can earn 1 gold 87 copper with low risk, so mass craft it now.",
+            facts,
+            risk,
+            category="do_now",
+        )
+
+        assert result.passed is False
+        assert "no_profit_currency_scale_error" in result.violations
+        assert "no_overconfident_scale_up" in result.violations
 
     def test_validate_object_safe_surplus_valid(self):
         obj = OntologyObject(

@@ -33,6 +33,9 @@ _CHECK_PROPERTY_MAP: dict[str, str] = {
     "goal_status_valid": "status",
     "build_source_reviewed": "source",
     "readiness_score_valid": "",
+    "explanation_note_non_empty": "note",
+    "explanation_language_valid": "report_language",
+    "explanation_source_valid": "source",
 }
 
 
@@ -201,7 +204,7 @@ def _check_api_key_leak(check_name: str, obj: OntologyObject) -> dict:
 
 
 def _check_non_empty(check_name: str, check_def: dict, props: dict) -> dict:
-    key = check_name.split(".")[-1] if "." in check_name else ""
+    key = _CHECK_PROPERTY_MAP.get(check_name) or (check_name.split(".")[-1] if "." in check_name else "")
     if not key:
         return {"check": check_name, "passed": True, "detail": "No property specified"}
     val = props.get(key, "")
