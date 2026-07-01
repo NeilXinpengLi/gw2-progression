@@ -26,6 +26,7 @@ from gw2_progression.ontology.runtime_kernel import (
     LLMConstrainedReasoning,
     OntologyRegistry,
     OntologyRuntimeKernel,
+    OntologyValidator,
     OntologyViolation,
     OOSKSimulation,
     QueryEngine,
@@ -33,6 +34,7 @@ from gw2_progression.ontology.runtime_kernel import (
     RelationSchema,
     ReplayEngine,
     RLOptimizationLayer,
+    RuntimeScheduler,
     StateEngine,
 )
 
@@ -57,6 +59,7 @@ __all__ = [
     "LineageStore",
     "LineageTracker",
     "ONTOLOGY_EXPLANATION_CONSTRAINTS",
+    "OntologyValidator",
     "OntologyRegistry",
     "OntologyRuntimeKernel",
     "OntologyViolation",
@@ -67,6 +70,7 @@ __all__ = [
     "Relation",
     "RelationSchema",
     "ReplayEngine",
+    "RuntimeScheduler",
     "StateEngine",
     "build_explanation_facts",
     "validate_explanation_candidate",

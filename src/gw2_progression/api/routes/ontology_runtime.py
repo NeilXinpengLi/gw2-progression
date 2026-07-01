@@ -86,6 +86,24 @@ async def ontology_runtime_execute_compiled(body: dict = Body(default_factory=di
         raise HTTPException(status_code=422, detail=str(exc)) from exc
 
 
+@router.post("/scheduler/execute")
+async def ontology_runtime_scheduler_execute(body: dict = Body(default_factory=dict), tenant_id: str = Header("default", alias="X-Ontology-Tenant")):
+    actions = body.get("actions", [])
+    if not isinstance(actions, list) or not actions:
+        raise HTTPException(status_code=422, detail="actions must be a non-empty list")
+    try:
+        kernel = _kernel_for(tenant_id)
+        compiled = kernel.compile(actions, graph_id=str(body.get("graph_id", "scheduler")))
+        execution = kernel.execute_compiled(compiled)
+        return {
+            "graph": compiled.to_dict(),
+            "execution": execution,
+            "scheduler": execution.get("scheduler", {}),
+        }
+    except OntologyViolation as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+
 @router.post("/simulate")
 async def ontology_runtime_simulate(body: dict = Body(default_factory=dict), tenant_id: str = Header("default", alias="X-Ontology-Tenant")):
     steps = body.get("steps", [])

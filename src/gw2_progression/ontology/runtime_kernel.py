@@ -49,7 +49,7 @@ class ActionSchema:
 
 @dataclass(frozen=True)
 class CompiledRuntimeGraph:
-    """Foundry-level compiled runtime graph manifest."""
+    """Compiled runtime graph manifest."""
 
     graph_id: str
     execution_graph: "ExecutionGraph"
@@ -491,6 +491,23 @@ class StateEngine:
         return {"new_state": new_state, "delta": _compute_delta(before, new_state.to_dict())}
 
 
+class OntologyValidator:
+    """Strict ontology validation gate for executable runtime actions."""
+
+    def __init__(self, ontology: OntologyRegistry) -> None:
+        self.ontology = ontology
+
+    def validate(self, action: dict[str, Any], state: KernelState) -> dict[str, Any]:
+        errors = self.ontology.validate_action(action, state)
+        return {
+            "accepted": not errors,
+            "errors": errors,
+            "action_hash": _stable_hash(action),
+            "state_hash": _stable_hash(state.to_dict()),
+            "mode": "strict",
+        }
+
+
 class LineageTracker:
     """Records deterministic before/action/after lineage for replay."""
 
@@ -498,7 +515,13 @@ class LineageTracker:
         self.records: list[dict[str, Any]] = []
         self.store = store or LineageStore()
 
-    def record(self, before: KernelState, action: dict[str, Any], after: KernelState) -> dict[str, Any]:
+    def record(
+        self,
+        before: KernelState,
+        action: dict[str, Any],
+        after: KernelState,
+        evidence: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
         record = {
             "step": len(self.records) + 1,
             "from": _stable_hash(before.to_dict()),
@@ -506,6 +529,7 @@ class LineageTracker:
             "action_hash": _stable_hash(action),
             "to": _stable_hash(after.to_dict()),
             "timestamp": len(self.records) + 1,
+            "evidence": copy.deepcopy(evidence or {}),
         }
         self.records.append(record)
         self.store.append(record)
@@ -544,21 +568,36 @@ class ExecutionEngine:
         ontology: OntologyRegistry | None = None,
         state_engine: StateEngine | None = None,
         lineage: LineageTracker | None = None,
+        validator: OntologyValidator | None = None,
     ) -> None:
         self.ontology = ontology or OntologyRegistry.from_project_config()
         self.state_engine = state_engine or StateEngine()
         self.lineage = lineage or LineageTracker()
+        self.validator = validator or OntologyValidator(self.ontology)
 
-    def execute(self, action: dict[str, Any], state: KernelState | dict[str, Any] | None = None) -> dict[str, Any]:
+    def execute(
+        self,
+        action: dict[str, Any],
+        state: KernelState | dict[str, Any] | None = None,
+        scheduler_evidence: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
         before = state if isinstance(state, KernelState) else KernelState.from_dict(state)
+        validation = self.validator.validate(action, before)
+        if not validation["accepted"]:
+            raise OntologyViolation("; ".join(validation["errors"]))
         transition = self.state_engine.transition(before, action, self.ontology)
         after: KernelState = transition["new_state"]
-        lineage_record = self.lineage.record(before, action, after)
+        evidence = {
+            "validation": validation,
+            "scheduler": copy.deepcopy(scheduler_evidence or {}),
+        }
+        lineage_record = self.lineage.record(before, action, after, evidence=evidence)
         return {
             "status": "completed",
             "state": after,
             "delta": transition["delta"],
             "lineage": lineage_record,
+            "validation": validation,
         }
 
 
@@ -663,6 +702,7 @@ class ExecutionGraph:
 
     def __init__(self, nodes: list[ExecutionGraphNode] | None = None) -> None:
         self.nodes: dict[str, ExecutionGraphNode] = {}
+        self.executed: set[str] = set()
         for node in nodes or []:
             self.add_node(node)
 
@@ -708,6 +748,76 @@ class ExecutionGraph:
             visit(node_id)
         return ordered
 
+    def get_ready_nodes(self) -> list[ExecutionGraphNode]:
+        ready = []
+        for node_id in sorted(self.nodes):
+            if node_id in self.executed:
+                continue
+            node = self.nodes[node_id]
+            missing = [dependency for dependency in node.depends_on if dependency not in self.nodes]
+            if missing:
+                raise OntologyViolation(f"Missing dependency node: {missing[0]}")
+            if all(dependency in self.executed for dependency in node.depends_on):
+                ready.append(node)
+        return ready
+
+    def mark_executed(self, node_id: str) -> None:
+        if node_id not in self.nodes:
+            raise OntologyViolation(f"Cannot mark missing node as executed: {node_id}")
+        self.executed.add(node_id)
+
+    def reset_execution(self) -> None:
+        self.executed.clear()
+
+    def execution_status(self) -> dict[str, Any]:
+        pending = sorted(set(self.nodes) - self.executed)
+        return {
+            "node_count": len(self.nodes),
+            "executed": sorted(self.executed),
+            "pending": pending,
+            "complete": not pending,
+        }
+
+
+class RuntimeScheduler:
+    """Runs an execution DAG by repeatedly dispatching dependency-ready nodes."""
+
+    def __init__(self, dag: ExecutionGraph, executor: "DAGExecutor") -> None:
+        self.dag = dag
+        self.executor = executor
+
+    def run(self) -> dict[str, Any]:
+        self.dag.reset_execution()
+        results = []
+        ticks = []
+        tick = 0
+        while True:
+            ready = self.dag.get_ready_nodes()
+            if not ready:
+                break
+            tick += 1
+            tick_nodes = []
+            for node in ready:
+                result = self.executor.execute_node(node, tick=tick)
+                self.dag.mark_executed(node.node_id)
+                tick_nodes.append(node.node_id)
+                results.append(result)
+            ticks.append({"tick": tick, "ready_nodes": tick_nodes})
+        status = self.dag.execution_status()
+        if not status["complete"]:
+            raise OntologyViolation(f"Execution DAG stalled with pending nodes: {status['pending']}")
+        return {
+            "status": "completed",
+            "ticks": ticks,
+            "executed": len(results),
+            "results": results,
+            "scheduler": {
+                "strategy": "deterministic-ready-queue",
+                "tick_count": tick,
+                "complete": status["complete"],
+            },
+        }
+
 
 class DAGExecutor:
     """Executes ontology action DAGs through the same validated runtime path."""
@@ -715,15 +825,21 @@ class DAGExecutor:
     def __init__(self, kernel: "OntologyRuntimeKernel") -> None:
         self.kernel = kernel
 
+    def execute_node(self, node: ExecutionGraphNode, tick: int) -> dict[str, Any]:
+        result = self.kernel.execute(
+            node.action,
+            scheduler_evidence={
+                "node_id": node.node_id,
+                "depends_on": list(node.depends_on),
+                "tick": tick,
+            },
+        )
+        return {"node_id": node.node_id, "status": result["status"], "tick": tick, "result": result}
+
     def execute(self, graph: ExecutionGraph) -> dict[str, Any]:
-        results = []
-        for node in graph.topological_order():
-            result = self.kernel.execute(node.action)
-            results.append({"node_id": node.node_id, "status": result["status"], "result": result})
+        result = RuntimeScheduler(graph, self).run()
         return {
-            "status": "completed",
-            "executed": len(results),
-            "results": results,
+            **result,
             "state_hash": self.kernel.snapshot()["state_hash"],
         }
 
@@ -738,10 +854,16 @@ class ExecutionGraphCompiler:
         execution_graph = ExecutionGraph.from_actions(actions or [])
         ordered = execution_graph.topological_order()
         manifest = {
-            "kernel_version": "v2-foundry",
+            "kernel_version": "v3-execution-layer",
+            "schema_version": "ontology-runtime/v3",
             "graph_id": graph_id,
             "node_count": len(ordered),
             "action_types": [str(node.action.get("type") or node.action.get("action_type") or "") for node in ordered],
+            "scheduler": {
+                "strategy": "deterministic-ready-queue",
+                "parallel_ready_sets": True,
+                "strict_stall_detection": True,
+            },
             "ontology": {
                 "entities": sorted(self.registry.entities),
                 "relations": sorted(self.registry.relations),
@@ -751,10 +873,12 @@ class ExecutionGraphCompiler:
                 "deterministic_execution": True,
                 "ontology_enforcement": True,
                 "dag_compilation": True,
+                "dag_scheduling": True,
                 "lineage_replay": True,
                 "constrained_reasoning": True,
             },
         }
+        manifest["manifest_hash"] = _stable_hash(manifest)
         return CompiledRuntimeGraph(
             graph_id=f"{graph_id}:{_stable_hash(manifest)[:12]}",
             execution_graph=execution_graph,
@@ -905,14 +1029,15 @@ class OntologyRuntimeKernel:
         self.rl = RLOptimizationLayer(self)
         self.ingestor = DGSKIngestor()
 
-    def execute(self, action: dict[str, Any]) -> dict[str, Any]:
-        result = self.execution.execute(action, self.state)
+    def execute(self, action: dict[str, Any], scheduler_evidence: dict[str, Any] | None = None) -> dict[str, Any]:
+        result = self.execution.execute(action, self.state, scheduler_evidence=scheduler_evidence)
         self.state = result["state"]
         return {
             "status": result["status"],
             "state_hash": _stable_hash(self.state.to_dict()),
             "delta": result["delta"],
             "lineage": result["lineage"],
+            "validation": result["validation"],
         }
 
     def ingest_normalized(self, normalized: dict[str, Any]) -> dict[str, Any]:
@@ -973,7 +1098,7 @@ class OntologyRuntimeKernel:
 
     def snapshot(self) -> dict[str, Any]:
         return {
-            "kernel_version": "v2-foundry",
+            "kernel_version": "v3-execution-layer",
             "state": self.state.to_dict(),
             "state_hash": _stable_hash(self.state.to_dict()),
             "lineage": self.lineage_store.list(),
@@ -983,14 +1108,16 @@ class OntologyRuntimeKernel:
     def guarantees(self) -> dict[str, Any]:
         replay = self.replay(self.lineage_store.list())
         return {
-            "kernel_version": "v2-foundry",
+            "kernel_version": "v3-execution-layer",
             "everything_is_execution_graph": True,
             "deterministic_execution": replay["deterministic"],
             "full_traceability": all("action_hash" in record and "to" in record for record in self.lineage_store.list()),
             "ontology_enforcement": True,
             "graph_compilation": True,
+            "dag_based_scheduling": True,
             "constrained_ai_reasoning": True,
             "lineage_replay": replay["deterministic"] and not replay["mismatches"],
+            "evidence_backed_lineage": all("evidence" in record for record in self.lineage_store.list()),
             "mismatches": replay["mismatches"],
         }
 

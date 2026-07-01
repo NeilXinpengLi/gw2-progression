@@ -110,12 +110,14 @@ def test_ontology_runtime_v2_foundry_compile_decision_rl_and_guarantees_api():
     ]
     compiled = client.post("/ontology/runtime/compile", json={"graph_id": "api-foundry", "actions": actions})
     assert compiled.status_code == 200
-    assert compiled.json()["manifest"]["kernel_version"] == "v2-foundry"
+    assert compiled.json()["manifest"]["kernel_version"] == "v3-execution-layer"
     assert compiled.json()["manifest"]["guarantees"]["dag_compilation"] is True
+    assert compiled.json()["manifest"]["guarantees"]["dag_scheduling"] is True
 
     executed = client.post("/ontology/runtime/compiled/execute", json={"graph_id": "api-foundry", "actions": actions})
     assert executed.status_code == 200
     assert executed.json()["executed"] == 1
+    assert executed.json()["scheduler"]["strategy"] == "deterministic-ready-queue"
     assert executed.json()["manifest"]["guarantees"]["ontology_enforcement"] is True
 
     decision = client.post("/ontology/runtime/decision/decide", json={"objective": "LIQUIDITY"})
@@ -132,3 +134,52 @@ def test_ontology_runtime_v2_foundry_compile_decision_rl_and_guarantees_api():
     assert guarantees.json()["everything_is_execution_graph"] is True
     assert guarantees.json()["deterministic_execution"] is True
     assert guarantees.json()["lineage_replay"] is True
+
+
+def test_ontology_runtime_v3_scheduler_execute_api_returns_tick_trace():
+    client = TestClient(app)
+    tenant = {"X-Ontology-Tenant": "v3-api"}
+
+    assert client.post("/ontology/runtime/reset", headers=tenant).status_code == 200
+    response = client.post(
+        "/ontology/runtime/scheduler/execute",
+        headers=tenant,
+        json={
+            "graph_id": "api-scheduler",
+            "actions": [
+                {
+                    "node_id": "asset:a",
+                    "type": "add_entity",
+                    "entity": {
+                        "id": "asset:v3:a",
+                        "type": "account_asset",
+                        "properties": {"item_id": 1, "count": 1, "location": "bank"},
+                    },
+                },
+                {
+                    "node_id": "asset:b",
+                    "depends_on": [],
+                    "type": "add_entity",
+                    "entity": {
+                        "id": "asset:v3:b",
+                        "type": "account_asset",
+                        "properties": {"item_id": 2, "count": 1, "location": "bank"},
+                    },
+                },
+                {
+                    "node_id": "update:b",
+                    "depends_on": ["asset:b"],
+                    "type": "update_entity",
+                    "entity_id": "asset:v3:b",
+                    "patch": {"count": 2},
+                },
+            ],
+        },
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["graph"]["manifest"]["kernel_version"] == "v3-execution-layer"
+    assert body["scheduler"]["complete"] is True
+    assert body["execution"]["ticks"][0]["ready_nodes"] == ["asset:a", "asset:b"]
+    assert body["execution"]["ticks"][1]["ready_nodes"] == ["update:b"]

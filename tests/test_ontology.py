@@ -1453,11 +1453,13 @@ class TestOntologyRuntimeKernel:
         manifest = compiled.to_dict()
         result = kernel.execute_compiled(compiled)
 
-        assert manifest["manifest"]["kernel_version"] == "v2-foundry"
+        assert manifest["manifest"]["kernel_version"] == "v3-execution-layer"
         assert manifest["manifest"]["guarantees"]["dag_compilation"] is True
+        assert manifest["manifest"]["guarantees"]["dag_scheduling"] is True
         assert manifest["manifest"]["guarantees"]["ontology_enforcement"] is True
         assert [node["node_id"] for node in manifest["nodes"]] == ["account", "asset", "owns"]
         assert result["executed"] == 3
+        assert result["scheduler"]["strategy"] == "deterministic-ready-queue"
         assert result["manifest"]["node_count"] == 3
         assert kernel.guarantees()["lineage_replay"] is True
 
@@ -1502,15 +1504,57 @@ class TestOntologyRuntimeKernel:
         kernel.optimize_policy({"hold": 3.0})
         guarantees = kernel.guarantees()
 
-        assert guarantees["kernel_version"] == "v2-foundry"
+        assert guarantees["kernel_version"] == "v3-execution-layer"
         assert guarantees["everything_is_execution_graph"] is True
         assert guarantees["deterministic_execution"] is True
         assert guarantees["full_traceability"] is True
         assert guarantees["ontology_enforcement"] is True
         assert guarantees["graph_compilation"] is True
+        assert guarantees["dag_based_scheduling"] is True
         assert guarantees["constrained_ai_reasoning"] is True
+        assert guarantees["evidence_backed_lineage"] is True
         assert guarantees["lineage_replay"] is True
         assert guarantees["mismatches"] == []
+
+    def test_v3_scheduler_runs_ready_nodes_by_dependency_tick_and_records_evidence(self):
+        from gw2_progression.ontology import OntologyRuntimeKernel
+
+        kernel = OntologyRuntimeKernel()
+        result = kernel.execute_graph([
+            {
+                "node_id": "asset:a",
+                "type": "add_entity",
+                "entity": {
+                    "id": "asset:a",
+                    "type": "account_asset",
+                    "properties": {"item_id": 1, "count": 1, "location": "bank"},
+                },
+            },
+            {
+                "node_id": "asset:b",
+                "depends_on": [],
+                "type": "add_entity",
+                "entity": {
+                    "id": "asset:b",
+                    "type": "account_asset",
+                    "properties": {"item_id": 2, "count": 1, "location": "bank"},
+                },
+            },
+            {
+                "node_id": "asset:b:update",
+                "depends_on": ["asset:b"],
+                "type": "update_entity",
+                "entity_id": "asset:b",
+                "patch": {"count": 3},
+            },
+        ])
+        lineage = kernel.lineage_store.list()
+
+        assert result["scheduler"]["tick_count"] == 2
+        assert result["ticks"][0]["ready_nodes"] == ["asset:a", "asset:b"]
+        assert result["ticks"][1]["ready_nodes"] == ["asset:b:update"]
+        assert lineage[0]["evidence"]["validation"]["accepted"] is True
+        assert lineage[-1]["evidence"]["scheduler"]["node_id"] == "asset:b:update"
 
 
 # ── Phase D3: Performance Tests ───────────────────────────────────────
