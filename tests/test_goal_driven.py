@@ -90,6 +90,8 @@ class TestGoalDrivenEngine:
         assert all(action.confidence > 0 for action in plan.actions)
         assert all(action.data_sources for action in plan.actions)
         assert all(action.risk_reason for action in plan.actions)
+        assert all("ai_lab_adapter:v1" in action.data_sources for action in plan.actions)
+        assert "AI Lab check" in plan.insight
         assert any("gw2_commerce_prices" in action.data_sources for action in plan.actions if action.action_type == "BUY_ITEM")
 
 

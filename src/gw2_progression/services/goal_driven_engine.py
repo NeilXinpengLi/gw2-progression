@@ -246,7 +246,7 @@ async def generate_plan_from_goal(
     for action in actions:
         action.plan_id = plan_id
 
-    return ProgressionPlan(
+    plan = ProgressionPlan(
         plan_id=plan_id,
         account_name=acct,
         strategy=strategy,
@@ -258,6 +258,13 @@ async def generate_plan_from_goal(
         insight=insight,
         created_at=now,
     )
+    try:
+        from .ai_lab_adapter import enhance_plan_with_ai_lab
+
+        plan, _assessment = await enhance_plan_with_ai_lab(plan, parsed, state)
+    except Exception as e:
+        logger.debug("AI Lab adapter enhancement skipped (non-blocking): %s", e)
+    return plan
 
 
 async def _generate_returning_actions(
