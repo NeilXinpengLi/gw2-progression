@@ -1,7 +1,17 @@
 from fastapi import APIRouter, FastAPI
 from fastapi.testclient import TestClient
 
-from gw2_progression.api.governance import API_ROUTE_GOVERNANCE, ApiCategory, StabilityLevel, governance_snapshot, include_governed_routers, route_enabled
+from gw2_progression.api.governance import (
+    API_ROUTE_GOVERNANCE,
+    ApiCategory,
+    StabilityLevel,
+    governance_release_report,
+    governance_snapshot,
+    governance_snapshot_hash,
+    include_governed_routers,
+    production_exposure_violations,
+    route_enabled,
+)
 from gw2_progression.api.main import ROUTER_BINDINGS, app
 
 
@@ -80,6 +90,19 @@ def test_governance_snapshot_endpoint_exposes_route_gates():
     assert rows["commerce"]["category"] == ApiCategory.COMMERCE.value
     assert rows["production"]["category"] == ApiCategory.AI_LAB.value
     assert rows["production"]["stability"] == StabilityLevel.EXPERIMENTAL.value
+
+
+def test_governance_snapshot_hash_is_stable_for_same_rows(monkeypatch):
+    monkeypatch.setenv("ENV", "production")
+    monkeypatch.setenv("ENABLE_EXPERIMENTAL_ROUTES", "false")
+    monkeypatch.setenv("ENABLE_AI_LAB_ROUTES", "false")
+    rows = governance_snapshot()
+
+    assert governance_snapshot_hash(rows) == governance_snapshot_hash(rows)
+    assert production_exposure_violations(rows) == []
+    report = governance_release_report(rows)
+    assert report["snapshot_hash"] == governance_snapshot_hash(rows)
+    assert report["release_status"] == "pass"
 
 
 def test_core_product_routes_do_not_import_ai_lab_decision_engines():

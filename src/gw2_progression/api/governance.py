@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import hashlib
+import json
 import os
 from dataclasses import dataclass
 from enum import StrEnum
@@ -144,17 +146,50 @@ def include_governed_routers(app: FastAPI, router_bindings: list[tuple[str, Any]
     return included
 
 
+def governance_row(meta: RouteGovernance) -> dict[str, str]:
+    return {
+        "key": meta.key,
+        "category": meta.category.value,
+        "stability": meta.stability.value,
+        "gate": meta.gate.value,
+        "enabled": str(route_enabled(meta)).lower(),
+        "owner": meta.owner,
+        "decision_role": meta.decision_role,
+        "release_gate": meta.release_gate,
+    }
+
+
 def governance_snapshot() -> list[dict[str, str]]:
-    return [
-        {
-            "key": meta.key,
-            "category": meta.category.value,
-            "stability": meta.stability.value,
-            "gate": meta.gate.value,
-            "enabled": str(route_enabled(meta)).lower(),
-            "owner": meta.owner,
-            "decision_role": meta.decision_role,
-            "release_gate": meta.release_gate,
-        }
-        for meta in [*APP_ENDPOINT_GOVERNANCE.values(), *API_ROUTE_GOVERNANCE.values()]
-    ]
+    return [governance_row(meta) for meta in [*APP_ENDPOINT_GOVERNANCE.values(), *API_ROUTE_GOVERNANCE.values()]]
+
+
+def governance_snapshot_hash(rows: list[dict[str, str]] | None = None) -> str:
+    payload = json.dumps(rows or governance_snapshot(), sort_keys=True, separators=(",", ":"))
+    return hashlib.sha256(payload.encode("utf-8")).hexdigest()
+
+
+def production_exposure_violations(rows: list[dict[str, str]] | None = None) -> list[dict[str, str]]:
+    """Return enabled routes that should not be exposed in production."""
+    if os.environ.get("ENV", "development").lower() != "production":
+        return []
+    violations: list[dict[str, str]] = []
+    for row in rows or governance_snapshot():
+        if row["enabled"] != "true":
+            continue
+        if row["category"] == ApiCategory.AI_LAB.value:
+            violations.append({**row, "violation": "ai_lab_enabled_in_production"})
+        elif row["stability"] == StabilityLevel.EXPERIMENTAL.value:
+            violations.append({**row, "violation": "experimental_enabled_in_production"})
+    return violations
+
+
+def governance_release_report(rows: list[dict[str, str]] | None = None) -> dict[str, Any]:
+    snapshot = rows or governance_snapshot()
+    violations = production_exposure_violations(snapshot)
+    return {
+        "snapshot_hash": governance_snapshot_hash(snapshot),
+        "route_count": len(snapshot),
+        "release_status": "blocked" if violations else "pass",
+        "production_exposure_violations": violations,
+        "routes": snapshot,
+    }

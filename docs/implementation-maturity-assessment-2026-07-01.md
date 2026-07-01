@@ -14,12 +14,15 @@ Implementation progress:
 - P2 completed: AI Lab Adapter now invokes bounded Rule Engine v2 validation and Lifecycle simulation adapters for plan evidence.
 - P2 completed: AI Lab plan assessments are now bound into Ontology Runtime evidence with hash-chain content and durable replay.
 - P2 completed: AI Lab Adapter now evaluates Data Mesh confidence and applies source-quality warnings/confidence penalties.
+- Code graph maturity and redundancy snapshot added: `docs/code-graph-maturity-redundancy-2026-07-01.md`.
+- P2/P3 started: architecture convergence contracts, production exposure report, unified evidence envelope, Data Mesh ownership boundary, and offline plan/action/outcome export were added.
+- P2/P3 improved: release report now emits pass/block status, evidence envelopes can be validated, source governance can be snapshotted, and offline learning has promotion gate evaluation plus best-effort training event publishing.
 
 ## 1. 评估结论
 
 当前系统已经从“功能原型堆叠”进入“有治理边界的 Beta 系统”阶段。Core Product 主流程已有 smoke suite，Commerce 已具备基础幂等模型，Ontology Runtime vFinal execution finalization 已形成统一执行内核、持久化 state/lineage 和 durable replay，AI Lab 与 Infrastructure 路由也已通过 governance 元数据和部署开关隔离。
 
-完整实现层代码图谱见 `docs/architecture-code-graph-analysis.md`。
+完整实现层代码图谱见 `docs/architecture-code-graph-analysis.md`；当前代码图谱、接口面、成熟度和冗余专项分析见 `docs/code-graph-maturity-redundancy-2026-07-01.md`。
 
 但整体尚未达到强生产级。主要短板集中在支付平台沙箱矩阵、交付任务死信/运营补偿、Ontology Runtime manifest 持久化/跨版本 replay 兼容性、以及长期运维可观测性。
 
@@ -183,6 +186,8 @@ npx gitnexus detect-changes --scope unstaged --repo gw2-progression
 11. Completed P2：AI Lab Adapter 接入 Rule Engine v2 与 Lifecycle 的内部 validation/simulation evidence。
 12. Completed P2：AI Lab plan assessment 通过 Ontology Runtime evidence entity 持久化，并可 durable replay。
 13. Completed P2：AI Lab Adapter 接入 Data Mesh confidence，输出 source-quality warnings 并调整低置信 action。
+14. Started P2/P3：新增架构收敛契约、生产暴露面 release report、统一 evidence envelope 和离线 plan/action/outcome 事件导出。
+15. Improved P2/P3：新增 release pass/block 状态、evidence envelope 校验、Data Mesh/Data Acquisition source governance snapshot、离线 promotion gate 与 best-effort training event publish。
 
 ## 10. 总体评级
 

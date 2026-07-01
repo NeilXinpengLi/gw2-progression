@@ -103,16 +103,25 @@ pytest -q tests/test_ai_lab_adapter.py tests/test_goal_driven.py tests/test_core
 pytest -q tests/test_data_mesh_v1.py tests/test_data_mesh_integration.py
 ```
 
-## Phase 5: Expert AI Offline Training Loop
+## Phase 5 Started: Expert AI Offline Training Loop
 
 Goal: use Expert AI to improve future plans without blocking current users.
 
-Tasks:
+Implemented:
 
-1. Export anonymized plan/action/outcome events.
-2. Train offline candidate rankers.
-3. Compare AI-ranked candidates against deterministic baseline in Arena.
-4. Promote only if adapter contract tests and replay audits pass.
+1. Added `architecture_contracts.py` with a single product decision owner contract, evidence envelope, and plan/action/outcome event schema.
+2. Added `plan_learning_service.py` to export anonymized Goal-Driven plan/action/outcome events.
+3. Added offline candidate dataset generation for Expert AI training candidates.
+4. Added promotion gate metadata: offline only, requires Arena baseline, requires Ontology replay, cannot block product flow.
+5. Added governance release report with route snapshot hash and production exposure violations.
+6. Added evidence envelope validation, Data Mesh/Data Acquisition source governance snapshot, offline promotion gate scoring, and best-effort training event publishing.
+
+Remaining tasks:
+
+1. Train offline candidate rankers from `plan_action_outcome_dataset.v1`.
+2. Compare AI-ranked candidates against deterministic baseline in Arena.
+3. Promote only if adapter contract tests and replay audits pass.
+4. Persist promotion decisions as Ontology evidence.
 
 Production rule:
 

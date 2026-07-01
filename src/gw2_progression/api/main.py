@@ -29,7 +29,7 @@ from gw2_progression.services.product_service import seed_products
 from gw2_progression.services.progression_service import seed_templates
 from gw2_progression.services.provider_service import seed_providers
 
-from .governance import governance_snapshot, include_governed_routers
+from .governance import governance_release_report, include_governed_routers
 from .routes.account import router as account_router
 from .routes.advice import router as advice_router
 from .routes.affiliates import router as affiliates_router
@@ -358,7 +358,7 @@ async def get_metrics():
 
 @app.get("/api/governance/routes")
 async def get_api_governance():
-    return {"routes": governance_snapshot()}
+    return governance_release_report()
 
 
 _ws_clients: set = set()
