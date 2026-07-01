@@ -25,6 +25,7 @@ class AIPlanAssessment:
     maturity: str
     validation: dict[str, Any] = field(default_factory=dict)
     simulation: dict[str, Any] = field(default_factory=dict)
+    ontology_evidence: dict[str, Any] = field(default_factory=dict)
     evidence_sources: list[str] = field(default_factory=list)
     warnings: list[str] = field(default_factory=list)
 
@@ -34,6 +35,7 @@ class AIPlanAssessment:
             "maturity": self.maturity,
             "validation": copy.deepcopy(self.validation),
             "simulation": copy.deepcopy(self.simulation),
+            "ontology_evidence": copy.deepcopy(self.ontology_evidence),
             "evidence_sources": list(self.evidence_sources),
             "warnings": list(self.warnings),
         }
@@ -48,9 +50,11 @@ class AILabAdapter:
         self,
         rule_adapter: "RuleValidationAdapter | None" = None,
         lifecycle_adapter: "LifecycleSimulationAdapter | None" = None,
+        ontology_adapter: "OntologyEvidenceAdapter | None" = None,
     ) -> None:
         self.rule_adapter = rule_adapter or RuleValidationAdapter()
         self.lifecycle_adapter = lifecycle_adapter or LifecycleSimulationAdapter()
+        self.ontology_adapter = ontology_adapter or OntologyEvidenceAdapter()
 
     async def enhance_plan(self, plan: ProgressionPlan, parsed: ParsedGoal, account_state: dict[str, Any]) -> tuple[ProgressionPlan, AIPlanAssessment]:
         """Annotate a plan with validation and simulation evidence.
@@ -96,6 +100,21 @@ class AILabAdapter:
             simulation={**simulation, "lifecycle": lifecycle_result.get("simulation", {})},
             evidence_sources=evidence_sources,
             warnings=warnings,
+        )
+        ontology_evidence = self.ontology_adapter.bind_plan_assessment(enhanced, parsed, assessment)
+        if ontology_evidence.get("source"):
+            assessment.evidence_sources.append(ontology_evidence["source"])
+        if ontology_evidence.get("warnings"):
+            assessment.warnings.extend(ontology_evidence["warnings"])
+            assessment.validation["warning_count"] = len(assessment.warnings)
+        assessment = AIPlanAssessment(
+            status=assessment.status,
+            maturity=assessment.maturity,
+            validation=assessment.validation,
+            simulation=assessment.simulation,
+            ontology_evidence=ontology_evidence,
+            evidence_sources=assessment.evidence_sources,
+            warnings=assessment.warnings,
         )
         return enhanced, assessment
 
@@ -314,6 +333,91 @@ class LifecycleSimulationAdapter:
         return warnings
 
 
+class OntologyEvidenceAdapter:
+    """Persists plan assessment evidence through Ontology Runtime lineage."""
+
+    SOURCE = "ontology_runtime:plan_assessment_evidence"
+
+    def bind_plan_assessment(self, plan: ProgressionPlan, parsed: ParsedGoal, assessment: AIPlanAssessment) -> dict[str, Any]:
+        try:
+            from gw2_progression.ontology import OntologyKernel
+            from gw2_progression.ontology.evidence_binder import create_chain_link
+
+            evidence_id = f"plan-assessment:{plan.plan_id}"
+            content = self._content(plan, parsed, assessment)
+            chain_link = create_chain_link(
+                evidence_id=evidence_id,
+                source_id=f"goal-driven:{plan.plan_id}",
+                content=content,
+            )
+            kernel = OntologyKernel(tenant_id=self._tenant_id(plan), load_persisted=True)
+            execution = kernel.execute_kernel_action(
+                {
+                    "type": "add_entity",
+                    "entity": {
+                        "id": evidence_id,
+                        "type": "evidence",
+                        "properties": {
+                            "evidence_type": "ai_plan_assessment",
+                            "source": self.SOURCE,
+                            "object_id": plan.plan_id,
+                            "content_hash": chain_link["content_hash"],
+                            "chain_hash": chain_link["chain_hash"],
+                            "goal_type": str(parsed.goal_type),
+                            "warning_count": len(assessment.warnings),
+                            "valid": bool(assessment.validation.get("valid", True)),
+                            "manifest": content,
+                        },
+                    },
+                },
+                source="ai_lab_adapter",
+            )
+            return {
+                "source": self.SOURCE,
+                "tenant_id": self._tenant_id(plan),
+                "evidence_id": evidence_id,
+                "content_hash": chain_link["content_hash"],
+                "chain_hash": chain_link["chain_hash"],
+                "state_hash": execution.get("state_hash", ""),
+                "persisted": execution.get("execution", {}).get("results", [{}])[0].get("result", {}).get("persistence", {}).get("persisted", False),
+                "warnings": [],
+            }
+        except Exception as exc:
+            logger.debug("Ontology evidence binding skipped: %s", exc)
+            return {
+                "source": self.SOURCE,
+                "tenant_id": self._tenant_id(plan),
+                "evidence_id": f"plan-assessment:{plan.plan_id}",
+                "warnings": [f"ontology:adapter_unavailable:{exc}"],
+                "persisted": False,
+            }
+
+    def _tenant_id(self, plan: ProgressionPlan) -> str:
+        account = (plan.account_name or "unknown").strip().replace(" ", "_")
+        return f"goal-plan:{account}"
+
+    def _content(self, plan: ProgressionPlan, parsed: ParsedGoal, assessment: AIPlanAssessment) -> dict[str, Any]:
+        return {
+            "plan_id": plan.plan_id,
+            "account_name": plan.account_name,
+            "goal_type": str(parsed.goal_type),
+            "strategy": plan.strategy,
+            "action_count": len(plan.actions),
+            "estimated_days": plan.estimated_days,
+            "total_cost_copper": plan.total_cost_copper,
+            "assessment": {
+                "status": assessment.status,
+                "maturity": assessment.maturity,
+                "valid": bool(assessment.validation.get("valid", True)),
+                "warnings": list(assessment.warnings),
+                "evidence_sources": list(assessment.evidence_sources),
+            },
+            "rule_engine_v2": assessment.validation.get("rule_engine_v2", {}),
+            "lifecycle": assessment.validation.get("lifecycle", {}),
+            "simulation": assessment.simulation,
+        }
+
+
 async def enhance_plan_with_ai_lab(plan: ProgressionPlan, parsed: ParsedGoal, account_state: dict[str, Any]) -> tuple[ProgressionPlan, AIPlanAssessment]:
     """Enhance a plan without allowing AI Lab failures to block product flow."""
     try:
@@ -325,6 +429,7 @@ async def enhance_plan_with_ai_lab(plan: ProgressionPlan, parsed: ParsedGoal, ac
             maturity="L2",
             validation={"valid": True, "warning_count": 0, "goal_type": str(parsed.goal_type)},
             simulation={},
+            ontology_evidence={},
             evidence_sources=["goal_driven_os:product_planning"],
             warnings=[f"adapter_error:{exc}"],
         )

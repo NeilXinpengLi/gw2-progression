@@ -64,22 +64,24 @@ pytest -q tests/test_rule_engine_v2.py::TestRuleEngineV2::test_simulate_rules te
 
 Note: the full Rule Engine v2 + Lifecycle experimental test suite currently exceeds the 124 second local command limit when run together, so the Phase 2 gate uses focused smoke coverage for the directly invoked engine methods.
 
-## Phase 3: Ontology Evidence Binding
+## Phase 3 Completed: Ontology Evidence Binding
 
 Goal: make AI-enhanced plans replayable and auditable.
 
-Tasks:
+Implemented:
 
-1. Persist plan assessment as Ontology Runtime evidence.
-2. Store compiled plan manifests with hash/signature.
-3. Add durable replay checks for plan assessment lineage.
-4. Add compatibility metadata for future replay versions.
+1. `OntologyEvidenceAdapter` persists plan assessment as an Ontology Runtime `evidence` entity.
+2. Evidence content is hash-chained with `create_chain_link()`.
+3. Evidence is written through `OntologyKernel.execute_kernel_action()` so validation, lineage, persistence, and replay all use the single kernel path.
+4. Adapter tests reload tenant state and verify durable replay remains deterministic.
 
 Promotion gate:
 
 ```powershell
 pytest -q tests/test_ontology_runtime_persistence.py tests/test_ontology_runtime_api.py tests/test_ai_lab_adapter.py
 ```
+
+Remaining for L4: persist full compiled plan manifests with schema compatibility metadata and signature policy.
 
 ## Phase 4: Data Mesh Confidence
 
@@ -117,11 +119,11 @@ Expert AI can suggest candidates, but Core Product must keep final response owne
 
 | Area | Before | After Phase 1 |
 | --- | --- | --- |
-| AI Lab integration | L2 isolated experiments | L3 internal adapter with Rule/Lifecycle evidence |
-| Goal-Driven plan evidence | L3 product rules | L3 product rules + AI Lab/Rule/Lifecycle evidence annotations |
+| AI Lab integration | L2 isolated experiments | L3 internal adapter with Rule/Lifecycle/Ontology evidence |
+| Goal-Driven plan evidence | L3 product rules | L3 product rules + AI Lab/Rule/Lifecycle evidence annotations and ontology persistence |
 | Production exposure risk | Medium | Lower: no new public routes |
 | User-facing value | Medium | Higher: plan warnings and simulation insight |
 
 ## Next Best Task
 
-Implement Phase 3 Ontology evidence binding so AI-enhanced plan assessments become replayable runtime evidence with persisted manifest hashes.
+Implement Phase 4 Data Mesh confidence so plan evidence includes source freshness, missing-data warnings, and confidence penalties for stale inputs.

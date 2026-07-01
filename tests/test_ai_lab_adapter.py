@@ -1,11 +1,15 @@
 import pytest
 
+from gw2_progression import database
 from gw2_progression.models import GoalType, ParsedGoal, PlanAction, ProgressionPlan
+from gw2_progression.ontology import OntologyKernel
 from gw2_progression.services.ai_lab_adapter import enhance_plan_with_ai_lab
 
 
 @pytest.mark.asyncio
-async def test_ai_lab_adapter_enhances_plan_without_reordering_actions():
+async def test_ai_lab_adapter_enhances_plan_without_reordering_actions(tmp_path, monkeypatch):
+    db_path = tmp_path / "ai-lab-adapter.db"
+    monkeypatch.setattr(database, "_TEST_DB_URL", str(db_path))
     parsed = ParsedGoal(
         raw_text="Craft Mystic Coin",
         goal_type=GoalType.CRAFT_ITEM,
@@ -47,3 +51,11 @@ async def test_ai_lab_adapter_enhances_plan_without_reordering_actions():
     assert assessment.simulation["lifecycle"]["trajectory_length"] >= 1
     assert "rule_engine_v2:validation_adapter" in assessment.evidence_sources
     assert "lifecycle:simulation_adapter" in assessment.evidence_sources
+    assert assessment.ontology_evidence["persisted"] is True
+    assert assessment.ontology_evidence["evidence_id"] == "plan-assessment:p1"
+    assert "ontology_runtime:plan_assessment_evidence" in assessment.evidence_sources
+
+    restored = OntologyKernel(tenant_id="goal-plan:Player.1234", load_persisted=True)
+    snapshot = restored.snapshot()
+    assert "plan-assessment:p1" in snapshot["state"]["entities"]
+    assert restored.replay_persisted()["deterministic"] is True
