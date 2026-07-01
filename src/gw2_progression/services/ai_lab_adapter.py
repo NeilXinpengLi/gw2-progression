@@ -26,6 +26,7 @@ class AIPlanAssessment:
     validation: dict[str, Any] = field(default_factory=dict)
     simulation: dict[str, Any] = field(default_factory=dict)
     ontology_evidence: dict[str, Any] = field(default_factory=dict)
+    data_confidence: dict[str, Any] = field(default_factory=dict)
     evidence_sources: list[str] = field(default_factory=list)
     warnings: list[str] = field(default_factory=list)
 
@@ -36,6 +37,7 @@ class AIPlanAssessment:
             "validation": copy.deepcopy(self.validation),
             "simulation": copy.deepcopy(self.simulation),
             "ontology_evidence": copy.deepcopy(self.ontology_evidence),
+            "data_confidence": copy.deepcopy(self.data_confidence),
             "evidence_sources": list(self.evidence_sources),
             "warnings": list(self.warnings),
         }
@@ -51,10 +53,12 @@ class AILabAdapter:
         rule_adapter: "RuleValidationAdapter | None" = None,
         lifecycle_adapter: "LifecycleSimulationAdapter | None" = None,
         ontology_adapter: "OntologyEvidenceAdapter | None" = None,
+        confidence_adapter: "DataMeshConfidenceAdapter | None" = None,
     ) -> None:
         self.rule_adapter = rule_adapter or RuleValidationAdapter()
         self.lifecycle_adapter = lifecycle_adapter or LifecycleSimulationAdapter()
         self.ontology_adapter = ontology_adapter or OntologyEvidenceAdapter()
+        self.confidence_adapter = confidence_adapter or DataMeshConfidenceAdapter()
 
     async def enhance_plan(self, plan: ProgressionPlan, parsed: ParsedGoal, account_state: dict[str, Any]) -> tuple[ProgressionPlan, AIPlanAssessment]:
         """Annotate a plan with validation and simulation evidence.
@@ -67,10 +71,12 @@ class AILabAdapter:
         simulation = self._simulate_plan(plan, account_state)
         rule_result = self.rule_adapter.validate(plan, parsed, account_state)
         lifecycle_result = self.lifecycle_adapter.simulate(plan, account_state)
+        confidence_result = self.confidence_adapter.evaluate(plan, account_state)
         warnings = [
             *validation["warnings"],
             *rule_result.get("warnings", []),
             *lifecycle_result.get("warnings", []),
+            *confidence_result.get("warnings", []),
         ]
         evidence_sources = [
             self.SOURCE,
@@ -78,12 +84,13 @@ class AILabAdapter:
             "ontology_runtime:evidence_contract",
             rule_result.get("source", "rule_engine_v2:validation_adapter"),
             lifecycle_result.get("source", "lifecycle:simulation_adapter"),
+            confidence_result.get("source", "data_mesh:confidence_adapter"),
         ]
         maturity = "L2-L3"
         status = "enhanced" if plan.actions else "observed"
 
         enhanced = plan.model_copy(deep=True)
-        enhanced.actions = self._annotate_actions(enhanced.actions, warnings, simulation)
+        enhanced.actions = self._annotate_actions(enhanced.actions, warnings, simulation, confidence_result)
         enhanced.insight = self._append_insight(enhanced.insight, warnings, simulation)
 
         assessment = AIPlanAssessment(
@@ -96,8 +103,10 @@ class AILabAdapter:
                 "heuristic": validation,
                 "rule_engine_v2": rule_result,
                 "lifecycle": lifecycle_result.get("validation", {}),
+                "data_mesh": confidence_result,
             },
             simulation={**simulation, "lifecycle": lifecycle_result.get("simulation", {})},
+            data_confidence=confidence_result,
             evidence_sources=evidence_sources,
             warnings=warnings,
         )
@@ -113,6 +122,7 @@ class AILabAdapter:
             validation=assessment.validation,
             simulation=assessment.simulation,
             ontology_evidence=ontology_evidence,
+            data_confidence=assessment.data_confidence,
             evidence_sources=assessment.evidence_sources,
             warnings=assessment.warnings,
         )
@@ -154,16 +164,30 @@ class AILabAdapter:
             "highest_time_day_minutes": max(daily_minutes) if daily_minutes else 0,
         }
 
-    def _annotate_actions(self, actions: list[PlanAction], warnings: list[str], simulation: dict[str, Any]) -> list[PlanAction]:
+    def _annotate_actions(
+        self,
+        actions: list[PlanAction],
+        warnings: list[str],
+        simulation: dict[str, Any],
+        confidence_result: dict[str, Any],
+    ) -> list[PlanAction]:
         annotated = []
+        action_confidence = confidence_result.get("action_confidence", {})
         for action in actions:
             item = action.model_copy(deep=True)
             if self.SOURCE not in item.data_sources:
                 item.data_sources.append(self.SOURCE)
+            if "data_mesh:confidence_adapter" not in item.data_sources:
+                item.data_sources.append("data_mesh:confidence_adapter")
             notes = []
             if not simulation.get("affordable_with_wallet", True) and item.cost_gold > 0:
                 notes.append("AI Lab simulation flags wallet shortfall risk.")
                 item.confidence = round(max(0.1, item.confidence * 0.9), 2) if item.confidence else item.confidence
+            confidence = action_confidence.get(action.action_id, {})
+            merged_confidence = float(confidence.get("merged_confidence", 1.0) or 1.0)
+            if merged_confidence < 0.7:
+                notes.append(f"Data Mesh confidence is {merged_confidence:.2f}.")
+                item.confidence = round(max(0.1, (item.confidence or merged_confidence) * max(merged_confidence, 0.5)), 2)
             if warnings and not item.risk_reason.startswith("[AI Lab]"):
                 notes.append(f"Validation warnings: {', '.join(warnings[:2])}.")
             if notes:
@@ -414,8 +438,117 @@ class OntologyEvidenceAdapter:
             },
             "rule_engine_v2": assessment.validation.get("rule_engine_v2", {}),
             "lifecycle": assessment.validation.get("lifecycle", {}),
+            "data_mesh": assessment.data_confidence,
             "simulation": assessment.simulation,
         }
+
+
+class DataMeshConfidenceAdapter:
+    """Evaluates plan action evidence through Data Mesh confidence rules."""
+
+    SOURCE = "data_mesh:confidence_adapter"
+
+    def evaluate(self, plan: ProgressionPlan, account_state: dict[str, Any]) -> dict[str, Any]:
+        try:
+            from gw2_progression.data_mesh.schema.confidence import ConfidenceSystem
+
+            system = ConfidenceSystem()
+            action_confidence: dict[str, Any] = {}
+            all_records = []
+            warnings: list[str] = []
+            for action in plan.actions:
+                records = [
+                    system.evaluate(
+                        source_type=self._source_type(token),
+                        source_id=self._source_id(token),
+                        records_count=self._records_count(token, account_state),
+                        staleness_days=self._staleness_days(token, account_state),
+                        cross_validation_count=max(len(action.data_sources) - 1, 0),
+                    )
+                    for token in (action.data_sources or ["curated_strategy_rules"])
+                ]
+                merged = system.adjust_for_merge(records)
+                record_dicts = [record.to_dict() for record in records]
+                action_warnings = self._warnings_for_action(action, merged, record_dicts)
+                warnings.extend(action_warnings)
+                all_records.extend(records)
+                action_confidence[action.action_id] = {
+                    "merged_confidence": merged,
+                    "records": record_dicts,
+                    "warnings": action_warnings,
+                }
+            overall = system.adjust_for_merge(all_records)
+            return {
+                "source": self.SOURCE,
+                "overall_confidence": overall,
+                "action_confidence": action_confidence,
+                "warnings": sorted(set(warnings)),
+                "missing_data": self._missing_data(plan),
+            }
+        except Exception as exc:
+            logger.debug("Data Mesh confidence adapter skipped: %s", exc)
+            return {
+                "source": self.SOURCE,
+                "overall_confidence": 0.0,
+                "action_confidence": {},
+                "warnings": [f"data_mesh:adapter_unavailable:{exc}"],
+                "missing_data": [],
+            }
+
+    def _source_type(self, token: str) -> str:
+        normalized = token.lower()
+        if normalized.startswith("gw2_account") or "gw2_commerce" in normalized:
+            return "official_api"
+        if "recipe" in normalized:
+            return "official_api"
+        if "build" in normalized or "snowcrows" in normalized or "metabattle" in normalized:
+            return "public_build_site"
+        if "curated" in normalized:
+            return "community"
+        return "community"
+
+    def _source_id(self, token: str) -> str | None:
+        normalized = token.lower()
+        if "commerce" in normalized or "price" in normalized:
+            return "source:gw2api:commerce"
+        if "recipe" in normalized:
+            return "source:gw2api:recipes"
+        if "bank" in normalized or "inventory" in normalized or "material" in normalized:
+            return "source:gw2api:account_bank"
+        if "character" in normalized or "build" in normalized:
+            return "source:gw2api:characters"
+        return None
+
+    def _records_count(self, token: str, account_state: dict[str, Any]) -> int:
+        normalized = token.lower()
+        if "material" in normalized:
+            return len(account_state.get("materials", []) or [])
+        if "bank" in normalized:
+            return len(account_state.get("bank", []) or [])
+        if "character" in normalized or "build" in normalized:
+            return len(account_state.get("characters", []) or [])
+        return 1
+
+    def _staleness_days(self, token: str, account_state: dict[str, Any]) -> int:
+        freshness = account_state.get("freshness", {}) if isinstance(account_state.get("freshness", {}), dict) else {}
+        return int(freshness.get(token, 0) or 0)
+
+    def _warnings_for_action(self, action: PlanAction, confidence: float, records: list[dict[str, Any]]) -> list[str]:
+        warnings: list[str] = []
+        if confidence < 0.6:
+            warnings.append(f"data_mesh:low_confidence:{action.action_id}")
+        if any(record.get("records_count", 1) <= 0 for record in records):
+            warnings.append(f"data_mesh:missing_records:{action.action_id}")
+        if any(record.get("staleness_days", 0) >= 7 for record in records):
+            warnings.append(f"data_mesh:stale_source:{action.action_id}")
+        return warnings
+
+    def _missing_data(self, plan: ProgressionPlan) -> list[str]:
+        missing = []
+        for action in plan.actions:
+            if not action.data_sources:
+                missing.append(action.action_id)
+        return missing
 
 
 async def enhance_plan_with_ai_lab(plan: ProgressionPlan, parsed: ParsedGoal, account_state: dict[str, Any]) -> tuple[ProgressionPlan, AIPlanAssessment]:
@@ -430,6 +563,7 @@ async def enhance_plan_with_ai_lab(plan: ProgressionPlan, parsed: ParsedGoal, ac
             validation={"valid": True, "warning_count": 0, "goal_type": str(parsed.goal_type)},
             simulation={},
             ontology_evidence={},
+            data_confidence={},
             evidence_sources=["goal_driven_os:product_planning"],
             warnings=[f"adapter_error:{exc}"],
         )

@@ -83,21 +83,24 @@ pytest -q tests/test_ontology_runtime_persistence.py tests/test_ontology_runtime
 
 Remaining for L4: persist full compiled plan manifests with schema compatibility metadata and signature policy.
 
-## Phase 4: Data Mesh Confidence
+## Phase 4 Completed: Data Mesh Confidence
 
 Goal: attach data freshness and source confidence to product recommendations.
 
-Tasks:
+Implemented:
 
-1. Feed Data Mesh source freshness into action `data_sources`.
-2. Add confidence penalties for stale market/account data.
-3. Expose confidence summary in reports.
-4. Add fallback reasons when source quality is low.
+1. Added `DataMeshConfidenceAdapter`.
+2. Mapped existing action `data_sources` into Data Mesh source types and registry IDs.
+3. Added merged confidence summaries to `AIPlanAssessment.data_confidence`.
+4. Added low-confidence and missing-record warnings with `data_mesh:*` codes.
+5. Added confidence penalties and risk notes for low-confidence actions.
+6. Included Data Mesh confidence in Ontology evidence content.
 
 Promotion gate:
 
 ```powershell
-pytest -q tests/test_data_mesh_v1.py tests/test_data_mesh_integration.py tests/test_core_player_smoke.py
+pytest -q tests/test_ai_lab_adapter.py tests/test_goal_driven.py tests/test_core_player_smoke.py
+pytest -q tests/test_data_mesh_v1.py tests/test_data_mesh_integration.py
 ```
 
 ## Phase 5: Expert AI Offline Training Loop
@@ -119,11 +122,11 @@ Expert AI can suggest candidates, but Core Product must keep final response owne
 
 | Area | Before | After Phase 1 |
 | --- | --- | --- |
-| AI Lab integration | L2 isolated experiments | L3 internal adapter with Rule/Lifecycle/Ontology evidence |
-| Goal-Driven plan evidence | L3 product rules | L3 product rules + AI Lab/Rule/Lifecycle evidence annotations and ontology persistence |
+| AI Lab integration | L2 isolated experiments | L3 internal adapter with Rule/Lifecycle/Ontology/Data Mesh evidence |
+| Goal-Driven plan evidence | L3 product rules | L3 product rules + AI Lab/Rule/Lifecycle/Data Mesh evidence annotations and ontology persistence |
 | Production exposure risk | Medium | Lower: no new public routes |
 | User-facing value | Medium | Higher: plan warnings and simulation insight |
 
 ## Next Best Task
 
-Implement Phase 4 Data Mesh confidence so plan evidence includes source freshness, missing-data warnings, and confidence penalties for stale inputs.
+Implement Phase 5 Expert AI offline training loop so anonymized plan/action/outcome events can improve future candidate ranking without blocking production users.

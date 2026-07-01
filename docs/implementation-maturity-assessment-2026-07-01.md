@@ -13,6 +13,7 @@ Implementation progress:
 - P2 completed: AI Lab is now integrated through an internal product-safe adapter for Goal-Driven plans, without exposing new production routes.
 - P2 completed: AI Lab Adapter now invokes bounded Rule Engine v2 validation and Lifecycle simulation adapters for plan evidence.
 - P2 completed: AI Lab plan assessments are now bound into Ontology Runtime evidence with hash-chain content and durable replay.
+- P2 completed: AI Lab Adapter now evaluates Data Mesh confidence and applies source-quality warnings/confidence penalties.
 
 ## 1. 评估结论
 
@@ -181,6 +182,7 @@ npx gitnexus detect-changes --scope unstaged --repo gw2-progression
 10. Completed P2：新增 AI Lab Adapter 第一阶段，将实验层作为 Goal-Driven 内部证据增强器，而不是公开决策 API。
 11. Completed P2：AI Lab Adapter 接入 Rule Engine v2 与 Lifecycle 的内部 validation/simulation evidence。
 12. Completed P2：AI Lab plan assessment 通过 Ontology Runtime evidence entity 持久化，并可 durable replay。
+13. Completed P2：AI Lab Adapter 接入 Data Mesh confidence，输出 source-quality warnings 并调整低置信 action。
 
 ## 10. 总体评级
 
