@@ -1556,6 +1556,42 @@ class TestOntologyRuntimeKernel:
         assert lineage[0]["evidence"]["validation"]["accepted"] is True
         assert lineage[-1]["evidence"]["scheduler"]["node_id"] == "asset:b:update"
 
+    def test_vfinal_ontology_kernel_reports_convergence_status(self):
+        from gw2_progression.ontology import OntologyKernel
+
+        kernel = OntologyKernel()
+        report = kernel.convergence_report()
+
+        assert report["kernel"] == "OntologyKernel"
+        assert report["kernel_version"] == "vFinal-convergence"
+        assert report["rules"]["single_execution_kernel"] is True
+        assert report["rules"]["lineage_first_design"] is True
+        assert report["rules"]["no_parallel_truth"] is False
+        assert report["merged_layers"]["bors"] == "kernel_action_layer"
+        assert report["isolated_layers"]["expert_ai"] == "ai_lab_training_layer_pending_constraint_adapter"
+
+    def test_vfinal_kernel_action_executes_through_single_kernel_path(self):
+        from gw2_progression.ontology import OntologyKernel
+
+        kernel = OntologyKernel()
+        result = kernel.execute_kernel_action(
+            {
+                "type": "add_entity",
+                "entity": {
+                    "id": "asset:kernel",
+                    "type": "account_asset",
+                    "properties": {"item_id": 19721, "count": 1, "location": "bank"},
+                },
+            },
+            source="test",
+        )
+        lineage = kernel.lineage_store.list()
+
+        assert result["kernel"] == "OntologyKernel"
+        assert result["execution"]["scheduler"]["strategy"] == "deterministic-ready-queue"
+        assert "asset:kernel" in kernel.snapshot()["state"]["entities"]
+        assert lineage[0]["evidence"]["scheduler"]["node_id"] == "kernel:test"
+
 
 # ── Phase D3: Performance Tests ───────────────────────────────────────
 

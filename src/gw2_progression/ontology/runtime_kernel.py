@@ -1110,6 +1110,7 @@ class OntologyRuntimeKernel:
         return {
             "kernel_version": "v3-execution-layer",
             "everything_is_execution_graph": True,
+            "single_execution_kernel": True,
             "deterministic_execution": replay["deterministic"],
             "full_traceability": all("action_hash" in record and "to" in record for record in self.lineage_store.list()),
             "ontology_enforcement": True,
@@ -1120,6 +1121,66 @@ class OntologyRuntimeKernel:
             "evidence_backed_lineage": all("evidence" in record for record in self.lineage_store.list()),
             "mismatches": replay["mismatches"],
         }
+
+    def convergence_report(self) -> dict[str, Any]:
+        return {
+            "kernel": "OntologyKernel",
+            "kernel_version": "vFinal-convergence",
+            "single_execution_truth": "Ontology -> Execution Kernel -> Deterministic State -> Lineage -> Replay",
+            "execution_model": [
+                "ontology_validation_gate",
+                "execution_dag_compiler",
+                "runtime_scheduler",
+                "state_transition_engine",
+                "lineage_system",
+                "replay_engine",
+            ],
+            "merged_layers": {
+                "ontology_runtime": "kernel",
+                "oosk_simulation": "state_engine",
+                "bors": "kernel_action_layer",
+                "rl": "kernel_action_layer",
+                "llm_reasoning": "constraint_reasoner",
+            },
+            "isolated_layers": {
+                "cognitive_os": "ai_lab_frontend_pending_kernel_adapter",
+                "rule_engine_v2": "ai_lab_policy_experiment_pending_kernel_adapter",
+                "expert_ai": "ai_lab_training_layer_pending_constraint_adapter",
+                "commerce": "domain_service_with_idempotent_lineage_boundaries",
+            },
+            "rules": {
+                "single_execution_kernel": True,
+                "no_parallel_truth": False,
+                "lineage_first_design": True,
+                "replay_guarantee": self.guarantees()["lineage_replay"],
+            },
+            "maturity": {
+                "level": "L3 Beta",
+                "reason": "Core ontology runtime has one executable kernel, while AI Lab modules still need adapters before full vFinal convergence.",
+                "next_priorities": [
+                    "Add Cognitive OS kernel adapter",
+                    "Add Rule Engine policy adapter",
+                    "Add Expert AI constraint adapter",
+                    "Persist lineage as global system memory",
+                ],
+            },
+        }
+
+    def execute_kernel_action(self, action: dict[str, Any], source: str = "ontology_kernel") -> dict[str, Any]:
+        graph_id = f"kernel:{source}"
+        compiled = self.compile([{"node_id": graph_id, **copy.deepcopy(action)}], graph_id=graph_id)
+        result = self.execute_compiled(compiled)
+        return {
+            "kernel": "OntologyKernel",
+            "source": source,
+            "graph": compiled.to_dict(),
+            "execution": result,
+            "state_hash": result["state_hash"],
+        }
+
+
+class OntologyKernel(OntologyRuntimeKernel):
+    """Final convergence facade: the single ontology execution truth layer."""
 
 
 def _matches_type(value: Any, type_name: str) -> bool:

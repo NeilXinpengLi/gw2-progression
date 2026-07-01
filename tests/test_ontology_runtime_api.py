@@ -183,3 +183,33 @@ def test_ontology_runtime_v3_scheduler_execute_api_returns_tick_trace():
     assert body["scheduler"]["complete"] is True
     assert body["execution"]["ticks"][0]["ready_nodes"] == ["asset:a", "asset:b"]
     assert body["execution"]["ticks"][1]["ready_nodes"] == ["update:b"]
+
+
+def test_ontology_runtime_vfinal_convergence_and_kernel_action_api():
+    client = TestClient(app)
+    tenant = {"X-Ontology-Tenant": "vfinal-api"}
+
+    assert client.post("/ontology/runtime/reset", headers=tenant).status_code == 200
+    convergence = client.get("/ontology/runtime/convergence", headers=tenant)
+    assert convergence.status_code == 200
+    assert convergence.json()["kernel"] == "OntologyKernel"
+    assert convergence.json()["rules"]["single_execution_kernel"] is True
+
+    executed = client.post(
+        "/ontology/runtime/kernel/action",
+        headers=tenant,
+        json={
+            "source": "api-test",
+            "action": {
+                "type": "add_entity",
+                "entity": {
+                    "id": "asset:vfinal",
+                    "type": "account_asset",
+                    "properties": {"item_id": 19721, "count": 1, "location": "bank"},
+                },
+            },
+        },
+    )
+    assert executed.status_code == 200
+    assert executed.json()["kernel"] == "OntologyKernel"
+    assert executed.json()["execution"]["scheduler"]["complete"] is True

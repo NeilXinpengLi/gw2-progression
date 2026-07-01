@@ -1,14 +1,14 @@
-"""Ontology Runtime v2 Foundry API endpoints."""
+"""Ontology Runtime vFinal convergence API endpoints."""
 
 from __future__ import annotations
 
 from fastapi import APIRouter, Body, Header, HTTPException
 
-from gw2_progression.ontology import OntologyRuntimeKernel, OntologyViolation
+from gw2_progression.ontology import OntologyKernel, OntologyRuntimeKernel, OntologyViolation
 
 router = APIRouter(prefix="/ontology/runtime", tags=["ontology-runtime"])
 
-_kernel = OntologyRuntimeKernel()
+_kernel = OntologyKernel()
 _kernels: dict[str, OntologyRuntimeKernel] = {"default": _kernel}
 
 
@@ -19,7 +19,7 @@ def _tenant_key(tenant_id: str) -> str:
 def _kernel_for(tenant_id: str) -> OntologyRuntimeKernel:
     key = _tenant_key(tenant_id)
     if key not in _kernels:
-        _kernels[key] = OntologyRuntimeKernel()
+        _kernels[key] = OntologyKernel()
     return _kernels[key]
 
 
@@ -33,11 +33,16 @@ async def ontology_runtime_guarantees(tenant_id: str = Header("default", alias="
     return _kernel_for(tenant_id).guarantees()
 
 
+@router.get("/convergence")
+async def ontology_runtime_convergence(tenant_id: str = Header("default", alias="X-Ontology-Tenant")):
+    return _kernel_for(tenant_id).convergence_report()
+
+
 @router.post("/reset")
 async def ontology_runtime_reset(tenant_id: str = Header("default", alias="X-Ontology-Tenant")):
     global _kernel
     key = _tenant_key(tenant_id)
-    _kernels[key] = OntologyRuntimeKernel()
+    _kernels[key] = OntologyKernel()
     if key == "default":
         _kernel = _kernels[key]
     return {"status": "reset", "tenant_id": key, "state_hash": _kernels[key].snapshot()["state_hash"]}
@@ -47,6 +52,18 @@ async def ontology_runtime_reset(tenant_id: str = Header("default", alias="X-Ont
 async def ontology_runtime_action(body: dict = Body(...), tenant_id: str = Header("default", alias="X-Ontology-Tenant")):
     try:
         return _kernel_for(tenant_id).execute(body)
+    except OntologyViolation as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+
+@router.post("/kernel/action")
+async def ontology_runtime_kernel_action(body: dict = Body(...), tenant_id: str = Header("default", alias="X-Ontology-Tenant")):
+    try:
+        source = str(body.get("source", "ontology_kernel"))
+        action = body.get("action", body)
+        if not isinstance(action, dict):
+            raise HTTPException(status_code=422, detail="action must be an object")
+        return _kernel_for(tenant_id).execute_kernel_action(action, source=source)
     except OntologyViolation as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
 
