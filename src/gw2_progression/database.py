@@ -389,7 +389,25 @@ CREATE TABLE IF NOT EXISTS orders (
 CREATE TABLE IF NOT EXISTS order_idempotency_keys (
     idempotency_key TEXT PRIMARY KEY,
     order_id INTEGER NOT NULL,
+    status TEXT NOT NULL DEFAULT 'fulfilled',
+    error TEXT NOT NULL DEFAULT '',
     created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    fulfilled_at TEXT,
+    FOREIGN KEY (order_id) REFERENCES orders(id)
+);
+
+CREATE TABLE IF NOT EXISTS payment_events (
+    provider_event_id TEXT PRIMARY KEY,
+    provider TEXT NOT NULL DEFAULT 'stripe',
+    event_type TEXT NOT NULL DEFAULT '',
+    status TEXT NOT NULL DEFAULT 'received',
+    idempotency_key TEXT NOT NULL DEFAULT '',
+    order_id INTEGER,
+    customer_email TEXT NOT NULL DEFAULT '',
+    product_id INTEGER NOT NULL DEFAULT 0,
+    error TEXT NOT NULL DEFAULT '',
+    received_at TEXT NOT NULL DEFAULT (datetime('now')),
+    fulfilled_at TEXT,
     FOREIGN KEY (order_id) REFERENCES orders(id)
 );
 
@@ -409,7 +427,7 @@ CREATE TABLE IF NOT EXISTS licenses (
 
 CREATE TABLE IF NOT EXISTS delivery_jobs (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    order_id INTEGER NOT NULL,
+    order_id INTEGER NOT NULL UNIQUE,
     product_id INTEGER NOT NULL,
     status TEXT NOT NULL DEFAULT 'pending',
     output_pdf_url TEXT DEFAULT '',
@@ -419,6 +437,23 @@ CREATE TABLE IF NOT EXISTS delivery_jobs (
     created_at TEXT NOT NULL DEFAULT (datetime('now')),
     FOREIGN KEY (order_id) REFERENCES orders(id),
     FOREIGN KEY (product_id) REFERENCES products(id)
+);
+
+CREATE TABLE IF NOT EXISTS delivery_outbox (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    delivery_job_id INTEGER NOT NULL,
+    order_id INTEGER NOT NULL,
+    event_type TEXT NOT NULL DEFAULT 'email_report',
+    recipient_email TEXT NOT NULL,
+    payload_json TEXT NOT NULL DEFAULT '{}',
+    status TEXT NOT NULL DEFAULT 'pending',
+    attempts INTEGER NOT NULL DEFAULT 0,
+    error TEXT NOT NULL DEFAULT '',
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    sent_at TEXT,
+    FOREIGN KEY (delivery_job_id) REFERENCES delivery_jobs(id),
+    FOREIGN KEY (order_id) REFERENCES orders(id),
+    UNIQUE(delivery_job_id, event_type)
 );
 
 CREATE TABLE IF NOT EXISTS affiliates (
@@ -662,6 +697,10 @@ async def init_db():
             "ALTER TABLE plan_actions ADD COLUMN confidence REAL NOT NULL DEFAULT 0",
             "ALTER TABLE plan_actions ADD COLUMN data_sources TEXT NOT NULL DEFAULT '[]'",
             "ALTER TABLE plan_actions ADD COLUMN risk_reason TEXT NOT NULL DEFAULT ''",
+            "ALTER TABLE order_idempotency_keys ADD COLUMN status TEXT NOT NULL DEFAULT 'fulfilled'",
+            "ALTER TABLE order_idempotency_keys ADD COLUMN error TEXT NOT NULL DEFAULT ''",
+            "ALTER TABLE order_idempotency_keys ADD COLUMN fulfilled_at TEXT",
+            "ALTER TABLE delivery_jobs ADD COLUMN claimed_at TEXT",
         ]:
             try:
                 await conn.execute(migration_sql)
@@ -674,6 +713,10 @@ async def init_db():
             "CREATE INDEX IF NOT EXISTS idx_snapshots_account ON account_snapshots(account_name)",
             "CREATE INDEX IF NOT EXISTS idx_holdings_snapshot ON item_holdings(snapshot_id)",
             "CREATE INDEX IF NOT EXISTS idx_history_account ON account_value_history(account_name)",
+            "CREATE UNIQUE INDEX IF NOT EXISTS idx_licenses_order_id_unique ON licenses(order_id) WHERE order_id IS NOT NULL",
+            "CREATE UNIQUE INDEX IF NOT EXISTS idx_delivery_jobs_order_id_unique ON delivery_jobs(order_id)",
+            "CREATE INDEX IF NOT EXISTS idx_payment_events_status ON payment_events(status)",
+            "CREATE INDEX IF NOT EXISTS idx_delivery_outbox_status ON delivery_outbox(status)",
         ]:
             try:
                 await conn.execute(idx_sql)

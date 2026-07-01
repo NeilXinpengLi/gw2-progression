@@ -1,7 +1,8 @@
 from fastapi import APIRouter, FastAPI
+from fastapi.testclient import TestClient
 
 from gw2_progression.api.governance import API_ROUTE_GOVERNANCE, ApiCategory, StabilityLevel, governance_snapshot, include_governed_routers, route_enabled
-from gw2_progression.api.main import ROUTER_BINDINGS
+from gw2_progression.api.main import ROUTER_BINDINGS, app
 
 
 def test_all_main_routers_have_governance_metadata():
@@ -40,6 +41,7 @@ def test_ai_lab_can_be_enabled_explicitly_in_production(monkeypatch):
     monkeypatch.setenv("ENABLE_EXPERIMENTAL_ROUTES", "true")
 
     assert route_enabled(API_ROUTE_GOVERNANCE["expert_ai"]) is True
+    assert route_enabled(API_ROUTE_GOVERNANCE["production"]) is True
 
 
 def test_include_governed_routers_skips_disabled_routes(monkeypatch):
@@ -67,3 +69,34 @@ def test_include_governed_routers_skips_disabled_routes(monkeypatch):
     assert snapshot[0]["enabled"] == "true"
     assert snapshot[1]["enabled"] == "false"
     assert API_ROUTE_GOVERNANCE["expert_ai"].stability == StabilityLevel.EXPERIMENTAL
+
+
+def test_governance_snapshot_endpoint_exposes_route_gates():
+    client = TestClient(app)
+    response = client.get("/api/governance/routes")
+
+    assert response.status_code == 200
+    rows = {row["key"]: row for row in response.json()["routes"]}
+    assert rows["commerce"]["category"] == ApiCategory.COMMERCE.value
+    assert rows["production"]["category"] == ApiCategory.AI_LAB.value
+    assert rows["production"]["stability"] == StabilityLevel.EXPERIMENTAL.value
+
+
+def test_core_product_routes_do_not_import_ai_lab_decision_engines():
+    banned = (
+        "expert_ai",
+        "services.v4_",
+        "services.v5_",
+        "benchmark.arena",
+        "cognitive_os",
+        "rule_engine_v2",
+        "lifecycle",
+    )
+    router_by_key = {key: router for key, router in ROUTER_BINDINGS}
+    for key, meta in API_ROUTE_GOVERNANCE.items():
+        if meta.category != ApiCategory.CORE_PRODUCT:
+            continue
+        route_file = router_by_key[key].routes[0].endpoint.__globals__.get("__file__", "")
+        with open(route_file, encoding="utf-8") as handle:
+            source = handle.read()
+        assert not any(token in source for token in banned), f"{key} imports an AI Lab decision dependency"

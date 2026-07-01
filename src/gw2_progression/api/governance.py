@@ -59,7 +59,7 @@ API_ROUTE_GOVERNANCE: dict[str, RouteGovernance] = {
     "engine": RouteGovernance("engine", ApiCategory.CORE_PRODUCT, StabilityLevel.BETA, ReleaseGate.ALWAYS_ON, "product", "decision engine", "contract"),
     "goal_driven": RouteGovernance("goal_driven", ApiCategory.CORE_PRODUCT, StabilityLevel.BETA, ReleaseGate.ALWAYS_ON, "product", "product planning layer", "contract + smoke"),
     "insight": RouteGovernance("insight", ApiCategory.CORE_PRODUCT, StabilityLevel.BETA, ReleaseGate.ALWAYS_ON, "product", "insight UI data", "contract"),
-    "production": RouteGovernance("production", ApiCategory.CORE_PRODUCT, StabilityLevel.BETA, ReleaseGate.ALWAYS_ON, "product", "production analysis", "contract"),
+    "production": RouteGovernance("production", ApiCategory.AI_LAB, StabilityLevel.EXPERIMENTAL, ReleaseGate.AI_LAB_ENABLED, "ai-lab", "v4/v5 production experiment", "AI lab gate"),
     "agent": RouteGovernance("agent", ApiCategory.CORE_PRODUCT, StabilityLevel.BETA, ReleaseGate.ALWAYS_ON, "product", "coach facade", "contract"),
     "commerce": RouteGovernance("commerce", ApiCategory.COMMERCE, StabilityLevel.BETA, ReleaseGate.COMMERCE_ENABLED, "commerce", "orders and licenses", "idempotency + contract"),
     "commercial": RouteGovernance("commercial", ApiCategory.COMMERCE, StabilityLevel.BETA, ReleaseGate.COMMERCE_ENABLED, "commerce", "paid reports", "idempotency + contract"),

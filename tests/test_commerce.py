@@ -68,7 +68,8 @@ async def test_create_order_replays_existing_idempotency_key():
         "status": "paid",
         "idempotent_replay": True,
     }
-    assert mock_conn.execute.call_count == 1
+    assert mock_conn.execute.call_count == 2
+    assert mock_conn.execute.call_args_list[0][0][0] == "BEGIN IMMEDIATE"
 
 
 @pytest.mark.asyncio
@@ -82,6 +83,7 @@ async def test_create_order_records_idempotency_key():
         mock_get.return_value = {"id": 1, "slug": "test", "price_copper": 30000}
         mock_conn = AsyncMock()
         mock_conn.execute.side_effect = [
+            _async_cursor(),
             _async_cursor(fetch_result=None),
             _async_cursor(lastrowid=42),
             _async_cursor(lastrowid=7),
@@ -117,12 +119,29 @@ async def test_payment_webhook_uses_stripe_event_as_idempotency_key():
     with (
         patch("gw2_progression.services.payment_service.STRIPE_WEBHOOK_SECRET", "whsec_test"),
         patch("gw2_progression.services.payment_service.stripe.Webhook.construct_event", return_value=event),
+        patch(
+            "gw2_progression.services.payment_service.record_payment_event_received",
+            AsyncMock(
+                return_value={
+                    "provider_event_id": "evt_123",
+                    "status": "received",
+                    "order_id": None,
+                    "idempotency_key": "stripe:evt_123",
+                    "product_id": 1,
+                    "customer_email": "test@example.com",
+                    "idempotent_replay": False,
+                }
+            ),
+        ) as mock_receipt,
         patch("gw2_progression.services.payment_service.create_order", AsyncMock(return_value={"order_id": 42, "license_key": "GWR-TEST"})) as mock_create,
+        patch("gw2_progression.services.payment_service.mark_payment_event_fulfilled", AsyncMock()) as mock_fulfilled,
     ):
         result = await handle_webhook(b"{}", "sig")
 
     assert result == "fulfilled"
+    mock_receipt.assert_awaited_once()
     mock_create.assert_awaited_once_with(1, "test@example.com", idempotency_key="stripe:evt_123")
+    mock_fulfilled.assert_awaited_once_with("evt_123", 42)
 
 
 @pytest.mark.asyncio
@@ -145,8 +164,12 @@ async def test_verify_license():
 async def test_use_license_exhausted():
     from gw2_progression.services.commerce_service import use_license
 
-    with patch("gw2_progression.services.commerce_service.verify_license") as mock_v:
-        mock_v.return_value = {"max_uses": 5, "used_count": 5, "expires_at": None}
+    with patch("gw2_progression.services.commerce_service.using_db") as mock_db:
+        mock_conn = AsyncMock()
+        exhausted = MagicMock()
+        exhausted.rowcount = 0
+        mock_conn.execute.return_value = exhausted
+        mock_db.return_value.__aenter__.return_value = mock_conn
         result = await use_license("GWR-EXHAUSTED")
     assert result is False
 

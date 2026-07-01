@@ -5,7 +5,12 @@ import os
 
 import stripe
 
-from gw2_progression.services.commerce_service import create_order
+from gw2_progression.services.commerce_service import (
+    create_order,
+    mark_payment_event_failed,
+    mark_payment_event_fulfilled,
+    record_payment_event_received,
+)
 from gw2_progression.services.product_service import get_product
 
 logger = logging.getLogger("gw2.stripe")
@@ -69,8 +74,23 @@ async def handle_webhook(payload: bytes, sig_header: str) -> str:
         customer_email = session.get("customer_details", {}).get("email", "")
         if product_id and customer_email:
             idempotency_key = f"stripe:{event.get('id') or session.get('id') or product_id}"
-            order = await create_order(product_id, customer_email, idempotency_key=idempotency_key)
-            logger.info("Order fulfilled via Stripe: %s -> license %s", order["order_id"], order["license_key"])
-            return "fulfilled"
+            provider_event_id = str(event.get("id") or session.get("id") or idempotency_key)
+            receipt = await record_payment_event_received(
+                provider_event_id=provider_event_id,
+                event_type=event["type"],
+                idempotency_key=idempotency_key,
+                product_id=product_id,
+                customer_email=customer_email,
+            )
+            if receipt["status"] == "fulfilled":
+                return "fulfilled"
+            try:
+                order = await create_order(product_id, customer_email, idempotency_key=idempotency_key)
+                await mark_payment_event_fulfilled(provider_event_id, order["order_id"])
+                logger.info("Order fulfilled via Stripe: %s -> license %s", order["order_id"], order["license_key"])
+                return "fulfilled"
+            except Exception as exc:
+                await mark_payment_event_failed(provider_event_id, str(exc))
+                raise
 
     return "received"
