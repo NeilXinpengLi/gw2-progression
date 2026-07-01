@@ -661,6 +661,27 @@ CREATE TABLE IF NOT EXISTS ontology_actions (
     completed_at TEXT NOT NULL DEFAULT ''
 );
 
+CREATE TABLE IF NOT EXISTS ontology_kernel_states (
+    tenant_id TEXT PRIMARY KEY,
+    kernel_version TEXT NOT NULL,
+    state_json TEXT NOT NULL DEFAULT '{}',
+    state_hash TEXT NOT NULL,
+    lineage_count INTEGER NOT NULL DEFAULT 0,
+    updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE TABLE IF NOT EXISTS ontology_kernel_lineage (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    tenant_id TEXT NOT NULL,
+    step INTEGER NOT NULL,
+    action_hash TEXT NOT NULL,
+    from_hash TEXT NOT NULL,
+    to_hash TEXT NOT NULL,
+    record_json TEXT NOT NULL,
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    UNIQUE(tenant_id, step)
+);
+
 CREATE TABLE IF NOT EXISTS snapshot_registry (
     snapshot_id TEXT PRIMARY KEY,
     account_name TEXT NOT NULL,
@@ -717,6 +738,7 @@ async def init_db():
             "CREATE UNIQUE INDEX IF NOT EXISTS idx_delivery_jobs_order_id_unique ON delivery_jobs(order_id)",
             "CREATE INDEX IF NOT EXISTS idx_payment_events_status ON payment_events(status)",
             "CREATE INDEX IF NOT EXISTS idx_delivery_outbox_status ON delivery_outbox(status)",
+            "CREATE INDEX IF NOT EXISTS idx_ontology_kernel_lineage_tenant ON ontology_kernel_lineage(tenant_id, step)",
         ]:
             try:
                 await conn.execute(idx_sql)

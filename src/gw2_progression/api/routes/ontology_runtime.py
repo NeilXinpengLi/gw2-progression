@@ -8,7 +8,7 @@ from gw2_progression.ontology import OntologyKernel, OntologyRuntimeKernel, Onto
 
 router = APIRouter(prefix="/ontology/runtime", tags=["ontology-runtime"])
 
-_kernel = OntologyKernel()
+_kernel = OntologyKernel(tenant_id="default", load_persisted=True)
 _kernels: dict[str, OntologyRuntimeKernel] = {"default": _kernel}
 
 
@@ -19,7 +19,7 @@ def _tenant_key(tenant_id: str) -> str:
 def _kernel_for(tenant_id: str) -> OntologyRuntimeKernel:
     key = _tenant_key(tenant_id)
     if key not in _kernels:
-        _kernels[key] = OntologyKernel()
+        _kernels[key] = OntologyKernel(tenant_id=key, load_persisted=True)
     return _kernels[key]
 
 
@@ -42,7 +42,9 @@ async def ontology_runtime_convergence(tenant_id: str = Header("default", alias=
 async def ontology_runtime_reset(tenant_id: str = Header("default", alias="X-Ontology-Tenant")):
     global _kernel
     key = _tenant_key(tenant_id)
-    _kernels[key] = OntologyKernel()
+    old_kernel = _kernels.get(key) or OntologyKernel(tenant_id=key)
+    old_kernel.clear_persisted()
+    _kernels[key] = OntologyKernel(tenant_id=key)
     if key == "default":
         _kernel = _kernels[key]
     return {"status": "reset", "tenant_id": key, "state_hash": _kernels[key].snapshot()["state_hash"]}
@@ -195,3 +197,28 @@ async def ontology_runtime_replay(body: dict = Body(default_factory=dict), tenan
         "state": replay["state"].to_dict(),
         "lineage": replay["lineage"],
     }
+
+
+@router.get("/persistence")
+async def ontology_runtime_persistence(tenant_id: str = Header("default", alias="X-Ontology-Tenant")):
+    kernel = _kernel_for(tenant_id)
+    return {
+        "tenant_id": _tenant_key(tenant_id),
+        "persistence": kernel.persistence.status(),
+        "state_hash": kernel.snapshot()["state_hash"],
+    }
+
+
+@router.post("/persistence/save")
+async def ontology_runtime_persistence_save(tenant_id: str = Header("default", alias="X-Ontology-Tenant")):
+    return _kernel_for(tenant_id).persist()
+
+
+@router.post("/persistence/load")
+async def ontology_runtime_persistence_load(tenant_id: str = Header("default", alias="X-Ontology-Tenant")):
+    return _kernel_for(tenant_id).load_persisted()
+
+
+@router.post("/persistence/replay")
+async def ontology_runtime_persistence_replay(tenant_id: str = Header("default", alias="X-Ontology-Tenant")):
+    return _kernel_for(tenant_id).replay_persisted()

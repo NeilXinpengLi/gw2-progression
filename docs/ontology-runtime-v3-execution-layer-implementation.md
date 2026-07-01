@@ -37,12 +37,14 @@ The kernel now reports `kernel_version = v3-execution-layer` and exposes:
 - constrained AI reasoning
 - lineage replay
 - evidence-backed lineage
+- persistent state and lineage store through the execution-finalization layer
 
 ## Compatibility
 
 - Existing `/ontology/runtime/execute` and `/ontology/runtime/compiled/execute` now run through the v3 scheduler.
 - Existing tenant isolation through `X-Ontology-Tenant` is preserved.
 - Existing BORS and RL layers still emit ontology actions and now execute through the scheduler path.
+- `kernel_version` remains `v3-execution-layer` for API compatibility; the persistent execution-finalization marker is exposed as `finalization_version = vFinal-execution-finalization`.
 
 ## Verification
 
@@ -50,6 +52,7 @@ Covered by:
 
 - `tests/test_ontology.py::TestOntologyRuntimeKernel`
 - `tests/test_ontology_runtime_api.py`
+- `tests/test_ontology_runtime_persistence.py`
 - `tests/test_ontology_runtime_smoke.py`
 - `tests/test_ontology_runtime_tenant_replay.py`
 
@@ -62,14 +65,14 @@ The v3 execution layer now has a real scheduler loop, strict validation before m
 Remaining gaps before L4 Production Ready:
 
 - compiled graph manifests are not persisted or signed
-- lineage remains in-memory for the runtime API
 - replay does not yet validate cross-version graph compatibility
 - scheduler does not yet expose retry/rollback policies
 - large lineage performance and checkpointing are not covered
+- persistent lineage now exists, but it does not yet have checkpointing, pruning, or schema migration policy
 
 Priority after v3:
 
-1. Persist compiled manifests and lineage by tenant.
+1. Persist compiled manifests by tenant.
 2. Add manifest schema/version compatibility checks during replay.
 3. Add replay checkpoints for long-running histories.
 4. Add scheduler failure policy support.

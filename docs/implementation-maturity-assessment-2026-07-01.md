@@ -6,13 +6,14 @@ Implementation progress:
 
 - P0 completed: commercial idempotency now uses transaction-level serialization, payment event receipts, and real SQLite replay tests.
 - P1 completed: license use is an atomic conditional update, delivery uses an outbox record, and Ontology Runtime API state is tenant-isolated through `X-Ontology-Tenant`.
+- P1 completed: Ontology Runtime now persists tenant-scoped state/lineage and can replay from durable history.
 - P2 completed: governance is exposed at `/api/governance/routes`, `production` is gated as AI Lab/Experimental, and CI tests scan Core Product routes for AI Lab decision dependencies.
 
 ## 1. 评估结论
 
-当前系统已经从“功能原型堆叠”进入“有治理边界的 Beta 系统”阶段。Core Product 主流程已有 smoke suite，Commerce 已具备基础幂等模型，Ontology Runtime v2 已形成统一执行内核，AI Lab 与 Infrastructure 路由也已通过 governance 元数据和部署开关隔离。
+当前系统已经从“功能原型堆叠”进入“有治理边界的 Beta 系统”阶段。Core Product 主流程已有 smoke suite，Commerce 已具备基础幂等模型，Ontology Runtime vFinal execution finalization 已形成统一执行内核、持久化 state/lineage 和 durable replay，AI Lab 与 Infrastructure 路由也已通过 governance 元数据和部署开关隔离。
 
-但整体尚未达到强生产级。主要短板集中在真实数据库并发幂等、支付 webhook 事件持久化审计、交付任务副作用防重、Ontology Runtime 持久化/多租户隔离、以及跨版本 replay 兼容性。
+但整体尚未达到强生产级。主要短板集中在支付平台沙箱矩阵、交付任务死信/运营补偿、Ontology Runtime manifest 持久化/跨版本 replay 兼容性、以及长期运维可观测性。
 
 ## 2. 成熟度等级定义
 
@@ -34,7 +35,7 @@ Implementation progress:
 | Commerce 订单/许可证 | L3 Beta | `create_order()` 支持 idempotency key 回放；同 key 创建在 `BEGIN IMMEDIATE` 写锁内串行化；真实 SQLite 测试覆盖重复 key。 | 仍缺少外部支付平台沙箱压测和版本化 migration。 |
 | Payment Webhook | L3 Beta | `payment_events` 持久化 provider event receipt；重复 event 只 fulfillment 一次。 | 缺少 Stripe 沙箱乱序事件矩阵和人工补偿后台。 |
 | Delivery Retry | L3 Beta | `delivery_outbox` 记录邮件副作用；delivery job 对 order 唯一；测试覆盖重复处理只发送一次。 | 缺少独立 outbox worker、死信队列和运营 dashboard。 |
-| Ontology Runtime v2 Foundry | L3 Beta | `CompiledRuntimeGraph`、`ExecutionGraphCompiler`、BORS/RL action 化、lineage/replay guarantees、API 测试已存在；API state 按 tenant header 隔离。 | manifest 仍未持久化；跨版本 replay 还没有长期兼容策略。 |
+| Ontology Runtime vFinal Execution | L3 Beta | `OntologyKernel.execute()` 是唯一状态变更入口；state/lineage 按 tenant 持久化；`/ontology/runtime/persistence/replay` 可从 durable lineage 重建最终 state。 | compiled manifest 仍未持久化/签名；跨版本 replay 还没有长期兼容策略；长 lineage 未 checkpoint。 |
 | Goal-Driven OS 职责边界 | L3 Beta | governance 中定义为 Core Product 的 product planning layer；Ontology Runtime 定位为 governance/evidence layer；Expert AI 归 AI Lab。 | 代码层还缺少硬性依赖约束，不能自动阻止 AI Lab 直接参与生产决策。 |
 | AI Lab 隔离 | L3 Beta | production 默认禁用 experimental/AI Lab 路由；测试覆盖。 | 还缺少部署时路由快照检查、运行时安全告警、实验数据与生产数据隔离策略。 |
 | 数据库/迁移 | L2 Alpha | SQLite schema 有基础外键、部分唯一约束、连接池和 WAL。 | schema 直接内嵌在 `CREATE_TABLES`，缺少版本化 migration；幂等和交付约束不完整。 |
@@ -69,7 +70,7 @@ Implementation progress:
 - 已完成：idempotency 事务锁定、`payment_events`、`licenses.order_id` 唯一索引、`delivery_jobs.order_id` 唯一约束、license 条件更新、真实 SQLite 并发测试。
 - 未完成：版本化 migration、支付沙箱矩阵测试、outbox worker/死信队列、运营补偿界面。
 
-## 5. Ontology Runtime v2 成熟度
+## 5. Ontology Runtime vFinal 成熟度
 
 ### 已实现
 
@@ -80,6 +81,8 @@ Implementation progress:
 - RL 优化层只产生 `apply_policy_weight` ontology action。
 - LLM action 必须通过 constrained reasoning guard。
 - lineage/replay 可验证 deterministic state hash。
+- state/lineage 已通过 `ontology_kernel_states` 和 `ontology_kernel_lineage` 按 tenant 持久化。
+- `/ontology/runtime/persistence/replay` 可从 durable lineage 重建最终 state 并校验 persisted/replayed hash。
 
 ### 风险点
 
@@ -89,8 +92,8 @@ Implementation progress:
 2. snapshot 调用会触发 replay。
    当前规模小可接受，但随着 lineage 增长会有性能压力。
 
-3. runtime 仍是进程内状态，但 API 已按 tenant 隔离。
-   API 路由通过 `X-Ontology-Tenant` 分配独立 kernel，避免请求间状态污染；进程重启恢复仍未实现。
+3. runtime 已具备 durable state/lineage，但缺少长期 checkpoint。
+   API 路由通过 `X-Ontology-Tenant` 分配独立 kernel，并可从 SQLite 恢复 tenant state；长历史 replay 性能和 schema 迁移策略仍未实现。
 
 4. manifest 没有持久化或签名。
    编译结果可返回，但还不能作为长期审计证据。
@@ -98,7 +101,7 @@ Implementation progress:
 ### 升级到 L4 的门槛
 
 - 为 compiled graph manifest 加 `schema_version`、签名/hash、持久化表。
-- 将 lineage 持久化，支持按 account/workspace 分区 replay。
+- 已完成：将 state/lineage 持久化，支持按 tenant 分区 replay。
 - 将 guarantees 拆成 evidence 列表，例如每条 action 的 validation result、compiler result、replay result。
 - 增加 lineage 大小/性能测试和 replay 快照 checkpoint。
 - 已完成：API 层加 tenant 边界，禁止共享 `_kernel` 状态污染。
@@ -132,7 +135,7 @@ Implementation progress:
 | --- | --- | --- |
 | Core smoke | 已覆盖最小玩家价值链。 | L3 |
 | Commerce idempotency | 覆盖 mock 行为与 webhook key 传递。 | L2 |
-| Ontology runtime | 覆盖 DAG、replay、BORS/RL、API。 | L3 |
+| Ontology runtime | 覆盖 DAG、replay、BORS/RL、API、持久化 replay。 | L3 |
 | Governance | 覆盖分类完整性和生产开关。 | L3 |
 | 并发测试 | 基本缺失。 | L1 |
 | 真实 DB 集成测试 | 局部不足。 | L1-L2 |
@@ -155,6 +158,7 @@ npx gitnexus detect-changes --scope unstaged --repo gw2-progression
 - 已新增 `tests/test_license_atomic_usage.py`：并发使用 license 不超过 `max_uses`。
 - 已新增 `tests/test_delivery_outbox.py`：delivery retry 不重复发送，失败可恢复。
 - 已新增 `tests/test_ontology_runtime_tenant_replay.py`：不同 tenant runtime state 不互相污染。
+- 已新增 `tests/test_ontology_runtime_persistence.py`：Ontology Runtime state/lineage 持久化后可重新加载并 durable replay。
 
 ## 9. 优先级路线图
 
@@ -163,8 +167,9 @@ npx gitnexus detect-changes --scope unstaged --repo gw2-progression
 3. Completed P1：把 license 使用计数改成原子条件更新。
 4. Completed P1：为 delivery job 增加唯一约束和 outbox 发送记录。
 5. Completed P1：为 Ontology Runtime 增加 tenant/session 隔离。
-6. Completed P2：将 API governance 输出到运行时快照。
-7. Completed P2：把 AI Lab 到生产决策的边界改成代码层依赖约束和 CI 检查。
+6. Completed P1：为 Ontology Runtime 增加 tenant-scoped state/lineage 持久化与 durable replay。
+7. Completed P2：将 API governance 输出到运行时快照。
+8. Completed P2：把 AI Lab 到生产决策的边界改成代码层依赖约束和 CI 检查。
 
 ## 10. 总体评级
 
@@ -177,4 +182,4 @@ npx gitnexus detect-changes --scope unstaged --repo gw2-progression
 | 生产运维 | L2 |
 | 发布门禁 | L2-L3 |
 
-总体判断：当前代码适合 Beta/受控试运行，不建议直接承诺强生产级商业化交付。下一轮最应该集中在商业化幂等的真实数据库并发安全和 Ontology Runtime 的租户隔离，这两项会显著降低生产事故面。
+总体判断：当前代码适合 Beta/受控试运行，不建议直接承诺强生产级商业化交付。下一轮最应该集中在 compiled manifest 持久化/签名、跨版本 replay 兼容、长 lineage checkpoint，以及 AI Lab adapter 收敛，这些会继续降低生产决策和审计风险。

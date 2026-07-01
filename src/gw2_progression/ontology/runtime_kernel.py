@@ -10,8 +10,12 @@ from __future__ import annotations
 import copy
 import hashlib
 import json
+import os
+import sqlite3
 from collections.abc import Callable
 from dataclasses import dataclass, field
+from datetime import datetime, timezone
+from pathlib import Path
 from typing import Any
 
 import httpx
@@ -560,6 +564,177 @@ class LineageStore:
         return [copy.deepcopy(record.get("action", {})) for record in self._records]
 
 
+class KernelPersistence:
+    """SQLite persistence for ontology runtime state and lineage."""
+
+    def __init__(self, tenant_id: str = "default", enabled: bool | None = None) -> None:
+        self.tenant_id = tenant_id.strip() or "default"
+        self.enabled = enabled if enabled is not None else os.getenv("ONTOLOGY_KERNEL_PERSISTENCE", "1") != "0"
+
+    def status(self) -> dict[str, Any]:
+        if not self.enabled:
+            return {"enabled": False, "tenant_id": self.tenant_id, "backend": "sqlite"}
+        state = self.load_state()
+        lineage_count = len(self.load_lineage())
+        return {
+            "enabled": True,
+            "tenant_id": self.tenant_id,
+            "backend": "sqlite",
+            "state_hash": _stable_hash(state.to_dict()),
+            "lineage_count": lineage_count,
+        }
+
+    def save_state(
+        self,
+        state: KernelState,
+        lineage_records: list[dict[str, Any]],
+        kernel_version: str,
+    ) -> dict[str, Any]:
+        if not self.enabled:
+            return {"persisted": False, "tenant_id": self.tenant_id, "reason": "disabled"}
+        state_payload = state.to_dict()
+        state_hash = _stable_hash(state_payload)
+        now = datetime.now(timezone.utc).isoformat()
+        with self._connect() as conn:
+            self._ensure_schema(conn)
+            conn.execute(
+                """
+                INSERT INTO ontology_kernel_states
+                    (tenant_id, kernel_version, state_json, state_hash, lineage_count, updated_at)
+                VALUES (?, ?, ?, ?, ?, ?)
+                ON CONFLICT(tenant_id) DO UPDATE SET
+                    kernel_version=excluded.kernel_version,
+                    state_json=excluded.state_json,
+                    state_hash=excluded.state_hash,
+                    lineage_count=excluded.lineage_count,
+                    updated_at=excluded.updated_at
+                """,
+                (
+                    self.tenant_id,
+                    kernel_version,
+                    json.dumps(state_payload, sort_keys=True, separators=(",", ":"), default=str),
+                    state_hash,
+                    len(lineage_records),
+                    now,
+                ),
+            )
+            for record in lineage_records:
+                conn.execute(
+                    """
+                    INSERT OR IGNORE INTO ontology_kernel_lineage
+                        (tenant_id, step, action_hash, from_hash, to_hash, record_json, created_at)
+                    VALUES (?, ?, ?, ?, ?, ?, ?)
+                    """,
+                    (
+                        self.tenant_id,
+                        int(record.get("step", 0)),
+                        str(record.get("action_hash", "")),
+                        str(record.get("from", "")),
+                        str(record.get("to", "")),
+                        json.dumps(record, sort_keys=True, separators=(",", ":"), default=str),
+                        now,
+                    ),
+                )
+            conn.commit()
+        return {
+            "persisted": True,
+            "tenant_id": self.tenant_id,
+            "state_hash": state_hash,
+            "lineage_count": len(lineage_records),
+        }
+
+    def load_state(self) -> KernelState:
+        if not self.enabled:
+            return KernelState()
+        with self._connect() as conn:
+            self._ensure_schema(conn)
+            row = conn.execute(
+                "SELECT state_json FROM ontology_kernel_states WHERE tenant_id = ?",
+                (self.tenant_id,),
+            ).fetchone()
+        if not row:
+            return KernelState()
+        return KernelState.from_dict(json.loads(str(row["state_json"])))
+
+    def load_lineage(self) -> list[dict[str, Any]]:
+        if not self.enabled:
+            return []
+        with self._connect() as conn:
+            self._ensure_schema(conn)
+            rows = conn.execute(
+                """
+                SELECT record_json
+                FROM ontology_kernel_lineage
+                WHERE tenant_id = ?
+                ORDER BY step ASC
+                """,
+                (self.tenant_id,),
+            ).fetchall()
+        return [json.loads(str(row["record_json"])) for row in rows]
+
+    def clear(self) -> dict[str, Any]:
+        if not self.enabled:
+            return {"cleared": False, "tenant_id": self.tenant_id, "reason": "disabled"}
+        with self._connect() as conn:
+            self._ensure_schema(conn)
+            conn.execute("DELETE FROM ontology_kernel_lineage WHERE tenant_id = ?", (self.tenant_id,))
+            conn.execute("DELETE FROM ontology_kernel_states WHERE tenant_id = ?", (self.tenant_id,))
+            conn.commit()
+        return {"cleared": True, "tenant_id": self.tenant_id}
+
+    def _connect(self) -> sqlite3.Connection:
+        path, uri = self._db_target()
+        conn = sqlite3.connect(path, uri=uri)
+        conn.row_factory = sqlite3.Row
+        conn.execute("PRAGMA foreign_keys=ON")
+        return conn
+
+    def _db_target(self) -> tuple[str, bool]:
+        from gw2_progression import database
+
+        if not database._TEST_DB_URL:
+            database.DB_DIR.mkdir(parents=True, exist_ok=True)
+            return str(database.DB_PATH), False
+        test_url = str(database._TEST_DB_URL)
+        if test_url.startswith("file:"):
+            return test_url, True
+        Path(test_url).parent.mkdir(parents=True, exist_ok=True)
+        return test_url, False
+
+    def _ensure_schema(self, conn: sqlite3.Connection) -> None:
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS ontology_kernel_states (
+                tenant_id TEXT PRIMARY KEY,
+                kernel_version TEXT NOT NULL,
+                state_json TEXT NOT NULL DEFAULT '{}',
+                state_hash TEXT NOT NULL,
+                lineage_count INTEGER NOT NULL DEFAULT 0,
+                updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+            )
+            """
+        )
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS ontology_kernel_lineage (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                tenant_id TEXT NOT NULL,
+                step INTEGER NOT NULL,
+                action_hash TEXT NOT NULL,
+                from_hash TEXT NOT NULL,
+                to_hash TEXT NOT NULL,
+                record_json TEXT NOT NULL,
+                created_at TEXT NOT NULL DEFAULT (datetime('now')),
+                UNIQUE(tenant_id, step)
+            )
+            """
+        )
+        conn.execute(
+            "CREATE INDEX IF NOT EXISTS idx_ontology_kernel_lineage_tenant ON ontology_kernel_lineage(tenant_id, step)"
+        )
+        conn.commit()
+
+
 class ExecutionEngine:
     """Deterministic action executor with ontology validation and lineage."""
 
@@ -1016,8 +1191,19 @@ class LLMConstrainedReasoning:
 class OntologyRuntimeKernel:
     """High-level facade combining registry, execution, queries, and replay."""
 
-    def __init__(self, registry: OntologyRegistry | None = None) -> None:
+    KERNEL_VERSION = "v3-execution-layer"
+    FINALIZATION_VERSION = "vFinal-execution-finalization"
+
+    def __init__(
+        self,
+        registry: OntologyRegistry | None = None,
+        tenant_id: str = "default",
+        persistence: KernelPersistence | None = None,
+        load_persisted: bool = False,
+    ) -> None:
         self.registry = registry or OntologyRegistry.from_project_config()
+        self.tenant_id = tenant_id.strip() or "default"
+        self.persistence = persistence or KernelPersistence(self.tenant_id)
         self.state = KernelState()
         self.lineage_store = LineageStore()
         self.lineage = LineageTracker(self.lineage_store)
@@ -1028,16 +1214,20 @@ class OntologyRuntimeKernel:
         self.bors = BORSDecisionLayer(self)
         self.rl = RLOptimizationLayer(self)
         self.ingestor = DGSKIngestor()
+        if load_persisted:
+            self.load_persisted()
 
     def execute(self, action: dict[str, Any], scheduler_evidence: dict[str, Any] | None = None) -> dict[str, Any]:
         result = self.execution.execute(action, self.state, scheduler_evidence=scheduler_evidence)
         self.state = result["state"]
+        persistence = self.persist()
         return {
             "status": result["status"],
             "state_hash": _stable_hash(self.state.to_dict()),
             "delta": result["delta"],
             "lineage": result["lineage"],
             "validation": result["validation"],
+            "persistence": persistence,
         }
 
     def ingest_normalized(self, normalized: dict[str, Any]) -> dict[str, Any]:
@@ -1096,19 +1286,64 @@ class OntologyRuntimeKernel:
     def replay(self, lineage_log: list[dict[str, Any]] | None = None) -> dict[str, Any]:
         return ReplayEngine(self.registry).replay(lineage_log or self.lineage.export())
 
+    def persist(self) -> dict[str, Any]:
+        return self.persistence.save_state(
+            self.state,
+            self.lineage_store.list(),
+            kernel_version=self.FINALIZATION_VERSION,
+        )
+
+    def load_persisted(self) -> dict[str, Any]:
+        self.state = self.persistence.load_state()
+        self.lineage_store.clear()
+        self.lineage.records.clear()
+        for record in self.persistence.load_lineage():
+            clean_record = copy.deepcopy(record)
+            self.lineage.records.append(clean_record)
+            self.lineage_store.append(clean_record)
+        return self.snapshot()
+
+    def clear_persisted(self) -> dict[str, Any]:
+        self.state = KernelState()
+        self.lineage_store.clear()
+        self.lineage.records.clear()
+        return self.persistence.clear()
+
+    def replay_persisted(self) -> dict[str, Any]:
+        persisted_lineage = self.persistence.load_lineage()
+        persisted_state = self.persistence.load_state()
+        replay = self.replay(persisted_lineage)
+        replay_hash = _stable_hash(replay["state"].to_dict())
+        persisted_hash = _stable_hash(persisted_state.to_dict())
+        return {
+            "tenant_id": self.tenant_id,
+            "deterministic": replay["deterministic"] and replay_hash == persisted_hash,
+            "mismatches": replay["mismatches"],
+            "persisted_state_hash": persisted_hash,
+            "replayed_state_hash": replay_hash,
+            "lineage_count": len(persisted_lineage),
+            "state": replay["state"].to_dict(),
+            "lineage": replay["lineage"],
+        }
+
     def snapshot(self) -> dict[str, Any]:
         return {
-            "kernel_version": "v3-execution-layer",
+            "kernel_version": self.KERNEL_VERSION,
+            "finalization_version": self.FINALIZATION_VERSION,
+            "tenant_id": self.tenant_id,
             "state": self.state.to_dict(),
             "state_hash": _stable_hash(self.state.to_dict()),
             "lineage": self.lineage_store.list(),
+            "persistence": self.persistence.status(),
             "compiled_guarantees": self.guarantees(),
         }
 
     def guarantees(self) -> dict[str, Any]:
         replay = self.replay(self.lineage_store.list())
+        persistence_status = self.persistence.status()
         return {
-            "kernel_version": "v3-execution-layer",
+            "kernel_version": self.KERNEL_VERSION,
+            "finalization_version": self.FINALIZATION_VERSION,
             "everything_is_execution_graph": True,
             "single_execution_kernel": True,
             "deterministic_execution": replay["deterministic"],
@@ -1119,6 +1354,8 @@ class OntologyRuntimeKernel:
             "constrained_ai_reasoning": True,
             "lineage_replay": replay["deterministic"] and not replay["mismatches"],
             "evidence_backed_lineage": all("evidence" in record for record in self.lineage_store.list()),
+            "persistent_store": persistence_status["enabled"],
+            "persistent_replay": persistence_status["enabled"],
             "mismatches": replay["mismatches"],
         }
 
@@ -1152,16 +1389,17 @@ class OntologyRuntimeKernel:
                 "single_execution_kernel": True,
                 "no_parallel_truth": False,
                 "lineage_first_design": True,
+                "persistent_state_store": self.persistence.status()["enabled"],
                 "replay_guarantee": self.guarantees()["lineage_replay"],
             },
             "maturity": {
                 "level": "L3 Beta",
-                "reason": "Core ontology runtime has one executable kernel, while AI Lab modules still need adapters before full vFinal convergence.",
+                "reason": "Core ontology runtime has one executable kernel with persistent state and replay, while AI Lab modules still need adapters before full vFinal convergence.",
                 "next_priorities": [
                     "Add Cognitive OS kernel adapter",
                     "Add Rule Engine policy adapter",
                     "Add Expert AI constraint adapter",
-                    "Persist lineage as global system memory",
+                    "Persist compiled graph manifests and compatibility metadata",
                 ],
             },
         }

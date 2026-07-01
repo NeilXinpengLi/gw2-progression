@@ -14,9 +14,9 @@ The system should converge from distributed AI/runtime services to one ontology 
 
 ## Current Maturity
 
-Current maturity: L2-L3.
+Current maturity: L3 Beta for the ontology execution core, L2-L3 for full system convergence.
 
-The ontology runtime itself is L3 Beta after v3: it has a strict validation gate, executable DAG scheduler, deterministic state transition, lineage evidence, and replay.
+The ontology runtime itself is L3 Beta after vFinal execution finalization: it has a strict validation gate, executable DAG scheduler, deterministic state transition, persistent state/lineage, and replay from durable history.
 
 The whole system convergence is lower because Cognitive OS, Rule Engine v2, Expert AI, and some simulation surfaces still exist as independent AI Lab modules. They are gated and isolated, but they are not yet fully adapted into the kernel.
 
@@ -29,6 +29,8 @@ The whole system convergence is lower because Cognitive OS, Rule Engine v2, Expe
 | Kernel action ingress | `execute_kernel_action()` compiles any action into a one-node DAG and executes through scheduler -> executor -> state -> lineage. |
 | API convergence report | `GET /ontology/runtime/convergence`. |
 | API kernel action path | `POST /ontology/runtime/kernel/action`. |
+| Persistent runtime memory | `ontology_kernel_states` and `ontology_kernel_lineage` store tenant-scoped state and lineage. |
+| Durable replay API | `POST /ontology/runtime/persistence/replay` rebuilds state from persisted lineage and compares the persisted final hash. |
 | Tests | Unit and API tests validate convergence report and kernel action execution. |
 
 ## Merged Layers
@@ -53,10 +55,9 @@ Still isolated:
 1. Add Cognitive OS kernel adapter.
 2. Add Rule Engine policy adapter.
 3. Add Expert AI constraint adapter.
-4. Persist lineage as global system memory.
+4. Persist compiled graph manifests and compatibility metadata.
 5. Enforce no production route executes AI Lab decisions outside kernel adapters.
 
 ## Risk
 
-The convergence report intentionally marks `no_parallel_truth = false` until the pending AI Lab adapters are implemented. This avoids overstating final convergence while providing a concrete migration contract.
-
+The convergence report intentionally marks `no_parallel_truth = false` until the pending AI Lab adapters are implemented. Durable state and lineage are now in place, but full convergence still depends on preventing independent AI Lab decision paths from becoming production truth.
