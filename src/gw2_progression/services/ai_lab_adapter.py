@@ -44,6 +44,14 @@ class AILabAdapter:
 
     SOURCE = "ai_lab_adapter:v1"
 
+    def __init__(
+        self,
+        rule_adapter: "RuleValidationAdapter | None" = None,
+        lifecycle_adapter: "LifecycleSimulationAdapter | None" = None,
+    ) -> None:
+        self.rule_adapter = rule_adapter or RuleValidationAdapter()
+        self.lifecycle_adapter = lifecycle_adapter or LifecycleSimulationAdapter()
+
     async def enhance_plan(self, plan: ProgressionPlan, parsed: ParsedGoal, account_state: dict[str, Any]) -> tuple[ProgressionPlan, AIPlanAssessment]:
         """Annotate a plan with validation and simulation evidence.
 
@@ -51,14 +59,21 @@ class AILabAdapter:
         adds evidence, risk notes, and a compact insight suffix so the product
         path remains deterministic and easy to roll back.
         """
-        warnings = self._validate_plan(plan, parsed)
+        validation = self._validate_plan(plan, parsed)
         simulation = self._simulate_plan(plan, account_state)
+        rule_result = self.rule_adapter.validate(plan, parsed, account_state)
+        lifecycle_result = self.lifecycle_adapter.simulate(plan, account_state)
+        warnings = [
+            *validation["warnings"],
+            *rule_result.get("warnings", []),
+            *lifecycle_result.get("warnings", []),
+        ]
         evidence_sources = [
             self.SOURCE,
             "goal_driven_os:product_planning",
             "ontology_runtime:evidence_contract",
-            "rule_engine_v2:validation_adapter_pending",
-            "lifecycle:simulation_adapter_pending",
+            rule_result.get("source", "rule_engine_v2:validation_adapter"),
+            lifecycle_result.get("source", "lifecycle:simulation_adapter"),
         ]
         maturity = "L2-L3"
         status = "enhanced" if plan.actions else "observed"
@@ -71,21 +86,24 @@ class AILabAdapter:
             status=status,
             maturity=maturity,
             validation={
-                "valid": not any(warning.startswith("blocking:") for warning in warnings),
+                "valid": validation["valid"] and rule_result.get("valid", True) and lifecycle_result.get("valid", True),
                 "warning_count": len(warnings),
                 "goal_type": str(parsed.goal_type),
+                "heuristic": validation,
+                "rule_engine_v2": rule_result,
+                "lifecycle": lifecycle_result.get("validation", {}),
             },
-            simulation=simulation,
+            simulation={**simulation, "lifecycle": lifecycle_result.get("simulation", {})},
             evidence_sources=evidence_sources,
             warnings=warnings,
         )
         return enhanced, assessment
 
-    def _validate_plan(self, plan: ProgressionPlan, parsed: ParsedGoal) -> list[str]:
+    def _validate_plan(self, plan: ProgressionPlan, parsed: ParsedGoal) -> dict[str, Any]:
         warnings: list[str] = []
         if not plan.actions:
             warnings.append("blocking:no_actions")
-            return warnings
+            return {"valid": False, "warnings": warnings}
         if plan.estimated_days > 30:
             warnings.append("long_horizon:plan_exceeds_30_days")
         if plan.total_cost_copper > 0 and parsed.gold_budget_copper > 0 and plan.total_cost_copper > parsed.gold_budget_copper:
@@ -95,7 +113,7 @@ class AILabAdapter:
             warnings.append(f"confidence:{len(low_confidence)}_low_confidence_actions")
         if len(plan.actions) > 21:
             warnings.append("complexity:more_than_21_actions")
-        return warnings
+        return {"valid": not any(warning.startswith("blocking:") for warning in warnings), "warnings": warnings}
 
     def _simulate_plan(self, plan: ProgressionPlan, account_state: dict[str, Any]) -> dict[str, Any]:
         wallet = int(account_state.get("wallet_gold", 0) or 0)
@@ -141,6 +159,159 @@ class AILabAdapter:
         if suffix in insight:
             return insight
         return f"{insight} {suffix}".strip()
+
+
+class RuleValidationAdapter:
+    """Runs a bounded Rule Engine v2 simulation for plan validation evidence."""
+
+    SOURCE = "rule_engine_v2:validation_adapter"
+
+    def validate(self, plan: ProgressionPlan, parsed: ParsedGoal, account_state: dict[str, Any]) -> dict[str, Any]:
+        try:
+            from gw2_progression.rule_engine_v2.core.engine import RuleEngineV2
+
+            rules = self._rules_from_plan(plan, parsed)
+            engine = RuleEngineV2()
+            engine.extract_rules(rules)
+            simulation = engine.simulate_rules(steps=2)
+            evaluation = engine.evaluate_rules()
+            metrics = simulation.get("economy_metrics", {})
+            warnings = self._warnings_from_metrics(metrics, plan, account_state)
+            return {
+                "source": self.SOURCE,
+                "valid": not any(warning.startswith("rule:blocking") for warning in warnings),
+                "rule_count": len(rules),
+                "warnings": warnings,
+                "economy_metrics": metrics,
+                "evaluation_count": len(evaluation),
+            }
+        except Exception as exc:
+            logger.debug("Rule Engine v2 adapter skipped: %s", exc)
+            return {
+                "source": self.SOURCE,
+                "valid": True,
+                "rule_count": 0,
+                "warnings": [f"rule:adapter_unavailable:{exc}"],
+                "economy_metrics": {},
+                "evaluation_count": 0,
+            }
+
+    def _rules_from_plan(self, plan: ProgressionPlan, parsed: ParsedGoal) -> list[dict[str, Any]]:
+        rules = []
+        for action in plan.actions:
+            price_impact = 0.0
+            if action.action_type == "BUY_ITEM":
+                price_impact = 0.01
+            elif action.action_type == "SELL_ITEM":
+                price_impact = -0.01
+            rules.append({
+                "id": f"plan:{plan.plan_id}:{action.action_id}",
+                "type": "plan_action",
+                "target": "market",
+                "active": True,
+                "action_type": action.action_type,
+                "goal_type": str(parsed.goal_type),
+                "priority": action.priority,
+                "price_impact": price_impact,
+                "cost_copper": max(int(action.cost_gold or 0), 0),
+                "time_cost_minutes": max(int(action.time_cost_minutes or 0), 0),
+            })
+        return rules
+
+    def _warnings_from_metrics(self, metrics: dict[str, Any], plan: ProgressionPlan, account_state: dict[str, Any]) -> list[str]:
+        warnings: list[str] = []
+        volatility = float(metrics.get("price_volatility", 0) or 0)
+        if volatility > 0.05:
+            warnings.append("rule:market_volatility_high")
+        wallet = int(account_state.get("wallet_gold", 0) or 0)
+        if plan.total_cost_copper > wallet > 0:
+            warnings.append("rule:budget_wallet_shortfall")
+        return warnings
+
+
+class LifecycleSimulationAdapter:
+    """Maps product plans into Lifecycle validation and trajectory evidence."""
+
+    SOURCE = "lifecycle:simulation_adapter"
+
+    def simulate(self, plan: ProgressionPlan, account_state: dict[str, Any]) -> dict[str, Any]:
+        try:
+            from gw2_progression.lifecycle.core.engine import LifecycleEngine
+
+            state = self._state_from_plan(plan, account_state)
+            actions = self._actions_from_plan(plan)
+            engine = LifecycleEngine()
+            validation = engine.validate_state(state)
+            trajectory = engine.forward.simulate_with_actions(state, actions[:10])
+            validation_summary = engine.evolver.validation_summary(trajectory[-1]) if trajectory else {}
+            warnings = self._warnings_from_lifecycle(validation, validation_summary)
+            return {
+                "source": self.SOURCE,
+                "valid": bool(validation.get("valid", True)) and int(validation_summary.get("invalid", 0) or 0) == 0,
+                "warnings": warnings,
+                "validation": validation,
+                "simulation": {
+                    "trajectory_length": len(trajectory),
+                    "action_validation_summary": validation_summary,
+                    "end_time": trajectory[-1].get("time", 0) if trajectory else 0,
+                },
+            }
+        except Exception as exc:
+            logger.debug("Lifecycle adapter skipped: %s", exc)
+            return {
+                "source": self.SOURCE,
+                "valid": True,
+                "warnings": [f"lifecycle:adapter_unavailable:{exc}"],
+                "validation": {},
+                "simulation": {},
+            }
+
+    def _state_from_plan(self, plan: ProgressionPlan, account_state: dict[str, Any]) -> dict[str, Any]:
+        inventory: dict[str, int] = {}
+        for material in account_state.get("materials", []) or []:
+            item_id = str(material.get("id", ""))
+            if item_id:
+                inventory[item_id] = int(material.get("count", 0) or 0)
+        return {
+            "inventory": inventory,
+            "market": self._market_from_plan(plan),
+            "achievements": [],
+            "time": 0,
+        }
+
+    def _market_from_plan(self, plan: ProgressionPlan) -> dict[str, dict[str, Any]]:
+        market: dict[str, dict[str, Any]] = {}
+        for action in plan.actions:
+            if action.item_id > 0:
+                market[str(action.item_id)] = {
+                    "price": max(float(action.cost_gold or action.reward_gold or 1), 1.0),
+                    "supply": 100,
+                    "demand": 100,
+                }
+        return market
+
+    def _actions_from_plan(self, plan: ProgressionPlan) -> list[dict[str, Any]]:
+        mapped = []
+        for action in plan.actions:
+            item_id = str(action.item_id or action.action_id)
+            if action.action_type == "CRAFT_ITEM":
+                mapped.append({"type": "craft", "item_id": item_id, "quantity": 1, "recipe_sourced": False})
+            elif action.action_type == "BUY_ITEM":
+                mapped.append({"type": "trade", "item_id": item_id, "quantity": 1, "price": max(action.cost_gold, 1)})
+            elif action.action_type == "COMPLETE_ACHIEVEMENT":
+                mapped.append({"type": "achievement", "item_id": item_id})
+            else:
+                mapped.append({"type": "farm", "item_id": item_id, "quantity": 1})
+        return mapped
+
+    def _warnings_from_lifecycle(self, validation: dict[str, Any], validation_summary: dict[str, Any]) -> list[str]:
+        warnings: list[str] = []
+        if validation and not validation.get("valid", True):
+            warnings.append("lifecycle:state_validation_failed")
+        invalid = int(validation_summary.get("invalid", 0) or 0)
+        if invalid:
+            warnings.append(f"lifecycle:{invalid}_invalid_actions")
+        return warnings
 
 
 async def enhance_plan_with_ai_lab(plan: ProgressionPlan, parsed: ParsedGoal, account_state: dict[str, Any]) -> tuple[ProgressionPlan, AIPlanAssessment]:

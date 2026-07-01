@@ -11,6 +11,7 @@ Implementation progress:
 - P2 completed: redundant Ontology Runtime public routes were removed; the API surface now centers on kernel action, scheduler execution, and durable replay.
 - P2 completed: governance is exposed at `/api/governance/routes`, `production` is gated as AI Lab/Experimental, and CI tests scan Core Product routes for AI Lab decision dependencies.
 - P2 completed: AI Lab is now integrated through an internal product-safe adapter for Goal-Driven plans, without exposing new production routes.
+- P2 completed: AI Lab Adapter now invokes bounded Rule Engine v2 validation and Lifecycle simulation adapters for plan evidence.
 
 ## 1. 评估结论
 
@@ -177,6 +178,7 @@ npx gitnexus detect-changes --scope unstaged --repo gw2-progression
 8. Completed P2：把 AI Lab 到生产决策的边界改成代码层依赖约束和 CI 检查。
 9. Completed P2：移除 Ontology Runtime 冗余公开路由，保留单 action、DAG scheduler、durable replay 三类主入口。
 10. Completed P2：新增 AI Lab Adapter 第一阶段，将实验层作为 Goal-Driven 内部证据增强器，而不是公开决策 API。
+11. Completed P2：AI Lab Adapter 接入 Rule Engine v2 与 Lifecycle 的内部 validation/simulation evidence。
 
 ## 10. 总体评级
 

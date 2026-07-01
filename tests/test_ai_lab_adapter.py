@@ -41,4 +41,9 @@ async def test_ai_lab_adapter_enhances_plan_without_reordering_actions():
     assert "AI Lab check" in enhanced.insight
     assert assessment.status == "enhanced"
     assert assessment.validation["warning_count"] >= 1
+    assert assessment.validation["rule_engine_v2"]["rule_count"] == 1
+    assert assessment.validation["lifecycle"]
     assert assessment.simulation["affordable_with_wallet"] is False
+    assert assessment.simulation["lifecycle"]["trajectory_length"] >= 1
+    assert "rule_engine_v2:validation_adapter" in assessment.evidence_sources
+    assert "lifecycle:simulation_adapter" in assessment.evidence_sources

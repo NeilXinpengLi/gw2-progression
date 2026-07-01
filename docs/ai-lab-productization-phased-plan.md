@@ -37,27 +37,32 @@ Behavior:
 - Annotates action `risk_reason`, `data_sources`, and plan `insight`.
 - Fails open so Core Product remains available if adapter logic fails.
 
-## Phase 2: Rule And Lifecycle Adapters
+## Phase 2 Completed: Rule And Lifecycle Adapters
 
 Goal: replace heuristic warnings with real internal adapters.
 
-Tasks:
+Implemented:
 
-1. Add `RuleValidationAdapter` that maps `PlanAction` into Rule Engine v2 validation facts.
-2. Add `LifecycleSimulationAdapter` that maps plans into 7/14/30 day trajectory checks.
-3. Return structured warning codes:
+1. Added `RuleValidationAdapter` that maps `PlanAction` into bounded Rule Engine v2 simulation rules.
+2. Added `LifecycleSimulationAdapter` that maps plans into Lifecycle validation state and action trajectory checks.
+3. Returned structured warning codes:
    - `budget:*`
    - `time:*`
    - `dependency:*`
    - `market:*`
    - `blocked:*`
-4. Keep adapters internal and non-blocking.
+   - `rule:*`
+   - `lifecycle:*`
+4. Kept adapters internal and non-blocking.
 
 Promotion gate:
 
 ```powershell
-pytest -q tests/test_ai_lab_adapter.py tests/test_goal_driven.py tests/test_lifecycle.py tests/test_rule_engine_v2.py
+pytest -q tests/test_ai_lab_adapter.py tests/test_goal_driven.py
+pytest -q tests/test_rule_engine_v2.py::TestRuleEngineV2::test_simulate_rules tests/test_lifecycle.py::TestLifecycleEngine::test_simulate_forward tests/test_lifecycle.py::TestLifecycleEngine::test_validate_state
 ```
+
+Note: the full Rule Engine v2 + Lifecycle experimental test suite currently exceeds the 124 second local command limit when run together, so the Phase 2 gate uses focused smoke coverage for the directly invoked engine methods.
 
 ## Phase 3: Ontology Evidence Binding
 
@@ -112,11 +117,11 @@ Expert AI can suggest candidates, but Core Product must keep final response owne
 
 | Area | Before | After Phase 1 |
 | --- | --- | --- |
-| AI Lab integration | L2 isolated experiments | L2-L3 internal adapter |
-| Goal-Driven plan evidence | L3 product rules | L3 product rules + AI Lab evidence annotations |
+| AI Lab integration | L2 isolated experiments | L3 internal adapter with Rule/Lifecycle evidence |
+| Goal-Driven plan evidence | L3 product rules | L3 product rules + AI Lab/Rule/Lifecycle evidence annotations |
 | Production exposure risk | Medium | Lower: no new public routes |
 | User-facing value | Medium | Higher: plan warnings and simulation insight |
 
 ## Next Best Task
 
-Implement Phase 2 adapters for Rule Engine v2 and Lifecycle so the current deterministic warnings become evidence-backed validation and simulation results.
+Implement Phase 3 Ontology evidence binding so AI-enhanced plan assessments become replayable runtime evidence with persisted manifest hashes.
