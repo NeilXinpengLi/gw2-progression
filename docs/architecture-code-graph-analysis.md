@@ -1,322 +1,337 @@
-# GW2 Progression 代码图谱与系统成熟度分析
+# GW2 Progression 代码图谱与实现成熟度分析
 
 生成日期：2026-07-01  
 分析范围：`D:\Projects\gw2-progression`  
-主要依据：GitNexus 代码图谱、源码入口、路由注册、服务模块、数据模型、测试目录、Docker 配置。
+主要依据：GitNexus 最新索引、FastAPI 路由注册、服务模块、数据库 schema、测试套件、现有实现文档。
 
-## 1. 分析可信度与限制
+## 1. 图谱快照
 
-- GitNexus 当前索引名称：`gw2-progression`。
-- 图谱规模：431 个文件，14701 个符号，26880 条关系，300 条执行流程，520 个功能社区。
-- GitNexus 报告索引落后 HEAD 7 个提交。已按项目要求执行 `npx gitnexus analyze`，但失败于 `.gitnexus\lbug` 写入权限：`Access is denied`。
-- 因索引无法刷新，本报告采用“当前 GitNexus 图谱 + 源码核验”的方式生成；近 7 个提交内的细节可能未完全反映在图谱流程中。
-- 全量 `pytest -q` 在 124 秒超时，未得到完整通过/失败结果；成熟度判断参考测试存在性、模块组织、接口完整度和源码实现形态，而不是本次完整回归结果。
+已执行：
 
-## 2. 总体架构结论
+```powershell
+npx gitnexus analyze
+```
 
-该项目当前是一个以 FastAPI 为核心的 GW2 账号资产与成长规划单体系统，已具备较完整的后端 API、静态前端页面、SQLite 持久化、GW2 API 数据采集、账号估值、制作规划、目标驱动计划、商业化与 Expert AI 实验基础设施。
+GitNexus 当前索引结果：
 
-系统不是单一“小工具”，而是多条产品线并行演进：
+| 指标 | 数值 |
+| --- | ---: |
+| Nodes | 15,826 |
+| Edges | 28,934 |
+| Clusters | 548 |
+| Execution flows | 300 |
 
-- 玩家侧核心产品：账号分析、资产估值、物品搜索、制作成本、目标计划、Build 可达性、成长建议。
-- 运营/商业化层：产品、订单、许可证、支付、交付、订阅、联盟分销、审计。
-- 智能推理层：Goal-Driven OS、Ontology Runtime、Cognitive OS、Expert AI、Rule Engine v1/v2、Benchmark Arena。
-- 数据基础设施：Data Mesh、数据采集扩展、静态数据、价格缓存、快照与历史差分。
+源码规模快照：
 
-当前架构偏“宽功能单体 + 多个实验性智能子系统”。核心玩家功能成熟度较高，AI/数据中台能力接口丰富但生产闭环成熟度不均衡。
+| 区域 | 文件数 |
+| --- | ---: |
+| `src/gw2_progression/api/routes` | 33 |
+| `src/gw2_progression/services` | 47 |
+| `src/gw2_progression/ontology` | 28 |
+| `src/gw2_progression/expert_ai` | 15 |
+| `src/gw2_progression/cognitive_os` | 37 |
+| `src/gw2_progression/rule_engine_v2` | 27 |
+| `src/gw2_progression/lifecycle` | 25 |
+| `src/gw2_progression/data_mesh` | 9 |
+| `src/gw2_progression/data_acquisition` | 26 |
+| `src/gw2_progression/static` | 27 |
+| `tests` | 62 |
+| `docs/*.md` | 27 |
 
-## 3. 系统组成
+## 2. 总体结论
 
-### 3.1 应用入口
+当前系统已经从“多功能原型单体”推进到“有治理边界的 Beta 单体平台”：
 
-- 主应用入口：`src/gw2_progression/api/main.py`
-- 框架：FastAPI
-- 静态页面目录：`src/gw2_progression/static`
-- 生命周期启动流程：
-  - 初始化 SQLite 数据库。
-  - 预热价格缓存。
-  - 种子化 progression templates、products、providers。
-  - 尝试处理 pending delivery jobs。
-  - 自动导入 ontology handler。
-  - 启动事件总线 worker。
-  - 关闭时停止事件总线、关闭 GW2 client、价格 client、DB pool。
+- Core Product 主链路已具备可运行闭环：auth -> value/analyze -> item search -> crafting -> goal-driven/generate -> report。
+- Commerce 已具备数据库级幂等、支付事件 receipt、license 原子使用、delivery outbox。
+- Ontology Runtime 已从设计层推进为真实执行内核：DAG scheduler、ontology validation、state transition、lineage、tenant persistence、durable replay。
+- API Governance 已按 Core Product、Commerce、AI Lab、Infrastructure 四类隔离，并在生产默认关闭 AI Lab/Experimental。
+- AI Lab、Cognitive OS、Rule Engine v2、Expert AI、Lifecycle、Data Mesh 仍是能力很宽的实验/平台层，整体成熟度低于核心产品链路。
 
-### 3.2 持久化层
+总体评级：L3 Beta。  
+主要阻碍 L4 的因素是版本化 migration、外部支付沙箱矩阵、生产级 outbox worker/死信、OpenAPI 发布门禁、Ontology manifest 持久化/签名、长 lineage checkpoint、AI Lab adapter 收敛。
 
-默认主数据库为 SQLite：
-
-- 路径：`data/gw2_progression.db`
-- 连接池：`DB_POOL_SIZE = 20`
-- 关键表：
-  - 账号与估值：`account_snapshots`、`item_holdings`、`account_value_history`、`price_snapshots`、`valuation_warnings`
-  - 会话与凭证：`account_sessions`、`credentials`、`credential_usage`
-  - 目标与计划：`progression_goal_templates`、`goal_requirements`、`tracked_goals`、`user_goals`、`progression_plans`、`plan_actions`、`plan_revisions`
-  - 静态数据：`static_items`、`static_recipes`、`recipe_ingredients`
-  - 商业化：`products`、`orders`、`licenses`、`delivery_jobs`、`subscriptions`、`affiliates`、`referral_sales`
-  - 协作与审计：`guild_workspaces`、`guild_members`、`workspaces`、`workspace_members`、`audit_log`
-  - Ontology：`ontology_objects`、`ontology_relations`、`ontology_actions`、`snapshot_registry`
-
-另有 Expert AI Docker 编排使用 PostgreSQL、Neo4j、Qdrant、Redis、Celery worker 与 trainer，但这属于增强基础设施，不是主应用启动的必要依赖。
-
-### 3.3 主要功能社区
-
-GitNexus 识别出的高权重模块：
-
-| 模块 | 符号数 | 内聚度 | 判断 |
-|---|---:|---:|---|
-| Tests | 578 | 92% | 测试覆盖面广，是成熟度的重要支撑 |
-| Services | 328 | 73% | 业务服务层，承担核心复杂度 |
-| Cognitive_os | 152 | 68% | 智能操作系统实验层，功能面广 |
-| Expert_ai | 139 | 91% | Expert AI 子系统，模块内聚较好 |
-| Static | 87 | 73% | 静态前端与资源 |
-| Benchmark | 82 | 91% | Arena、Elo、自博弈、演化测试 |
-| Ontology | 71 | 84% | 对象图谱、动作约束、证据绑定 |
-| Probabilistic | 54 | 92% | 概率推理、因果、GNN、策略 |
-| Routes | 51 | 76% | API route 层 |
-| Data_acquisition | 46 | 88% | 采集、扩展、注册、数据飞轮 |
-
-## 4. 架构视图
+## 3. 实现架构
 
 ```mermaid
 flowchart TD
     UI["Static Web UI\nlanding/account/plan/insight/report"] --> API["FastAPI App\napi/main.py"]
-    Client["External Clients"] --> API
-    API --> Routes["Route Layer\n30+ routers / 217 routes"]
-    Routes --> Services["Service Layer\nvaluation, goals, crafting, commerce, expert AI"]
-    Services --> DB["SQLite\nsnapshots, holdings, plans, commerce, ontology"]
-    Services --> GW2["Guild Wars 2 API"]
-    Services --> Cache["In-process / Redis optional cache"]
-    Routes --> AI["AI & Reasoning Subsystems"]
-    AI --> Ontology["Ontology Runtime / Object Graph"]
-    AI --> Cognitive["Cognitive OS"]
-    AI --> Expert["Expert AI Runtime"]
-    Expert --> Infra["Optional Infra\nPostgres / Neo4j / Qdrant / Redis / Celery"]
-    Services --> EventBus["Event Bus / Handlers"]
+    Client["External API Clients"] --> API
+    API --> Governance["API Governance\ncategory/stability/gate"]
+    Governance --> Routes["33 Route Modules"]
+    Routes --> Core["Core Product Services\nvaluation/crafting/goals/reports/builds"]
+    Routes --> Commerce["Commerce Services\norders/payment/license/delivery"]
+    Routes --> Infra["Infrastructure Services\ncredentials/audit/workspaces/data mesh/ontology"]
+    Routes --> Lab["AI Lab Routes\nexpert/cognitive/rule/lifecycle/arena"]
+    Core --> DB["SQLite\nsnapshots/holdings/plans/reports"]
+    Commerce --> DB
+    Infra --> DB
+    Infra --> Ontology["Ontology Kernel\nDAG -> State -> Lineage -> Replay"]
+    Lab --> Optional["Optional AI Infra\nPostgres/Neo4j/Qdrant/Redis/Celery"]
+    Core --> GW2["Guild Wars 2 API"]
 ```
 
-## 5. 接口组成
+## 4. API 层与发布治理
 
-GitNexus route map 识别到 217 条路由。源码中主要 router 前缀如下：
+入口：`src/gw2_progression/api/main.py`
 
-| 前缀 | 模块 | 功能 |
-|---|---|---|
-| `/auth/*` | `api/main.py` | API key 会话创建、校验、删除 |
-| `/health`、`/metrics`、`/ws` | `api/main.py` | 健康检查、指标、WebSocket |
-| `/api/account` | `routes/account.py` | 账号概览、账号资产视图 |
-| `/value` | `routes/valuation.py` | 估值分析、物品搜索、持仓详情、价格深度、快照差分 |
-| `/crafting` | `routes/crafting.py` | 制作计算、最便宜路径、优化结果、购物清单、制作步骤 |
-| `/goals` | `routes/goals.py` | 目标模板、目标追踪 |
-| `/goal-driven` | `routes/goal_driven.py` | 自然语言目标解析、计划生成、计划修订、渐进式分析 |
-| `/builds` | `routes/builds.py` | Build 模板、推荐、可达性 |
-| `/progression`、`/quests`、`/tp` | 多 route | 成长建议、日常任务、交易所策略 |
-| `/reports`、`/commercial` | 多 route | 报告生成、商业报告 HTML |
-| `/commerce`、`/payment` | 多 route | 产品、订单、许可证、支付 |
-| `/subscriptions`、`/affiliates` | 多 route | 订阅投递、联盟分销 |
-| `/credentials` | `routes/credentials.py` | 外部凭证管理 |
-| `/guild`、`/workspaces` | 多 route | 公会与工作区协作 |
-| `/mesh` | `routes/data_mesh.py` | Data Mesh 状态、来源、ingest、pipeline、normalize、confidence |
-| `/ontology/runtime` | `routes/ontology_runtime.py` | Ontology 状态、动作执行、模拟、回放、依赖追踪 |
-| `/rules`、`/rules/v2` | rule engine | 规则校验、抽取、演化、竞争、蒸馏、优化 |
-| `/lifecycle` | lifecycle API | 生命周期重构、物品反推、制作/经济一致性检查 |
-| `/cognitive-os` | cognitive OS | 初始化、step、训练、模拟、多世界、校准、策略、工厂 |
-| Expert AI 无统一前缀 | `routes/expert_ai.py` | 图谱编译、运行态、推理、模拟、数据、记忆、训练、可观测性 |
+已实现：
 
-## 6. 已实现功能与流程
+- `lifespan()` 初始化 DB、价格缓存、progression templates、products、providers、delivery jobs、event bus。
+- 中间件覆盖 security headers、request logging、metrics、rate limit、session token 注入。
+- `ROUTER_BINDINGS` 统一注册 33 个路由模块。
+- `include_governed_routers()` 根据 `API_ROUTE_GOVERNANCE` 和环境变量决定路由是否暴露。
+- `/api/governance/routes` 输出运行时治理快照。
 
-### 6.1 账号分析与估值
+治理分类：
 
-核心流程：
+| 分类 | 生产姿态 | 典型路由 |
+| --- | --- | --- |
+| Core Product | 默认开启 | account、valuation、crafting、goals、goal_driven、reports、builds |
+| Commerce | 默认开启，要求幂等测试 | commerce、commercial、payment、subscriptions、affiliates |
+| Infrastructure | 默认开启，需平台审查 | credentials、audit、workspaces、data_mesh、ontology_runtime |
+| AI Lab | 生产默认关闭 | expert_ai、cognitive_os、rule_v2、lifecycle、arena、v4、v5、production |
+
+成熟度：L3 Beta。  
+证据：`tests/test_api_governance.py` 覆盖分类完整性、生产默认关闭 AI Lab、governance snapshot、核心路由禁止导入 AI Lab 决策依赖。  
+缺口：governance 仍是 Python 字典，未写入 OpenAPI extension 或部署产物；Internal/Beta 路由缺少统一鉴权 guard。
+
+## 5. Core Product 实现层
+
+### 5.1 玩家主流程
+
+最小 smoke：
+
+```text
+auth/session -> value/analyze -> value/items/search -> crafting/calculate/cheapest -> goal-driven/generate -> reports/generate
+```
+
+实现证据：
+
+- `tests/test_core_player_smoke.py` 覆盖完整玩家链路。
+- `auth/session` 调用 `fetch_all()` 校验 API key，并通过 `auth_service.create_session()` 持久化会话。
+- `valuation` 路由调用 `run_full_analysis()`，生成 `ValueAnalyzeResponse`。
+- `crafting` 路由调用 `calculate_cheapest()`。
+- `goal_driven` 路由调用 `interpret_goal()` 和 `generate_plan_from_goal()`。
+- `reports` 路由调用 `generate_report()`。
+
+成熟度：L3 Beta。  
+优势：核心产品路径清晰，有 smoke suite。  
+缺口：smoke 大量使用 mock；还缺少真实 GW2 API fallback、真实 DB 端到端 fixture、浏览器级主路径门禁。
+
+### 5.2 估值、搜索、制作、计划
+
+| 功能 | 实现层 | 成熟度 | 证据 | 主要缺口 |
+| --- | --- | --- | --- | --- |
+| 账号估值 | `analyzer.py`、`valuation_service.py`、`snapshot_service.py`、`price_service.py` | L3 | `test_valuation.py`、`test_database_core.py`、`test_delta.py`、核心 smoke | 价格源异常、GW2 API 失败和长期历史容量策略仍需加强 |
+| 物品搜索 | `item_search_service.py`、`item_service.py`、`static_data_service.py` | L3 | `test_item_search.py`、`test_item_service.py` | 静态数据版本更新和搜索排序质量仍需运营验证 |
+| 制作计算 | `recipe_service.py`、`recipe_optimizer.py`、`crafting_plan_service.py` | L3 | `test_crafting.py`、`test_crafting_plan.py` | 配方完整性、实时价格回退、复杂递归成本性能 |
+| Goal-Driven OS | `goal_interpreter.py`、`goal_driven_engine.py`、`plan_iteration_engine.py` | L3 | `test_goal_interpreter.py`、`test_goal_driven.py` | 计划质量偏规则/启发式，缺少真实用户反馈闭环 |
+| Build/Advice | `build_service.py`、`agent_service.py`、`decision_engine.py`、`advice/player_advice.py` | L2-L3 | `test_engine.py`、`test_player_advice.py`、`test_progression.py` | build meta 数据更新、推荐解释和回归验证不足 |
+
+## 6. Commerce 实现层
+
+核心图谱流程：
 
 ```mermaid
 sequenceDiagram
-    participant U as User/UI
-    participant API as /value/analyze
-    participant SS as snapshot_service.run_full_analysis
-    participant GW2 as GW2 API
-    participant VS as valuation_service
+    participant Stripe as Stripe Webhook
+    participant Payment as payment_service.handle_webhook
+    participant Commerce as commerce_service.create_order
     participant DB as SQLite
+    participant Delivery as process_pending_deliveries
 
-    U->>API: POST api_key
-    API->>SS: run_full_analysis(api_key)
-    SS->>GW2: fetch account/wallet/bank/materials/characters/tp
-    SS->>VS: apply_prices + compute_summary
-    SS->>DB: save_account_snapshot + holdings + history
-    API-->>U: ValueAnalyzeResponse
+    Stripe->>Payment: checkout.session.completed
+    Payment->>DB: record_payment_event_received
+    Payment->>Commerce: create_order(idempotency_key=stripe:event)
+    Commerce->>DB: BEGIN IMMEDIATE
+    Commerce->>DB: order + license + delivery_job + idempotency row
+    Payment->>DB: mark_payment_event_fulfilled
+    Delivery->>DB: delivery_outbox
 ```
 
-已实现能力：
+已实现：
 
-- GW2 API 数据采集与聚合。
-- 钱包、材料、银行、角色背包、共享背包、交易所资产估值。
-- 价格质量、流动性、价差、置信度、风险原因等元数据。
-- 快照保存、历史趋势、快照差分、top gainers/decliners。
-- 物品搜索、位置追踪、详情聚合、listing depth。
+- `create_order()` 使用 `BEGIN IMMEDIATE` 串行化同 idempotency key 创建。
+- `order_idempotency_keys` 支持重复请求回放已有 order/license。
+- `payment_events` 记录 provider event receipt，重复 Stripe event 只 fulfillment 一次。
+- `licenses.order_id` 唯一索引，license 使用通过单条条件 `UPDATE` 保证原子递增。
+- `delivery_jobs.order_id` 唯一，邮件副作用写入 `delivery_outbox`，支持失败后重试。
 
-成熟度：高。  
-证据：核心数据模型完整，数据库表与迁移齐全，GitNexus 流程覆盖 `post_value_analyze -> run_full_analysis`，测试文件包括 `test_valuation.py`、`test_database_core.py`、`test_delta.py`、`test_item_search.py`、`test_price_quality.py`。
+成熟度：L3 Beta。
 
-### 6.2 制作计算与配方优化
+| 子域 | 成熟度 | 证据 | 主要缺口 |
+| --- | --- | --- | --- |
+| 订单幂等 | L3 | `test_commerce_idempotency_db.py` | 外部支付并发压测、跨 DB 迁移策略 |
+| 支付 webhook | L3 | `test_payment_webhook_db.py` | Stripe 沙箱乱序/重复/失败矩阵 |
+| License | L3 | `test_license_atomic_usage.py` | license 生命周期策略、运营补偿界面 |
+| Delivery outbox | L3 | `test_delivery_outbox.py` | 独立 worker、死信队列、dashboard |
+| 订阅/联盟 | L2-L3 | `subscriptions`、`affiliates` 路由和服务存在 | 真实结算、退款、反作弊和审计不足 |
 
-核心流程：
+## 7. Ontology Runtime 实现层
+
+当前公开 API 已收敛：
+
+- `POST /ontology/runtime/kernel/action`
+- `POST /ontology/runtime/scheduler/execute`
+- `POST /ontology/runtime/persistence/replay`
+
+核心执行模型：
 
 ```mermaid
 flowchart LR
-    A["/crafting/calculate or /crafting/cheapest"] --> B["recipe_service.calculate_cheapest"]
-    B --> C["读取 static_recipes / ingredients"]
-    C --> D["抽取账号持仓"]
-    D --> E["价格缓存与 GW2 commerce prices"]
-    E --> F["生成缺口、购物清单、制作步骤"]
-    A2["/crafting/optimize"] --> G["recipe_optimizer.optimize"]
+    A["kernel/action or scheduler/execute"] --> B["compile actions"]
+    B --> C["ExecutionGraph"]
+    C --> D["RuntimeScheduler"]
+    D --> E["OntologyValidator"]
+    E --> F["StateEngine.transition"]
+    F --> G["LineageTracker.record"]
+    G --> H["KernelPersistence.save_state"]
+    H --> I["ReplayEngine / replay_persisted"]
 ```
 
-已实现能力：
+已实现：
 
-- 按目标物品与数量计算制作成本。
-- 可选择使用已有材料。
-- 递归配方树与 cycle guard。
-- 直接买入 vs 制作成本对比。
-- 购物清单、制作步骤、所需 discipline 输出。
+- `OntologyRuntimeKernel.execute()` 是唯一状态变更入口。
+- `ExecutionGraphCompiler` 生成 manifest 和 DAG。
+- `RuntimeScheduler` 以 deterministic ready queue 执行依赖就绪节点。
+- `OntologyValidator` 在状态变更前校验 action。
+- `LineageTracker` 记录 before/action/after hash、validation evidence、scheduler evidence。
+- `KernelPersistence` 使用 SQLite 按 tenant 保存 state/lineage。
+- `replay_persisted()` 从 durable lineage 重建最终 state 并比较 persisted/replayed hash。
+- 旧公开 API `/action`、`/execute`、`/compiled/execute`、`/decision/decide`、`/rl/optimize` 已移除。
 
-成熟度：高到中高。  
-证据：`recipe_service.py`、`recipe_optimizer.py`、`crafting_plan_service.py` 已成体系；测试覆盖 `test_crafting.py`、`test_crafting_plan.py`、`test_phase3.py`。主要风险是配方数据完整性和实时价格可用性。
+成熟度：L3 Beta。
 
-### 6.3 目标追踪与 Goal-Driven OS
+证据：
 
-核心流程：
+- `tests/test_ontology.py::TestOntologyRuntimeKernel`
+- `tests/test_ontology_runtime_api.py`
+- `tests/test_ontology_runtime_persistence.py`
+- `tests/test_ontology_runtime_tenant_replay.py`
+- `tests/test_ontology_runtime_smoke.py`
 
-```mermaid
-flowchart TD
-    T["goal_text"] --> I["goal_interpreter.interpret_goal"]
-    I --> G["goal_driven_engine.generate_plan_from_goal"]
-    G --> A["生成 PlanAction"]
-    A --> P["progression_plans / plan_actions"]
-    P --> R["plan_iteration_engine.apply_revision"]
+主要缺口：
+
+- compiled graph manifest 尚未持久化/签名。
+- replay 还没有跨版本 schema compatibility 检查。
+- 长 lineage 未实现 checkpoint/pruning。
+- `guarantees()` 仍有能力声明成分，未拆成每条 action 的证据集合。
+
+## 8. Infrastructure 与数据层
+
+### 8.1 SQLite 与迁移
+
+已实现：
+
+- `database.py` 内置 `CREATE_TABLES`。
+- `init_db()` 启动时建表、补列、建索引。
+- `using_db()` 管理连接获取、commit/rollback、连接健康检查。
+- `_TEST_DB_URL` 支持测试隔离。
+
+成熟度：L2-L3。  
+优势：本地/轻量部署简单，测试可控。  
+缺口：schema 仍是内嵌 SQL 和 try/except migration，缺少版本化 migration、回滚、迁移审计。
+
+### 8.2 Observability 与运维
+
+已实现：
+
+- `/health` 检查 DB。
+- `/metrics` 输出内存 metrics。
+- request id、日志、基础错误统计、security headers、rate limit。
+- event bus worker 在应用生命周期中启动/停止。
+
+成熟度：L2。  
+缺口：缺少结构化审计查询、SLO/error budget、外部监控接入、delivery/payment dashboard。
+
+### 8.3 Data Mesh / Data Acquisition
+
+已实现：
+
+- Data Mesh routes：status、sources、ingest、pipeline、normalize、confidence、integration。
+- Source registry、schema normalizer、confidence system。
+- Data acquisition 包含 ingestion adapters、fetcher、normalizer、orchestrator、source registry、data loop、dataset builder、stream engine。
+
+成熟度：L2-L3。  
+证据：`test_data_mesh_v1.py`、`test_data_mesh_integration.py`、`test_data_expansion_contract.py`。  
+缺口：与 Core Product 主链路耦合较弱，生产数据质量/回放/失败恢复尚未形成强门禁。
+
+## 9. AI Lab 与实验层
+
+| 子系统 | 角色定位 | 当前成熟度 | 证据 | 主要风险 |
+| --- | --- | --- | --- | --- |
+| Expert AI | 实验训练和模拟层 | L2-L3 | `expert_ai` 模块、Docker Compose、`test_expert_ai_infrastructure.py` | 外部依赖多，生产部署和数据一致性风险高 |
+| Cognitive OS | 多 agent/概率/策略实验 | L2 | `cognitive_os` 37 个文件、`test_cognitive_os.py` | 概念面宽，产品闭环和稳定接口不足 |
+| Rule Engine v2 | 规则演化/竞争/GNN/RL | L2 | `rule_engine_v2` 27 个文件、`test_rule_engine_v2.py` | 更偏研究平台，缺少生产 promotion contract |
+| Lifecycle | 正反向推理、轨迹、模拟 | L2 | `lifecycle` 25 个文件、`test_lifecycle.py` | 与 Ontology Runtime 职责有重叠，需要 adapter 收敛 |
+| Benchmark/Arena | agent 评测、自博弈、Elo | L2 | `benchmark` 模块、`test_benchmark.py` | 不应默认参与生产决策 |
+
+治理状态：
+
+- AI Lab 路由标记为 Experimental。
+- 生产环境默认 `ENABLE_AI_LAB_ROUTES=false` 且 `ENABLE_EXPERIMENTAL_ROUTES=false`。
+- Core Product 路由测试禁止导入 AI Lab 决策依赖。
+
+成熟度结论：AI Lab 能力丰富，但整体仍应视为 L2 实验层；只有通过 adapter、合同测试、数据隔离和 release gate 后才能 promotion。
+
+## 10. 前端与用户界面
+
+已实现：
+
+- 静态页面：landing、account、plan、insight、report。
+- JS/CSS 分页面维护，包含 v2 版本脚本。
+- `app.mount("/static", StaticFiles(...))` 提供静态资源。
+- 页面入口由 FastAPI 返回 HTML。
+
+成熟度：L2-L3。  
+优势：可直接服务核心页面，适合快速产品验证。  
+缺口：不是模块化前端工程，缺少系统化端到端浏览器门禁、组件契约和构建产物版本管理。
+
+## 11. 测试成熟度
+
+| 测试层 | 当前状态 | 成熟度 |
+| --- | --- | --- |
+| Core smoke | 覆盖玩家最小闭环 | L3 |
+| API Governance | 覆盖分类、生产 gates、依赖隔离 | L3 |
+| Commerce DB 幂等 | 覆盖订单、webhook、license、outbox | L3 |
+| Ontology Runtime | 覆盖 DAG、API、tenant、persistence、smoke | L3 |
+| Core services unit | 覆盖估值、制作、目标、item、price | L3 |
+| AI Lab tests | 覆盖存在但生产语义弱 | L2 |
+| Browser E2E | 有 e2e 文件，但未作为稳定门禁证明 | L1-L2 |
+| Full regression | 本轮未跑全量，建议拆 profile | L2 |
+
+当前推荐 Beta 门禁：
+
+```powershell
+pytest -q tests/test_api_governance.py tests/test_core_player_smoke.py tests/test_commerce.py tests/test_delivery.py tests/test_ontology_runtime_smoke.py tests/test_ontology_runtime_api.py tests/test_ontology_runtime_persistence.py tests/test_ontology_runtime_tenant_replay.py tests/test_ontology.py::TestOntologyRuntimeKernel
+ruff check src/gw2_progression/api/governance.py src/gw2_progression/api/routes/ontology_runtime.py src/gw2_progression/ontology/runtime_kernel.py
+npx gitnexus detect-changes --scope unstaged --repo gw2-progression
 ```
 
-已实现能力：
+## 12. 总成熟度矩阵
 
-- 自然语言目标解析，识别 MAKE_GOLD、FINISH_LEGENDARY、PREPARE_BUILD、CRAFT_ITEM、WEEKLY_PLAN 等类型。
-- 从目标生成完整计划，包含优先级、成本、预计天数、7 日计划、行动置信度。
-- 支持计划修订并记录 revision。
-- 支持 progressive 分阶段返回账号初步结果、估值、Build/Goal、完整计划。
+| 层级 | 当前等级 | 说明 |
+| --- | --- | --- |
+| Core Product | L3 Beta | 主流程闭环，测试较强；真实外部数据 E2E 仍不足 |
+| Commerce | L3 Beta | 幂等核心已补强；仍需真实支付沙箱和运营补偿 |
+| API Governance | L3 Beta | 分类/gate 已实现；OpenAPI/CI 发布产物仍不足 |
+| Ontology Runtime | L3 Beta | 单内核、持久化、回放已实现；manifest/checkpoint 未完成 |
+| Infrastructure/DB | L2-L3 | SQLite 和连接池可用；迁移体系不够生产化 |
+| Observability/Ops | L2 | 有基础 metrics/logging；缺少 SLO 和运营 dashboard |
+| Data Mesh | L2-L3 | 抽象完整；生产数据质量门禁不足 |
+| AI Lab | L2 | 能力丰富但实验属性强，需继续隔离 |
+| Frontend | L2-L3 | 静态产品页面可用；工程化和浏览器门禁不足 |
 
-成熟度：中高。  
-证据：核心引擎体量较大，接口完整，测试覆盖 `test_goal_interpreter.py`、`test_goal_driven.py`、`test_api_integration.py`、`test_ui_comprehensive.py`。风险是自然语言解析偏规则/启发式，计划质量依赖数据完整度和价格实时性。
+## 13. 下一阶段优先级
 
-### 6.4 Build 推荐与成长建议
+1. 为数据库引入版本化 migration，替代 `CREATE_TABLES + ALTER try/except`。
+2. 为 Commerce 增加 Stripe 沙箱矩阵、delivery outbox 独立 worker、死信队列和运营补偿 API。
+3. 为 Ontology Runtime 持久化 compiled manifest，增加签名/hash、schema compatibility、长 lineage checkpoint。
+4. 将 API Governance 输出到 OpenAPI extension 或部署快照，作为 CI release artifact。
+5. 给 AI Lab 建 promotion contract：adapter、数据隔离、合同测试、生产 gate。
+6. 增加真实 GW2 API fallback 的分层集成测试和浏览器 E2E smoke。
 
-已实现能力：
+## 14. 当前判断
 
-- Curated build 模板种子化。
-- 账号职业、装备、特性、技能匹配。
-- Readiness score、缺失物品、缺口成本。
-- 成长建议、weekly plan、coach plan、craft-vs-buy advice。
-
-成熟度：中高。  
-证据：`build_service.py`、`progression_service.py`、`agent_service.py`、`decision_engine.py`、`player_advice.py` 等模块完整；有 `test_player_advice.py`、`test_engine.py`、`test_progression.py`。
-
-### 6.5 Data Mesh 与数据采集
-
-已实现能力：
-
-- `/mesh/status`、`/mesh/ingest`、`/mesh/pipeline`、`/mesh/normalize`、`/mesh/confidence`、`/mesh/sources`。
-- SourceRegistry 与 builtin sources。
-- SchemaNormalizer 与 ConfidenceSystem。
-- DataMeshBridge 串接多来源 ingest、pipeline、normalize。
-- 数据扩展模块包含 horizontal、vertical、temporal、synthetic。
-
-成熟度：中。  
-证据：模块结构完整，测试覆盖 `test_data_mesh_v1.py`、`test_data_mesh_integration.py`、`test_data_expansion_contract.py`。GitNexus 查询未返回关键执行流程，说明这些能力更像独立组件/接口，不一定已深度接入核心玩家闭环。
-
-### 6.6 Ontology Runtime 与对象图谱
-
-已实现能力：
-
-- Ontology 对象、关系、动作模型。
-- action registry、object store、policy engine、QA gate、evidence binder、report mapper。
-- runtime API 支持状态、reset、action、execute graph、simulate、LLM action、reasoning action、ingest、trace、dependencies、lineage、replay。
-- Tool mesh 支持 governed action。
-
-成熟度：中。  
-证据：`ontology` 模块内聚度 84%，测试文件 `test_ontology.py` 很大，`test_ontology_runtime_api.py` 与 smoke test 存在。风险在于该层与主业务的边界仍较实验化，生产数据治理和错误恢复需要继续验证。
-
-### 6.7 Cognitive OS、Rule Engine、Lifecycle
-
-已实现能力：
-
-- Cognitive OS：多 agent、人口模拟、成熟度评估、行为模型、概率推理、RL、时间状态、经济生命周期。
-- Rule Engine v1：API schema 规则、LLM 规则、行为规则、经济规则、验证。
-- Rule Engine v2：规则抽取、演化、竞争、GNN、LLM distill、RL reward/policy/optimizer、世界经济模拟。
-- Lifecycle：正向 state evolution、反向依赖推理、轨迹生成、制作与经济规则校验。
-
-成熟度：中。  
-证据：接口、核心模块和大量测试存在，图谱识别到多个跨社区流程。风险是这些模块功能雄心很大，和核心产品链路相比更偏研究/原型平台，生产可观测性、数据闭环和用户级稳定性需要持续压实。
-
-### 6.8 Expert AI 基础设施
-
-已实现能力：
-
-- 图谱编译、runtime state/entity/search/neighbors/trace/action/simulate/history/rollback。
-- reasoning analyze/trace。
-- economy simulation、world snapshot、agent spawn、labels/dataset/reasoning export。
-- memory append/search/query/feedback/vector search。
-- persistence health/readiness/snapshot/migrate/graph export/write。
-- training dataset、train run/model/schedule/jobs。
-- Celery worker、Redis queue、Postgres、Neo4j、Qdrant、trainer Docker Compose。
-
-成熟度：中到中低。  
-证据：模块内聚度 91%，基础设施齐全，有 `test_expert_ai_infrastructure.py` 和 Compose E2E 测试。但 GitNexus 查询 Expert AI 未返回主执行流程，说明它更多是独立平台能力；外部依赖多，生产部署和数据一致性风险较核心 SQLite 单体更高。
-
-### 6.9 商业化与运营
-
-已实现能力：
-
-- 产品种子化、订单、许可证校验/使用、delivery jobs。
-- Stripe 支付接口。
-- 商业报告生成和 HTML 输出。
-- 订阅、联盟分销、审计日志、工作区/公会协作。
-
-成熟度：中。  
-证据：数据库表、服务和 API 完整，测试覆盖 `test_commerce.py`、`test_delivery.py`、`test_production.py`、`test_production_engine.py`。风险是支付、交付和授权属于高一致性场景，仍需真实环境集成测试和幂等性审计。
-
-## 7. 当前成熟度矩阵
-
-| 功能域 | 成熟度 | 理由 |
-|---|---|---|
-| 账号抓取与估值 | 高 | 主链路清晰，模型/DB/API/测试齐全 |
-| 物品搜索与价格质量 | 高 | 数据结构细，接口完善，有专项测试 |
-| 制作计算与优化 | 高-中高 | 功能闭环完整，递归与 cycle guard 已覆盖 |
-| 目标追踪与计划生成 | 中高 | API 与持久化完整，但计划质量依赖启发式和数据完整度 |
-| Build 推荐 | 中高 | 已有模板和评分逻辑，真实 meta 数据更新机制仍需加强 |
-| 静态前端 | 中高 | 多页面应用已实现，但不是现代前端工程化架构 |
-| Data Mesh | 中 | 抽象完整，和核心业务耦合度仍有限 |
-| Ontology Runtime | 中 | 模型和测试多，生产治理闭环仍需验证 |
-| Cognitive OS / Rule Engine v2 | 中 | 能力覆盖广，更偏研究原型平台 |
-| Expert AI | 中-中低 | 基础设施丰富，但外部依赖和生产链路复杂 |
-| 商业化 | 中 | 数据表/API/service 完整，高风险支付交付需更强 E2E |
-| 部署运维 | 中 | Docker/Compose/healthcheck 存在，缺少本次验证的完整运行证据 |
-| 测试体系 | 中高 | 测试数量多，但本地全量测试超时，建议分层 CI |
-
-## 8. 关键风险
-
-1. 图谱索引当前落后 HEAD 7 个提交，且刷新失败，后续重构前需要修复 `.gitnexus\lbug` 权限问题。
-2. 主应用是宽功能单体，router 和 service 数量较多，长期维护需要更清晰的边界、owner 和稳定 API 契约。
-3. SQLite 连接池能支撑本地/轻量部署，但高并发、商业化和训练基础设施并存时，需要明确哪些数据迁移到 Postgres。
-4. Expert AI、Cognitive OS、Rule Engine v2、Ontology 多套智能抽象并行，存在概念重叠，需要明确产品主链路与研究能力边界。
-5. 支付、许可证、交付、订阅属于强一致性/高风险域，需要幂等处理、审计追踪、失败重试、真实 webhook 测试。
-6. 全量测试在本地 124 秒超时，建议拆分 smoke/unit/integration/e2e/expert-ai profile，确保开发者能快速获得可信反馈。
-
-## 9. 建议的下一步
-
-1. 修复 GitNexus 索引权限，重新执行 `npx gitnexus analyze`，再生成一次差异版架构报告。
-2. 把 API 分为 Core Product、Commerce、AI Lab、Infrastructure 四类，建立稳定性等级和发布门禁。
-3. 为核心玩家流程建立最小 smoke suite：`auth -> value/analyze -> item search -> crafting -> goal-driven/generate -> report`。
-4. 为商业化流程建立幂等性测试：订单创建、支付 webhook、许可证生成、交付任务重试。
-5. 收敛智能层职责：Goal-Driven OS 作为产品计划层，Ontology 作为治理/证据层，Expert AI 作为实验训练层，避免多套系统都直接承担用户决策。
-6. 将成熟功能和实验功能在路由、文档、部署开关上隔离，减少生产暴露面。
-
-## 10. 总结
-
-GW2 Progression 已经实现了一个相当完整的 GW2 账号成长助手：账号估值、资产搜索、制作优化、目标计划、Build 推荐、报告与商业化基础都具备可用闭环。代码库同时容纳了大量面向未来的 AI/图谱/规则/训练基础设施，这使系统上限很高，但也带来架构边界和成熟度不均的问题。
-
-短期最值得强化的是：修复图谱索引、分层测试、明确核心产品 API、把商业化链路做强一致性验证。中期则应整理 AI 子系统边界，让智能层真正服务于玩家核心流程，而不是形成多个平行实验平台。
+系统实现已经达到“受控 Beta”水平：核心玩家价值链、商业化幂等、API 治理、Ontology 执行内核都有可验证代码和测试支撑。它还不是 L4 Production Ready，因为外部支付、迁移、运维、长期 replay 和 AI Lab promotion 这些生产级约束尚未完全闭环。

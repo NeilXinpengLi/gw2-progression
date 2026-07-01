@@ -72,3 +72,25 @@ order creation -> payment webhook replay -> license generation -> delivery retry
 ```
 
 Implemented across `tests/test_commerce.py` and `tests/test_delivery.py`.
+
+Database-backed idempotency gates are also implemented in:
+
+- `tests/test_commerce_idempotency_db.py`
+- `tests/test_payment_webhook_db.py`
+- `tests/test_license_atomic_usage.py`
+- `tests/test_delivery_outbox.py`
+
+## Current Ontology Runtime Gate
+
+The reduced public runtime surface is:
+
+```text
+kernel/action -> scheduler/execute -> persistence/replay
+```
+
+Implemented across:
+
+- `tests/test_ontology_runtime_api.py`
+- `tests/test_ontology_runtime_persistence.py`
+- `tests/test_ontology_runtime_tenant_replay.py`
+- `tests/test_ontology_runtime_smoke.py`

@@ -4,6 +4,7 @@ Updated: 2026-07-01
 
 Implementation progress:
 
+- GitNexus refreshed: 15,826 nodes, 28,934 edges, 548 clusters, 300 execution flows.
 - P0 completed: commercial idempotency now uses transaction-level serialization, payment event receipts, and real SQLite replay tests.
 - P1 completed: license use is an atomic conditional update, delivery uses an outbox record, and Ontology Runtime API state is tenant-isolated through `X-Ontology-Tenant`.
 - P1 completed: Ontology Runtime now persists tenant-scoped state/lineage and can replay from durable history.
@@ -13,6 +14,8 @@ Implementation progress:
 ## 1. 评估结论
 
 当前系统已经从“功能原型堆叠”进入“有治理边界的 Beta 系统”阶段。Core Product 主流程已有 smoke suite，Commerce 已具备基础幂等模型，Ontology Runtime vFinal execution finalization 已形成统一执行内核、持久化 state/lineage 和 durable replay，AI Lab 与 Infrastructure 路由也已通过 governance 元数据和部署开关隔离。
+
+完整实现层代码图谱见 `docs/architecture-code-graph-analysis.md`。
 
 但整体尚未达到强生产级。主要短板集中在支付平台沙箱矩阵、交付任务死信/运营补偿、Ontology Runtime manifest 持久化/跨版本 replay 兼容性、以及长期运维可观测性。
 
