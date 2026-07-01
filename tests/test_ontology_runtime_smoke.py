@@ -26,8 +26,8 @@ def test_ontology_runtime_smoke_validates_full_runtime_flow(monkeypatch):
             return {"status": "reset"}
         if path == "/ontology/runtime/ingest":
             return {"entity_count": 2, "relation_count": 1}
-        if path == "/ontology/runtime/execute":
-            return {"executed": 1}
+        if path == "/ontology/runtime/scheduler/execute":
+            return {"execution": {"executed": 1}}
         if path == "/ontology/runtime/simulate":
             return {"time": 1}
         if path == "/ontology/runtime/lineage":
@@ -48,7 +48,7 @@ def test_ontology_runtime_smoke_validates_full_runtime_flow(monkeypatch):
     assert [path for _, path, _ in calls] == [
         "/ontology/runtime/reset",
         "/ontology/runtime/ingest",
-        "/ontology/runtime/execute",
+        "/ontology/runtime/scheduler/execute",
         "/ontology/runtime/simulate",
         "/ontology/runtime/lineage",
         "/ontology/runtime/replay",

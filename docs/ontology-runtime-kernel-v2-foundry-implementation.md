@@ -17,12 +17,12 @@ The implementation now treats ingestion, simulation, decisioning, RL policy upda
 | Ingestion + normalization gateway | `GW2APINormalizer`, `GraphBuilder`, `DGSKIngestor` | `POST /ontology/runtime/ingest` |
 | Ontology registry | `OntologyRegistry.from_project_config()` with project schemas plus runtime decision/policy schemas | Runtime internal, exposed through graph manifest |
 | Execution graph compiler | `ExecutionGraphCompiler`, `CompiledRuntimeGraph`, `ExecutionGraph` | `POST /ontology/runtime/compile` |
-| Deterministic runtime kernel | `OntologyRuntimeKernel`, `ExecutionEngine`, `StateEngine`, `DAGExecutor` | `POST /ontology/runtime/action`, `POST /ontology/runtime/execute`, `POST /ontology/runtime/compiled/execute` |
+| Deterministic runtime kernel | `OntologyRuntimeKernel`, `ExecutionEngine`, `StateEngine`, `DAGExecutor` | `POST /ontology/runtime/kernel/action`, `POST /ontology/runtime/scheduler/execute` |
 | Temporal simulation | `OOSKSimulation` | `POST /ontology/runtime/simulate` |
-| Decision layer | `BORSDecisionLayer`, `record_decision` ontology action | `POST /ontology/runtime/decision/decide` |
-| RL optimization layer | `RLOptimizationLayer`, `apply_policy_weight` ontology action | `POST /ontology/runtime/rl/optimize` |
+| Decision layer | `BORSDecisionLayer`, `record_decision` ontology action | Internal kernel action emitter; legacy API is deprecated |
+| RL optimization layer | `RLOptimizationLayer`, `apply_policy_weight` ontology action | Internal kernel action emitter; legacy API is deprecated |
 | Constrained LLM reasoning | `LLMConstrainedReasoning`, `validate_llm_action()` | `POST /ontology/runtime/llm/action`, `POST /ontology/runtime/reasoning/action` |
-| Lineage + replay | `LineageStore`, `LineageTracker`, `ReplayEngine` | `GET /ontology/runtime/lineage`, `POST /ontology/runtime/replay` |
+| Lineage + replay | `LineageStore`, `LineageTracker`, `ReplayEngine`, `KernelPersistence` | `GET /ontology/runtime/lineage`, `POST /ontology/runtime/replay`, `POST /ontology/runtime/persistence/replay` |
 
 ## Implemented Guarantees
 
@@ -50,17 +50,25 @@ The implementation now treats ingestion, simulation, decisioning, RL policy upda
 | `GET /ontology/runtime/state` | Snapshot current kernel state, lineage, and guarantees. | Experimental |
 | `GET /ontology/runtime/guarantees` | Report runtime v2 guarantees and replay status. | Experimental |
 | `POST /ontology/runtime/reset` | Reset in-memory kernel instance. | Test/Internal |
-| `POST /ontology/runtime/action` | Execute one validated ontology action. | Experimental |
-| `POST /ontology/runtime/execute` | Compile and execute an ad hoc action DAG. | Experimental |
+| `POST /ontology/runtime/kernel/action` | Execute one validated ontology action through the single kernel ingress. | Beta |
+| `POST /ontology/runtime/scheduler/execute` | Compile and execute an action DAG with scheduler trace. | Beta |
 | `POST /ontology/runtime/compile` | Compile actions into a Foundry manifest without mutating state. | Experimental |
-| `POST /ontology/runtime/compiled/execute` | Compile and execute actions through the compiled graph path. | Experimental |
 | `POST /ontology/runtime/simulate` | Run OOSK-style temporal steps through validated actions. | Experimental |
-| `POST /ontology/runtime/decision/decide` | Record a BORS decision through the graph compiler. | Experimental |
-| `POST /ontology/runtime/rl/optimize` | Record RL policy weights through the graph compiler. | Experimental |
 | `POST /ontology/runtime/llm/action` | Validate and execute an ontology-constrained LLM action. | Experimental |
 | `POST /ontology/runtime/reasoning/action` | Alias for constrained reasoning execution. | Experimental |
 | `GET /ontology/runtime/lineage` | Export lineage records. | Experimental |
 | `POST /ontology/runtime/replay` | Replay lineage and compare final state. | Experimental |
+| `POST /ontology/runtime/persistence/replay` | Replay durable tenant lineage and compare persisted final state. | Beta |
+
+Removed legacy API surface:
+
+- `POST /ontology/runtime/action`
+- `POST /ontology/runtime/execute`
+- `POST /ontology/runtime/compiled/execute`
+- `POST /ontology/runtime/decision/decide`
+- `POST /ontology/runtime/rl/optimize`
+
+The replacement paths are `POST /ontology/runtime/kernel/action` for single actions and `POST /ontology/runtime/scheduler/execute` for action DAGs. BORS and RL remain internal action emitters instead of public decision endpoints.
 
 ## Maturity Assessment
 
@@ -68,12 +76,12 @@ The implementation now treats ingestion, simulation, decisioning, RL policy upda
 | --- | --- | --- |
 | Registry and schema enforcement | Medium | Project schemas are loaded and runtime decision/policy schemas are explicit. Deeper semantic constraints are still basic. |
 | DAG compilation | Medium | Dependency ordering and cycle detection exist. Manifest signing/version persistence is not yet implemented. |
-| Runtime execution | Medium | Deterministic state transitions and lineage work in-process. Persistence and multi-tenant isolation remain future work. |
+| Runtime execution | Medium-High | Deterministic state transitions, tenant isolation, and durable state/lineage replay are implemented. Manifest signing and checkpointing remain future work. |
 | OOSK simulation | Low-Medium | Simulation uses validated actions over ticks, but world evolution is still caller-supplied. |
 | BORS decision layer | Low-Medium | Deterministic facade is implemented. Domain scoring needs richer production rules. |
 | RL optimization | Low | Policy weights are captured as ontology records; training loop integration is not yet production-grade. |
 | LLM reasoning | Medium | Guardrails reject invalid actions. Natural-language plan extraction is outside the current kernel. |
-| Replay/audit | Medium | Replay is deterministic and tested. Long-term storage and cross-version replay are not yet built. |
+| Replay/audit | Medium-High | Replay is deterministic and tested against in-memory and persisted lineage. Cross-version replay and large-history checkpoints are not yet built. |
 
 ## Release Gates
 
@@ -83,4 +91,3 @@ Before promoting the v2 runtime beyond experimental exposure:
 2. `ruff check src/gw2_progression/ontology/runtime_kernel.py src/gw2_progression/ontology/__init__.py src/gw2_progression/api/routes/ontology_runtime.py tests/test_ontology_runtime_api.py`
 3. `npx gitnexus detect-changes --scope unstaged --repo gw2-progression`
 4. Confirm `/ontology/runtime/guarantees` returns `deterministic_execution=true`, `lineage_replay=true`, and an empty `mismatches` list after the smoke flow.
-

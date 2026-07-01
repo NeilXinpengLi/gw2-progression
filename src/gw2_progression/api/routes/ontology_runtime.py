@@ -23,6 +23,25 @@ def _kernel_for(tenant_id: str) -> OntologyRuntimeKernel:
     return _kernels[key]
 
 
+def _actions_from_body(body: dict) -> list[dict]:
+    actions = body.get("actions", [])
+    if not isinstance(actions, list) or not actions:
+        raise HTTPException(status_code=422, detail="actions must be a non-empty list")
+    return actions
+
+
+def _run_action_graph(kernel: OntologyRuntimeKernel, actions: list[dict], graph_id: str, include_graph: bool = False) -> dict:
+    compiled = kernel.compile(actions, graph_id=graph_id)
+    execution = kernel.execute_compiled(compiled)
+    if not include_graph:
+        return execution
+    return {
+        "graph": compiled.to_dict(),
+        "execution": execution,
+        "scheduler": execution.get("scheduler", {}),
+    }
+
+
 @router.get("/state")
 async def ontology_runtime_state(tenant_id: str = Header("default", alias="X-Ontology-Tenant")):
     return _kernel_for(tenant_id).snapshot()
@@ -50,14 +69,6 @@ async def ontology_runtime_reset(tenant_id: str = Header("default", alias="X-Ont
     return {"status": "reset", "tenant_id": key, "state_hash": _kernels[key].snapshot()["state_hash"]}
 
 
-@router.post("/action")
-async def ontology_runtime_action(body: dict = Body(...), tenant_id: str = Header("default", alias="X-Ontology-Tenant")):
-    try:
-        return _kernel_for(tenant_id).execute(body)
-    except OntologyViolation as exc:
-        raise HTTPException(status_code=422, detail=str(exc)) from exc
-
-
 @router.post("/kernel/action")
 async def ontology_runtime_kernel_action(body: dict = Body(...), tenant_id: str = Header("default", alias="X-Ontology-Tenant")):
     try:
@@ -66,17 +77,6 @@ async def ontology_runtime_kernel_action(body: dict = Body(...), tenant_id: str 
         if not isinstance(action, dict):
             raise HTTPException(status_code=422, detail="action must be an object")
         return _kernel_for(tenant_id).execute_kernel_action(action, source=source)
-    except OntologyViolation as exc:
-        raise HTTPException(status_code=422, detail=str(exc)) from exc
-
-
-@router.post("/execute")
-async def ontology_runtime_execute(body: dict = Body(default_factory=dict), tenant_id: str = Header("default", alias="X-Ontology-Tenant")):
-    actions = body.get("actions", [])
-    if not isinstance(actions, list) or not actions:
-        raise HTTPException(status_code=422, detail="actions must be a non-empty list")
-    try:
-        return _kernel_for(tenant_id).execute_graph(actions)
     except OntologyViolation as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
 
@@ -92,33 +92,15 @@ async def ontology_runtime_compile(body: dict = Body(default_factory=dict), tena
         raise HTTPException(status_code=422, detail=str(exc)) from exc
 
 
-@router.post("/compiled/execute")
-async def ontology_runtime_execute_compiled(body: dict = Body(default_factory=dict), tenant_id: str = Header("default", alias="X-Ontology-Tenant")):
-    actions = body.get("actions", [])
-    if not isinstance(actions, list) or not actions:
-        raise HTTPException(status_code=422, detail="actions must be a non-empty list")
-    try:
-        kernel = _kernel_for(tenant_id)
-        compiled = kernel.compile(actions, graph_id=str(body.get("graph_id", "runtime")))
-        return kernel.execute_compiled(compiled)
-    except OntologyViolation as exc:
-        raise HTTPException(status_code=422, detail=str(exc)) from exc
-
-
 @router.post("/scheduler/execute")
 async def ontology_runtime_scheduler_execute(body: dict = Body(default_factory=dict), tenant_id: str = Header("default", alias="X-Ontology-Tenant")):
-    actions = body.get("actions", [])
-    if not isinstance(actions, list) or not actions:
-        raise HTTPException(status_code=422, detail="actions must be a non-empty list")
     try:
-        kernel = _kernel_for(tenant_id)
-        compiled = kernel.compile(actions, graph_id=str(body.get("graph_id", "scheduler")))
-        execution = kernel.execute_compiled(compiled)
-        return {
-            "graph": compiled.to_dict(),
-            "execution": execution,
-            "scheduler": execution.get("scheduler", {}),
-        }
+        return _run_action_graph(
+            _kernel_for(tenant_id),
+            _actions_from_body(body),
+            graph_id=str(body.get("graph_id", "scheduler")),
+            include_graph=True,
+        )
     except OntologyViolation as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
 
@@ -142,22 +124,6 @@ async def ontology_runtime_llm_action(body: dict = Body(...), tenant_id: str = H
 @router.post("/reasoning/action")
 async def ontology_runtime_reasoning_action(body: dict = Body(...), tenant_id: str = Header("default", alias="X-Ontology-Tenant")):
     return _kernel_for(tenant_id).reasoning.execute(body)
-
-
-@router.post("/decision/decide")
-async def ontology_runtime_decide(body: dict = Body(default_factory=dict), tenant_id: str = Header("default", alias="X-Ontology-Tenant")):
-    try:
-        return _kernel_for(tenant_id).decide(objective=str(body.get("objective", "BALANCED")), weights=body.get("weights"))
-    except OntologyViolation as exc:
-        raise HTTPException(status_code=422, detail=str(exc)) from exc
-
-
-@router.post("/rl/optimize")
-async def ontology_runtime_optimize_policy(body: dict = Body(default_factory=dict), tenant_id: str = Header("default", alias="X-Ontology-Tenant")):
-    try:
-        return _kernel_for(tenant_id).optimize_policy(rewards=body.get("rewards"))
-    except OntologyViolation as exc:
-        raise HTTPException(status_code=422, detail=str(exc)) from exc
 
 
 @router.post("/ingest")

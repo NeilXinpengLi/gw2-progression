@@ -26,7 +26,7 @@ def test_ontology_runtime_api_ingest_trace_replay_and_llm_guard():
     assert ingest.json()["relation_count"] == 1
 
     executed = client.post(
-        "/ontology/runtime/execute",
+        "/ontology/runtime/scheduler/execute",
         json={
             "actions": [
                 {
@@ -39,7 +39,7 @@ def test_ontology_runtime_api_ingest_trace_replay_and_llm_guard():
         },
     )
     assert executed.status_code == 200
-    assert executed.json()["executed"] == 1
+    assert executed.json()["execution"]["executed"] == 1
 
     simulated = client.post(
         "/ontology/runtime/simulate",
@@ -114,18 +114,58 @@ def test_ontology_runtime_v2_foundry_compile_decision_rl_and_guarantees_api():
     assert compiled.json()["manifest"]["guarantees"]["dag_compilation"] is True
     assert compiled.json()["manifest"]["guarantees"]["dag_scheduling"] is True
 
-    executed = client.post("/ontology/runtime/compiled/execute", json={"graph_id": "api-foundry", "actions": actions})
+    executed = client.post("/ontology/runtime/scheduler/execute", json={"graph_id": "api-foundry", "actions": actions})
     assert executed.status_code == 200
-    assert executed.json()["executed"] == 1
+    assert executed.json()["execution"]["executed"] == 1
     assert executed.json()["scheduler"]["strategy"] == "deterministic-ready-queue"
-    assert executed.json()["manifest"]["guarantees"]["ontology_enforcement"] is True
+    assert executed.json()["execution"]["manifest"]["guarantees"]["ontology_enforcement"] is True
 
-    decision = client.post("/ontology/runtime/decision/decide", json={"objective": "LIQUIDITY"})
+    decision = client.post(
+        "/ontology/runtime/kernel/action",
+        json={
+            "source": "api-foundry",
+            "action": {
+                "type": "record_decision",
+                "decision": {
+                    "id": "decision:api-foundry",
+                    "decision": "HOLD",
+                    "score": 0.7,
+                    "source": "BORS",
+                },
+            },
+        },
+    )
     assert decision.status_code == 200
-    assert decision.json()["decision"]["source"] == "BORS"
     assert decision.json()["execution"]["executed"] == 1
 
-    optimized = client.post("/ontology/runtime/rl/optimize", json={"rewards": {"sell": 2.0, "hold": 1.0}})
+    optimized = client.post(
+        "/ontology/runtime/scheduler/execute",
+        json={
+            "graph_id": "api-policy",
+            "actions": [
+                {
+                    "type": "apply_policy_weight",
+                    "policy": {
+                        "id": "policy:sell",
+                        "policy": "sell",
+                        "weight": 0.66,
+                        "reward": 2.0,
+                        "source": "RL",
+                    },
+                },
+                {
+                    "type": "apply_policy_weight",
+                    "policy": {
+                        "id": "policy:hold",
+                        "policy": "hold",
+                        "weight": 0.34,
+                        "reward": 1.0,
+                        "source": "RL",
+                    },
+                },
+            ],
+        },
+    )
     assert optimized.status_code == 200
     assert optimized.json()["execution"]["executed"] == 2
 
@@ -213,3 +253,23 @@ def test_ontology_runtime_vfinal_convergence_and_kernel_action_api():
     assert executed.status_code == 200
     assert executed.json()["kernel"] == "OntologyKernel"
     assert executed.json()["execution"]["scheduler"]["complete"] is True
+
+
+def test_ontology_runtime_legacy_routes_are_removed_from_public_api():
+    client = TestClient(app)
+    tenant = {"X-Ontology-Tenant": "removed-legacy-api"}
+
+    assert client.post("/ontology/runtime/reset", headers=tenant).status_code == 200
+    openapi = client.get("/openapi.json").json()
+    paths = openapi["paths"]
+    for path in [
+        "/ontology/runtime/action",
+        "/ontology/runtime/execute",
+        "/ontology/runtime/compiled/execute",
+        "/ontology/runtime/decision/decide",
+        "/ontology/runtime/rl/optimize",
+    ]:
+        assert path not in paths
+
+    response = client.post("/ontology/runtime/execute", headers=tenant, json={"actions": []})
+    assert response.status_code == 404

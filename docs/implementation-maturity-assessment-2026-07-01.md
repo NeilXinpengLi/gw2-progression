@@ -7,6 +7,7 @@ Implementation progress:
 - P0 completed: commercial idempotency now uses transaction-level serialization, payment event receipts, and real SQLite replay tests.
 - P1 completed: license use is an atomic conditional update, delivery uses an outbox record, and Ontology Runtime API state is tenant-isolated through `X-Ontology-Tenant`.
 - P1 completed: Ontology Runtime now persists tenant-scoped state/lineage and can replay from durable history.
+- P2 completed: redundant Ontology Runtime public routes were removed; the API surface now centers on kernel action, scheduler execution, and durable replay.
 - P2 completed: governance is exposed at `/api/governance/routes`, `production` is gated as AI Lab/Experimental, and CI tests scan Core Product routes for AI Lab decision dependencies.
 
 ## 1. 评估结论
@@ -35,7 +36,7 @@ Implementation progress:
 | Commerce 订单/许可证 | L3 Beta | `create_order()` 支持 idempotency key 回放；同 key 创建在 `BEGIN IMMEDIATE` 写锁内串行化；真实 SQLite 测试覆盖重复 key。 | 仍缺少外部支付平台沙箱压测和版本化 migration。 |
 | Payment Webhook | L3 Beta | `payment_events` 持久化 provider event receipt；重复 event 只 fulfillment 一次。 | 缺少 Stripe 沙箱乱序事件矩阵和人工补偿后台。 |
 | Delivery Retry | L3 Beta | `delivery_outbox` 记录邮件副作用；delivery job 对 order 唯一；测试覆盖重复处理只发送一次。 | 缺少独立 outbox worker、死信队列和运营 dashboard。 |
-| Ontology Runtime vFinal Execution | L3 Beta | `OntologyKernel.execute()` 是唯一状态变更入口；state/lineage 按 tenant 持久化；`/ontology/runtime/persistence/replay` 可从 durable lineage 重建最终 state。 | compiled manifest 仍未持久化/签名；跨版本 replay 还没有长期兼容策略；长 lineage 未 checkpoint。 |
+| Ontology Runtime vFinal Execution | L3 Beta | `OntologyKernel.execute()` 是唯一状态变更入口；公开 API 已收敛到 `/kernel/action`、`/scheduler/execute`、`/persistence/replay`；state/lineage 按 tenant 持久化。 | compiled manifest 仍未持久化/签名；跨版本 replay 还没有长期兼容策略；长 lineage 未 checkpoint。 |
 | Goal-Driven OS 职责边界 | L3 Beta | governance 中定义为 Core Product 的 product planning layer；Ontology Runtime 定位为 governance/evidence layer；Expert AI 归 AI Lab。 | 代码层还缺少硬性依赖约束，不能自动阻止 AI Lab 直接参与生产决策。 |
 | AI Lab 隔离 | L3 Beta | production 默认禁用 experimental/AI Lab 路由；测试覆盖。 | 还缺少部署时路由快照检查、运行时安全告警、实验数据与生产数据隔离策略。 |
 | 数据库/迁移 | L2 Alpha | SQLite schema 有基础外键、部分唯一约束、连接池和 WAL。 | schema 直接内嵌在 `CREATE_TABLES`，缺少版本化 migration；幂等和交付约束不完整。 |
@@ -170,6 +171,7 @@ npx gitnexus detect-changes --scope unstaged --repo gw2-progression
 6. Completed P1：为 Ontology Runtime 增加 tenant-scoped state/lineage 持久化与 durable replay。
 7. Completed P2：将 API governance 输出到运行时快照。
 8. Completed P2：把 AI Lab 到生产决策的边界改成代码层依赖约束和 CI 检查。
+9. Completed P2：移除 Ontology Runtime 冗余公开路由，保留单 action、DAG scheduler、durable replay 三类主入口。
 
 ## 10. 总体评级
 

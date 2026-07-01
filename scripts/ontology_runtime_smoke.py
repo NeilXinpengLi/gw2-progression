@@ -54,7 +54,7 @@ def run_smoke(base_url: str) -> dict[str, Any]:
     execute = request_json(
         base_url,
         "POST",
-        "/ontology/runtime/execute",
+        "/ontology/runtime/scheduler/execute",
         {
             "actions": [
                 {
@@ -66,7 +66,7 @@ def run_smoke(base_url: str) -> dict[str, Any]:
             ]
         },
     )
-    _assert(execute.get("executed") == 1, "execute endpoint did not execute one DAG node")
+    _assert(execute.get("execution", {}).get("executed") == 1, "scheduler endpoint did not execute one DAG node")
 
     simulate = request_json(
         base_url,

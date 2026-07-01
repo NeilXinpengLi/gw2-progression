@@ -39,12 +39,25 @@ The kernel now reports `kernel_version = v3-execution-layer` and exposes:
 - evidence-backed lineage
 - persistent state and lineage store through the execution-finalization layer
 
-## Compatibility
+## API Surface
 
-- Existing `/ontology/runtime/execute` and `/ontology/runtime/compiled/execute` now run through the v3 scheduler.
-- Existing tenant isolation through `X-Ontology-Tenant` is preserved.
-- Existing BORS and RL layers still emit ontology actions and now execute through the scheduler path.
-- `kernel_version` remains `v3-execution-layer` for API compatibility; the persistent execution-finalization marker is exposed as `finalization_version = vFinal-execution-finalization`.
+Recommended runtime API:
+
+- `POST /ontology/runtime/kernel/action` for single validated ontology actions.
+- `POST /ontology/runtime/scheduler/execute` for action DAG execution.
+- `POST /ontology/runtime/persistence/replay` for durable replay checks.
+
+Removed legacy API surface:
+
+- `POST /ontology/runtime/action`
+- `POST /ontology/runtime/execute`
+- `POST /ontology/runtime/compiled/execute`
+- `POST /ontology/runtime/decision/decide`
+- `POST /ontology/runtime/rl/optimize`
+
+These routes were replaced by the kernel and scheduler ingress paths to keep the public surface small. Internal kernel methods still exist for adapters and unit tests.
+
+`kernel_version` remains `v3-execution-layer` for execution-model compatibility. The persistent execution-finalization marker is exposed as `finalization_version = vFinal-execution-finalization`.
 
 ## Verification
 
