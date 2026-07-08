@@ -10,19 +10,16 @@ Verifies:
 """
 
 import re
-import shutil
-import subprocess
+import time
+from contextlib import ExitStack
 from pathlib import Path
 from unittest.mock import AsyncMock, patch
-import time
-from datetime import datetime, timezone
-from contextlib import ExitStack
 
 import pytest
 from fastapi.testclient import TestClient
 
-from gw2_progression.api.main import app
 from gw2_progression import models_data
+from gw2_progression.api.main import app
 
 TOKENINFO = {"name": "TestKey", "id": "abc", "permissions": ["account", "inventories", "wallet", "characters", "tradingpost", "unlocks"]}
 ACCOUNT = {
@@ -99,8 +96,9 @@ def mock_api():
 
 def _make_session(client):
     """Create a real session in the DB for testing."""
-    from gw2_progression.services.auth_service import create_session
     import asyncio
+
+    from gw2_progression.services.auth_service import create_session
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)
     try:
@@ -250,7 +248,15 @@ class TestSvgIcons:
 
     def test_all_icons_in_account_page(self, client):
         resp = client.get("/account")
-        present_icons = ["nav-account", "nav-insight", "nav-plan", "nav-report", "kpi-account-value", "kpi-hidden-wealth", "kpi-legendary", "action-export", "asset-wallet", "asset-materials", "asset-bank", "asset-equipment", "tree-economy", "tree-progress", "tree-collection", "tree-characters", "sub-wallet", "sub-achievements", "sub-skins", "sub-mastery", "sub-pvp", "sub-wvw", "sub-dyes", "sub-minis", "sub-trading", "sub-fractal", "status-active"]
+        present_icons = [
+            "nav-account", "nav-insight", "nav-plan", "nav-report",
+            "kpi-account-value", "kpi-hidden-wealth", "kpi-legendary",
+            "action-export", "asset-wallet", "asset-materials", "asset-bank",
+            "asset-equipment", "tree-economy", "tree-progress", "tree-collection",
+            "tree-characters", "sub-wallet", "sub-achievements", "sub-skins",
+            "sub-mastery", "sub-pvp", "sub-wvw", "sub-dyes", "sub-minis",
+            "sub-trading", "sub-fractal", "status-active",
+        ]
         for icon_id in present_icons:
             assert f'symbol id="sym-{icon_id}"' in resp.text, f"Missing icon: {icon_id}"
 
@@ -391,8 +397,9 @@ class TestPlanAPI:
 
 class TestSession:
     def test_session_create_and_resolve(self, client, mock_api):
-        from gw2_progression.services.auth_service import create_session, get_api_key
         import asyncio
+
+        from gw2_progression.services.auth_service import create_session, get_api_key
 
         async def test():
             token = await create_session("test-real-key", "Player.1234")
@@ -408,12 +415,12 @@ class TestSession:
         assert resp.status_code == 404
 
     def test_validate_endpoint_200_for_valid_token(self, client, mock_api):
-        from gw2_progression.services.auth_service import create_session
         import asyncio
+
+        from gw2_progression.services.auth_service import create_session
 
         async def test():
             token = await create_session("test-key", "Validate.Player")
-            loop = asyncio.get_event_loop()
             resp = client.get(f"/auth/session/validate?token={token}")
             assert resp.status_code == 200
             assert resp.json()["valid"] is True
@@ -422,9 +429,10 @@ class TestSession:
         asyncio.run(test())
 
     def test_validate_expired_session(self, client):
-        from gw2_progression.services.auth_service import create_session, SESSION_TTL
         import asyncio
         from unittest.mock import patch
+
+        from gw2_progression.services.auth_service import SESSION_TTL, create_session
 
         async def test():
             token = await create_session("old-key", "Old.Player")
@@ -671,7 +679,7 @@ class TestFrontendBackendInterface:
 
 class TestJSStaticAnalysis:
     """Catch JS scope bugs and common errors via static analysis.
-    
+
     These tests parse JS files directly without a JS runtime, catching
     patterns that would cause runtime errors in the browser.
     """
@@ -692,25 +700,28 @@ class TestJSStaticAnalysis:
         depth = 1
         i = start
         while i < len(js) and depth > 0:
-            if js[i] == '{': depth += 1
-            elif js[i] == '}': depth -= 1
+            if js[i] == '{':
+                depth += 1
+            elif js[i] == '}':
+                depth -= 1
             i += 1
         return js[start:i-1]
 
     def _local_vars(self, body: str) -> set:
         """Find all locally-declared variables (const/let/var) in a function body."""
-        return set(re.findall(rf"(?:const|let|var)\s+(\w+)\s*[=;]", body))
+        return set(re.findall(r"(?:const|let|var)\s+(\w+)\s*[=;]", body))
 
     def _param_names(self, fn_def: str) -> set:
         """Extract parameter names from a function definition."""
-        m = re.search(rf"function\s+\w+\s*\(([^)]*)\)", fn_def)
-        if not m: return set()
+        m = re.search(r"function\s+\w+\s*\(([^)]*)\)", fn_def)
+        if not m:
+            return set()
         params = m.group(1)
         return set(p.strip() for p in params.split(",") if p.strip())
 
     def test_all_render_detail_functions_define_gd(self):
         """Each render*Detail function must not reference 'gd' from parent scope.
-        
+
         This catches the ReferenceError: gd is not defined bug where
         sub-functions relied on gd from renderDetail()'s scope.
         """
@@ -748,7 +759,7 @@ class TestJSStaticAnalysis:
 
     def test_nav_handler_is_first_in_domcontentloaded(self):
         """Nav handler must be the first statement in DOMContentLoaded on every page.
-        
+
         This catches the bug where earlier getElementById calls without
         optional chaining can throw and prevent the nav handler from
         being registered, making the entire page unnavigable.
@@ -762,12 +773,18 @@ class TestJSStaticAnalysis:
             depth = 1
             i = start
             while i < len(js) and depth > 0:
-                if js[i] == '{': depth += 1
-                elif js[i] == '}': depth -= 1
+                if js[i] == '{':
+                    depth += 1
+                elif js[i] == '}':
+                    depth -= 1
                 i += 1
             dcl_body = js[start:i-1]
-            lines = [l.strip() for l in dcl_body.split("\n") if l.strip() and not l.strip().startswith("//")]
-            nav_stmts = [i for i, l in enumerate(lines) if "os-nav" in l]
+            lines = [
+                line.strip()
+                for line in dcl_body.split("\n")
+                if line.strip() and not line.strip().startswith("//")
+            ]
+            nav_stmts = [i for i, line in enumerate(lines) if "os-nav" in line]
             assert len(nav_stmts) > 0, f"{js_name}: No os-nav handler found in DOMContentLoaded"
             first_nav = nav_stmts[0]
             for i in range(first_nav):
@@ -781,7 +798,7 @@ class TestJSStaticAnalysis:
 
     def test_no_await_in_non_async_function(self):
         """Catch await keyword inside function() without async keyword.
-        
+
         In ES modules, await in a non-async function is a SyntaxError
         that prevents the entire module from loading (no nav, no JS).
         """

@@ -2,7 +2,6 @@
 
 import time
 from collections import defaultdict
-from typing import Any
 
 _episodes: list[dict] = []
 

@@ -2,22 +2,15 @@
 
 import logging
 from datetime import datetime, timezone
-from typing import Any
 
 from ..analyzer import AccountContents
 from .models import (
     AccountObjectGraph,
-    AchievementCategory,
     CharacterNode,
-    CurrencyGraph,
     CurrencyNode,
     EquipmentSlot,
-    GuildNode,
     ItemNode,
-    MarketGraph,
     MarketOrder,
-    ProgressionGraph,
-    UnlockGraph,
     UnlockNode,
 )
 
@@ -63,7 +56,6 @@ def _map_currencies(contents: AccountContents, graph: AccountObjectGraph) -> Non
     for entry in wallet:
         cid = entry.get("id")
         val = entry.get("value", 0)
-        name = CURRENCY_IDS.get(cid, f"Currency #{cid}")
 
         if cid == 1:
             cg.gold = CurrencyNode(currency_id=1, name="Gold", value=val, gold=val // 10000, silver=(val // 100) % 100, copper=val % 100)
@@ -126,7 +118,6 @@ def _map_characters(contents: AccountContents, graph: AccountObjectGraph) -> Non
             continue
         char_name = ch.get("name", "?")
         equipment_slots = []
-        equip_value = 0
         for eq in ch.get("equipment") or []:
             if not isinstance(eq, dict):
                 continue
@@ -150,7 +141,14 @@ def _map_characters(contents: AccountContents, graph: AccountObjectGraph) -> Non
                 slot_id = slot.get("id")
                 slot_count = slot.get("count", 1)
                 if slot_id:
-                    node = ItemNode(item_id=slot_id, count=slot_count, location="character_inv", location_ref=f"{char_name}/bag{slot_idx}", binding=slot.get("binding") or "", tradable=slot.get("binding") is None)
+                    node = ItemNode(
+                        item_id=slot_id,
+                        count=slot_count,
+                        location="character_inv",
+                        location_ref=f"{char_name}/bag{slot_idx}",
+                        binding=slot.get("binding") or "",
+                        tradable=slot.get("binding") is None,
+                    )
                     graph.items.append(node)
                     bag_items.append(node)
 

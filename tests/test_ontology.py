@@ -1,18 +1,19 @@
 """Tests for the Ontology layer — object store, relations, impact analysis, QA gate."""
 
 import datetime
-import json
 from unittest.mock import AsyncMock, patch
 
 import pytest
 
-from gw2_progression.ontology import config, object_store as store, graph_query as gq
-from gw2_progression.ontology.models import OntologyObject, OntologyRelation, SafeSurplusResult, ImpactReport, QAReport
-from gw2_progression.ontology.impact_analyzer import analyze_sell_impact, compute_safe_surplus
-from gw2_progression.ontology.qa_gate import check_report_publishable, validate_object
+from gw2_progression.models import TrackedGoal
+from gw2_progression.ontology import config
+from gw2_progression.ontology import graph_query as gq
+from gw2_progression.ontology import object_store as store
 from gw2_progression.ontology.account_mapper import sync_account_to_ontology
 from gw2_progression.ontology.goal_mapper import map_goal_to_ontology, sync_goal_reservations
-from gw2_progression.models import TrackedGoal
+from gw2_progression.ontology.impact_analyzer import analyze_sell_impact, compute_safe_surplus
+from gw2_progression.ontology.models import OntologyObject, QAReport, SafeSurplusResult
+from gw2_progression.ontology.qa_gate import check_report_publishable, validate_object
 
 
 def _fresh_ts() -> str:
@@ -408,7 +409,10 @@ class TestExplanationConstraints:
             language="en",
         )
         result = validate_explanation_candidate(
-            "Carrion Silk Insignia is suitable for a small first craft: you can craft it 273 time(s), sample net profit is 1s 87c with ROI 0.789, and market risk is low. Re-check prices before scaling.",
+            (
+                "Carrion Silk Insignia is suitable for a small first craft: you can craft it 273 time(s), "
+                "sample net profit is 1s 87c with ROI 0.789, and market risk is low. Re-check prices before scaling."
+            ),
             facts,
             risk,
             category="do_now",
@@ -517,8 +521,36 @@ class TestExplanationConstraints:
 class TestAccountMapper:
     async def test_sync_account_to_ontology(self):
         mock_holdings = [
-            type("H", (), {"item_id": 19976, "count": 120, "location_type": "material_storage", "location_ref": "", "tradable": True, "value_buy": 50000, "value_sell": 48000, "binding_status": "", "confidence": 0.9})(),
-            type("H", (), {"item_id": 46765, "count": 1, "location_type": "bank", "location_ref": "", "tradable": False, "value_buy": 0, "value_sell": 0, "binding_status": "AccountBound", "confidence": 1.0})(),
+            type(
+                "H",
+                (),
+                {
+                    "item_id": 19976,
+                    "count": 120,
+                    "location_type": "material_storage",
+                    "location_ref": "",
+                    "tradable": True,
+                    "value_buy": 50000,
+                    "value_sell": 48000,
+                    "binding_status": "",
+                    "confidence": 0.9,
+                },
+            )(),
+            type(
+                "H",
+                (),
+                {
+                    "item_id": 46765,
+                    "count": 1,
+                    "location_type": "bank",
+                    "location_ref": "",
+                    "tradable": False,
+                    "value_buy": 0,
+                    "value_sell": 0,
+                    "binding_status": "AccountBound",
+                    "confidence": 1.0,
+                },
+            )(),
         ]
 
         from gw2_progression.ontology.account_mapper import sync_account_to_ontology
@@ -566,7 +598,6 @@ class TestGoalMapper:
         )
         objs = map_goal_to_ontology(goal)
         goals = [o for o in objs if o.class_name == "legendary_goal"]
-        reqs = [o for o in objs if o.class_name == "goal_requirement"]
         assert len(goals) == 1
         assert goals[0].account_name == "Player.1"
         assert goals[0].properties["priority"] == "high"
@@ -669,8 +700,8 @@ class TestEndToEnd:
 
 class TestBuildTrust:
     def test_evaluate_fresh_build(self):
-        from gw2_progression.ontology.build_trust import evaluate_build_source_freshness
         from gw2_progression.models import BuildTemplate
+        from gw2_progression.ontology.build_trust import evaluate_build_source_freshness
 
         build = BuildTemplate(
             build_id="sc_dh",
@@ -687,8 +718,8 @@ class TestBuildTrust:
         assert result["is_weak"] is False
 
     def test_evaluate_weak_build(self):
-        from gw2_progression.ontology.build_trust import evaluate_build_source_freshness, WEAK_PATCH_DAYS, STALE_PATCH_DAYS
         from gw2_progression.models import BuildTemplate
+        from gw2_progression.ontology.build_trust import STALE_PATCH_DAYS, WEAK_PATCH_DAYS, evaluate_build_source_freshness
 
         build = BuildTemplate(
             build_id="old_build",
@@ -706,8 +737,8 @@ class TestBuildTrust:
             assert result["recommendation_strength"] == "weak"
 
     def test_unreviewed_build_no_recommendation(self):
-        from gw2_progression.ontology.build_trust import evaluate_build_source_freshness
         from gw2_progression.models import BuildTemplate
+        from gw2_progression.ontology.build_trust import evaluate_build_source_freshness
 
         build = BuildTemplate(
             build_id="unreviewed",
@@ -722,8 +753,8 @@ class TestBuildTrust:
         assert result["trust_level"] == "low"
 
     def test_filter_recommendations_by_freshness(self):
-        from gw2_progression.ontology.build_trust import filter_recommendations_by_freshness
         from gw2_progression.models import BuildTemplate
+        from gw2_progression.ontology.build_trust import filter_recommendations_by_freshness
 
         builds = [
             BuildTemplate(build_id="b1", source="sc", name="Fresh", profession="Guardian", patch_version="2026.06", review_status="reviewed"),
@@ -736,8 +767,8 @@ class TestBuildTrust:
         assert result[1]["recommendation_strength"] == "none"
 
     def test_get_build_confidence(self):
-        from gw2_progression.ontology.build_trust import get_build_recommendation_confidence
         from gw2_progression.models import BuildTemplate
+        from gw2_progression.ontology.build_trust import get_build_recommendation_confidence
 
         fresh = BuildTemplate(build_id="b1", source="sc", name="Fresh", profession="Guardian", patch_version="2026.06", review_status="reviewed")
         assert get_build_recommendation_confidence(fresh) == 0.85
@@ -873,8 +904,8 @@ class TestBuildAndReportE2E:
 
 class TestMarketMapper:
     def test_map_sell_candidate(self):
-        from gw2_progression.ontology.market_mapper import map_signal_to_ontology
         from gw2_progression.models import TradingPostSignal
+        from gw2_progression.ontology.market_mapper import map_signal_to_ontology
 
         signal = TradingPostSignal(
             item_id=19976,
@@ -896,8 +927,8 @@ class TestMarketMapper:
         assert obj.properties["signal_type"] == "sell_candidate"
 
     def test_map_sell_candidate_stale_price(self):
-        from gw2_progression.ontology.market_mapper import map_signal_to_ontology
         from gw2_progression.models import TradingPostSignal
+        from gw2_progression.ontology.market_mapper import map_signal_to_ontology
 
         old_signal = TradingPostSignal(
             item_id=19976,
@@ -908,8 +939,8 @@ class TestMarketMapper:
         assert obj.properties.get("price_stale") is True
 
     def test_get_active_sell_candidates(self):
-        from gw2_progression.ontology.market_mapper import get_active_sell_candidates, map_signal_to_ontology
         from gw2_progression.models import TradingPostSignal
+        from gw2_progression.ontology.market_mapper import get_active_sell_candidates, map_signal_to_ontology
 
         for i in range(3):
             map_signal_to_ontology(TradingPostSignal(item_id=i, signal_type="sell_candidate"), "Player.1")
@@ -917,8 +948,8 @@ class TestMarketMapper:
         assert len(candidates) == 3
 
     def test_get_protected_market_assets(self):
-        from gw2_progression.ontology.market_mapper import map_signal_to_ontology, get_protected_market_assets
         from gw2_progression.models import TradingPostSignal
+        from gw2_progression.ontology.market_mapper import get_protected_market_assets, map_signal_to_ontology
 
         map_signal_to_ontology(TradingPostSignal(item_id=19976, signal_type="protected_asset"), "Player.1")
         protected = get_protected_market_assets("Player.1")
@@ -926,8 +957,8 @@ class TestMarketMapper:
         assert protected[0].class_name == "protected_market_asset"
 
     def test_check_price_freshness(self):
-        from gw2_progression.ontology.market_mapper import check_price_freshness, map_signal_to_ontology
         from gw2_progression.models import TradingPostSignal
+        from gw2_progression.ontology.market_mapper import check_price_freshness, map_signal_to_ontology
 
         map_signal_to_ontology(TradingPostSignal(item_id=19976, signal_type="sell_candidate", price_timestamp=_fresh_ts()), "Player.1")
         result = check_price_freshness(19976, "Player.1")
@@ -951,16 +982,44 @@ class TestDeltaSync:
             mock_ctx.return_value.__aenter__ = AsyncMock(return_value=mock_db)
             mock_ctx.return_value.__aexit__ = AsyncMock()
             mock_holdings.return_value = [
-                type("H", (), {"item_id": 19976, "count": 120, "location_type": "material_storage", "location_ref": "", "tradable": True, "value_buy": 50000, "value_sell": 48000, "binding_status": "", "confidence": 0.9})(),
+                type(
+                    "H",
+                    (),
+                    {
+                        "item_id": 19976,
+                        "count": 120,
+                        "location_type": "material_storage",
+                        "location_ref": "",
+                        "tradable": True,
+                        "value_buy": 50000,
+                        "value_sell": 48000,
+                        "binding_status": "",
+                        "confidence": 0.9,
+                    },
+                )(),
             ]
 
             objs1 = await sync_account_to_ontology("key", "Delta.Player")
             assert len(objs1) >= 1
 
             mock_holdings.return_value = [
-                type("H", (), {"item_id": 19976, "count": 150, "location_type": "material_storage", "location_ref": "", "tradable": True, "value_buy": 60000, "value_sell": 57000, "binding_status": "", "confidence": 0.9})(),
+                type(
+                    "H",
+                    (),
+                    {
+                        "item_id": 19976,
+                        "count": 150,
+                        "location_type": "material_storage",
+                        "location_ref": "",
+                        "tradable": True,
+                        "value_buy": 60000,
+                        "value_sell": 57000,
+                        "binding_status": "",
+                        "confidence": 0.9,
+                    },
+                )(),
             ]
-            objs2 = await sync_account_to_ontology("key", "Delta.Player")
+            await sync_account_to_ontology("key", "Delta.Player")
 
             assets = store.get_objects_by_account("account_asset", "Delta.Player")
             mystic_coin_assets = [a for a in assets if a.properties.get("item_id") == 19976]
@@ -977,8 +1036,36 @@ class TestDeltaSync:
             mock_ctx.return_value.__aexit__ = AsyncMock()
 
             mock_holdings.return_value = [
-                type("H", (), {"item_id": 19976, "count": 120, "location_type": "material_storage", "location_ref": "", "tradable": True, "value_buy": 50000, "value_sell": 48000, "binding_status": "", "confidence": 0.9})(),
-                type("H", (), {"item_id": 46765, "count": 1, "location_type": "bank", "location_ref": "", "tradable": False, "value_buy": 0, "value_sell": 0, "binding_status": "AccountBound", "confidence": 1.0})(),
+                type(
+                    "H",
+                    (),
+                    {
+                        "item_id": 19976,
+                        "count": 120,
+                        "location_type": "material_storage",
+                        "location_ref": "",
+                        "tradable": True,
+                        "value_buy": 50000,
+                        "value_sell": 48000,
+                        "binding_status": "",
+                        "confidence": 0.9,
+                    },
+                )(),
+                type(
+                    "H",
+                    (),
+                    {
+                        "item_id": 46765,
+                        "count": 1,
+                        "location_type": "bank",
+                        "location_ref": "",
+                        "tradable": False,
+                        "value_buy": 0,
+                        "value_sell": 0,
+                        "binding_status": "AccountBound",
+                        "confidence": 1.0,
+                    },
+                )(),
             ]
             objs = await sync_account_to_ontology("key", "Delta.New")
             assets = [o for o in objs if o.class_name == "account_asset"]
@@ -990,8 +1077,12 @@ class TestDeltaSync:
 class TestOntologyExceptions:
     def test_exception_hierarchy(self):
         from gw2_progression.ontology.exceptions import (
-            OntologyError, ObjectNotFoundError, RelationNotFoundError,
-            ValidationError, PreconditionFailedError, PersistenceError,
+            ObjectNotFoundError,
+            OntologyError,
+            PersistenceError,
+            PreconditionFailedError,
+            RelationNotFoundError,
+            ValidationError,
         )
         assert issubclass(ObjectNotFoundError, OntologyError)
         assert issubclass(RelationNotFoundError, OntologyError)
@@ -1031,8 +1122,8 @@ class TestObjectStoreRetry:
         assert call_count == 2
 
     async def test_with_retry_exhausted(self):
-        from gw2_progression.ontology.object_store import _with_retry, _MAX_RETRIES
         from gw2_progression.ontology.exceptions import PersistenceError
+        from gw2_progression.ontology.object_store import _MAX_RETRIES, _with_retry
 
         call_count = 0
 
@@ -1286,7 +1377,7 @@ class TestOntologyRuntimeKernel:
         assert replay["state"].to_dict() == snapshot["state"]
 
     def test_ingestion_pipeline_normalizes_raw_gw2_payload_into_runtime_graph(self):
-        from gw2_progression.ontology import GW2APINormalizer, GraphBuilder, OntologyRuntimeKernel
+        from gw2_progression.ontology import GraphBuilder, GW2APINormalizer, OntologyRuntimeKernel
 
         raw = {
             "account": {"name": "Pipe.1234"},
@@ -1597,7 +1688,7 @@ class TestOntologyRuntimeKernel:
 
 class TestPerformance:
     def test_batch_register_objects(self):
-        from gw2_progression.ontology.object_store import register_objects, get_objects_by_class
+        from gw2_progression.ontology.object_store import get_objects_by_class, register_objects
 
         specs = [
             {"class_name": "test_batch", "account_name": "Player.B", "properties": {"idx": i}}
@@ -1608,7 +1699,7 @@ class TestPerformance:
         assert len(get_objects_by_class("test_batch")) == 10
 
     def test_batch_register_relations(self):
-        from gw2_progression.ontology.object_store import register_objects, register_relations, get_relations
+        from gw2_progression.ontology.object_store import get_relations, register_objects, register_relations
 
         objs = register_objects([
             {"class_name": "batch_a", "account_name": "P"},
@@ -1621,7 +1712,7 @@ class TestPerformance:
         assert len(get_relations(relation_type="batch_rel")) == 1
 
     def test_get_objects_by_property(self):
-        from gw2_progression.ontology.object_store import register_object, get_objects_by_property
+        from gw2_progression.ontology.object_store import get_objects_by_property, register_object
 
         register_object("prop_test", properties={"color": "red", "size": 1})
         register_object("prop_test", properties={"color": "blue", "size": 2})
@@ -1633,7 +1724,7 @@ class TestPerformance:
         assert len(blues) == 1
 
     def test_get_objects_by_property_batch(self):
-        from gw2_progression.ontology.object_store import register_object, get_objects_by_property_batch
+        from gw2_progression.ontology.object_store import get_objects_by_property_batch, register_object
 
         register_object("batch_filter", properties={"type": "a", "active": True})
         register_object("batch_filter", properties={"type": "b", "active": True})
@@ -1643,7 +1734,7 @@ class TestPerformance:
         assert len(result) == 1
 
     def test_count_objects(self):
-        from gw2_progression.ontology.object_store import register_object, count_objects
+        from gw2_progression.ontology.object_store import count_objects, register_object
 
         register_object("count_test", account_name="Player.C")
         register_object("count_test", account_name="Player.C")
@@ -1652,7 +1743,7 @@ class TestPerformance:
         assert count_objects("count_test", account_name="Player.C") == 2
 
     def test_count_relations(self):
-        from gw2_progression.ontology.object_store import register_object, register_relation, count_relations
+        from gw2_progression.ontology.object_store import count_relations, register_object, register_relation
 
         a = register_object("count_rel_a")
         b = register_object("count_rel_b")
@@ -1662,7 +1753,7 @@ class TestPerformance:
         assert count_relations(relation_type="type_x") == 1
 
     def test_pagination(self):
-        from gw2_progression.ontology.object_store import register_object, get_objects_paginated
+        from gw2_progression.ontology.object_store import get_objects_paginated, register_object
 
         for i in range(10):
             register_object("page_test", account_name="Player.P", properties={"i": i})
@@ -1672,7 +1763,7 @@ class TestPerformance:
         assert len(page2) <= 3
 
     def test_property_index_caching(self):
-        from gw2_progression.ontology.object_store import register_object, get_objects_by_property, clear_prop_index
+        from gw2_progression.ontology.object_store import clear_prop_index, get_objects_by_property, register_object
 
         clear_prop_index()
         register_object("cache_test", properties={"key": "val"})

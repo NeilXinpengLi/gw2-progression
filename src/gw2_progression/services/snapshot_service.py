@@ -23,9 +23,7 @@ from ..models_data import (
     AssetEntity,
     CharacterEntity,
     CurrencyEntity,
-    DerivedAccountData,
     NormalizedAccountData,
-    RawAccountData,
 )
 from .holdings_service import (
     extract_bank_holdings,
@@ -36,7 +34,7 @@ from .holdings_service import (
     extract_tradingpost_holdings,
     extract_wallet_holdings,
 )
-from .price_service import compute_price_quality, fetch_prices
+from .price_service import fetch_prices
 
 logger = logging.getLogger("gw2.snapshot")
 
@@ -279,7 +277,7 @@ def _hash_key(api_key: str) -> str:
 async def run_full_analysis(api_key: str) -> Any:
     """Full account analysis — kept for /value/analyze backward compat."""
     from ..analyzer import fetch_all
-    from ..database import get_db, save_account_snapshot
+    from ..database import save_account_snapshot
     from ..models import TopItem, ValueAnalyzeResponse
     from .holdings_service import (
         extract_bank_holdings,
@@ -290,7 +288,6 @@ async def run_full_analysis(api_key: str) -> Any:
         extract_wallet_holdings,
     )
     from .item_service import is_account_bound
-    from .price_service import fetch_prices
     from .valuation_service import apply_prices, compute_summary
 
     contents = await fetch_all(api_key)
@@ -341,11 +338,10 @@ async def run_full_analysis(api_key: str) -> Any:
                 h.confidence = 1.0
                 h.data_sources = ["gw2_account_inventory", "gw2_items"]
 
-    snapshot_id = 0
     db = await get_db()
     try:
         summary = compute_summary(all_holdings)
-        snapshot_id = await save_account_snapshot(db, account_name, _hash_key(api_key), summary, all_holdings, warnings)
+        await save_account_snapshot(db, account_name, _hash_key(api_key), summary, all_holdings, warnings)
         await db.commit()
     finally:
         await db.close()

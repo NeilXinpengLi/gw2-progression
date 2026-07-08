@@ -171,7 +171,6 @@ def test_v5_decide_resolves_token(client):
 
 def test_analyze_resolves_token(client):
     """Backward compat: /analyze still resolves session tokens."""
-    from gw2_progression.gw2_client import Gw2ApiError
 
     with _mock_get_api_key() as mock:
         resp = client.post("/analyze", json={"api_key": SESSION_TOKEN})

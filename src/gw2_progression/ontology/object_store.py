@@ -270,7 +270,6 @@ def trace(eid: str, depth: int = 3, max_results: int = 200) -> dict:
     { "object": OntologyObject, "relations": [{"relation": ..., "direction": "out/in", "target": {...}}, ...] }
     """
     visited: set[str] = set()
-    results: list[dict] = []
     limit = [0]
 
     def _walk(current_id: str, remaining: int) -> dict | None:

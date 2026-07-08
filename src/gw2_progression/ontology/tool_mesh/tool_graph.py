@@ -1,6 +1,5 @@
 """ToolGraph — track inter-tool dependencies and analyze tool change impact."""
 
-from typing import Any
 
 _dependencies: dict[str, list[str]] = {}  # caller -> [callee]
 

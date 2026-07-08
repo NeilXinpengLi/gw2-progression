@@ -1,6 +1,5 @@
 """Tests for holdings extraction — normalizing raw GW2 API data into ItemHolding."""
 
-from gw2_progression.models import ItemHolding
 from gw2_progression.services.holdings_service import (
     extract_bank_holdings,
     extract_character_holdings,

@@ -1,7 +1,6 @@
 """ToolMemory — tool call history and success rate tracking."""
 
 import time
-from collections import defaultdict
 from typing import Any
 
 _records: list[dict] = []

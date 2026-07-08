@@ -8,7 +8,6 @@ Three-layer pipeline:
   BORS: Business entity mapping
 """
 
-import os
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
@@ -316,13 +315,12 @@ class DomainGraphEngine:
     def _simple_parse(text: str) -> dict:
         """Fallback parser when PyYAML is not installed."""
         import json
-        import re
 
         def _clean(line: str) -> str:
             return line.split("#")[0].rstrip()
 
-        lines = [l for l in text.split("\n") if _clean(l).strip()]
-        joined = "\n".join(_clean(l) for l in lines)
+        lines = [line for line in text.split("\n") if _clean(line).strip()]
+        joined = "\n".join(_clean(line) for line in lines)
         try:
             return json.loads(joined)
         except json.JSONDecodeError:

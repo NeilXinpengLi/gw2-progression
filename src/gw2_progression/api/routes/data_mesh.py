@@ -2,13 +2,11 @@ from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel
 
 from gw2_progression.data_mesh import (
-    DataMeshBridge,
-    DataIngestion,
-    DataMeshPipeline,
-    SchemaNormalizer,
-    ConfidenceSystem,
-    SourceRegistry,
     BUILTIN_SOURCES,
+    ConfidenceSystem,
+    DataMeshBridge,
+    SchemaNormalizer,
+    SourceRegistry,
 )
 
 router = APIRouter(prefix="/mesh", tags=["data-mesh"])

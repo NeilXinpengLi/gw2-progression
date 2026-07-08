@@ -8,10 +8,9 @@ KPI types map to DGSK entity types:
   - reliability_score   ← action success rate
 """
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from datetime import datetime, timezone
 from enum import Enum
-from typing import Any
 
 
 class BusinessKPIType(Enum):

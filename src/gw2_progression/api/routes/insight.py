@@ -1,7 +1,6 @@
 """AI Insight API — all derived intelligence from account data."""
 
 import logging
-from typing import Any
 
 from fastapi import APIRouter, HTTPException, Query
 
@@ -126,7 +125,7 @@ async def insight_data(api_key: str = Query(...)):
     sell_candidates = []
     buy_opportunities = []
     try:
-        from gw2_progression.services.listing_service import fetch_listings, analyze_depth
+        from gw2_progression.services.listing_service import analyze_depth, fetch_listings
         sell_ids = [h.item_id for h in priced_holdings if h.tradable and h.location_type != "wallet"][:20]
         if sell_ids:
             listings = await fetch_listings(sell_ids)

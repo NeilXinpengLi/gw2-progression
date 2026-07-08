@@ -6,9 +6,6 @@ LAYER 3: Derived — AI/Decision intelligence computed from snapshot
 """
 
 from dataclasses import dataclass, field
-from datetime import datetime
-from typing import Any
-
 
 # ── Layer 1: Raw (GW2 API mirror) ──────────────────────────────────
 

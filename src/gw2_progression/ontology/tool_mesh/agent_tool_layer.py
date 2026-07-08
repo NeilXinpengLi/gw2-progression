@@ -8,10 +8,10 @@ Controls what tools an agent can call:
 """
 
 import logging
-from typing import Any
 
 from ..action_registry import execute_action as registry_execute
-from ..policy_engine import PolicyLevel, evaluate as evaluate_policies, PolicyResult
+from ..policy_engine import PolicyLevel
+from ..policy_engine import evaluate as evaluate_policies
 from .tool_registry import execute as tool_execute
 
 logger = logging.getLogger("gw2.ontology.agent_tool")
@@ -96,6 +96,7 @@ async def call_governed_action(
     account_name: str = "",
     params: dict | None = None,
     agent_name: str = "",
+    bypass_policies: bool = False,
 ) -> dict:
     """Bridge to ActionRegistry for governed actions.
 
