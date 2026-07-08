@@ -19,6 +19,61 @@ router = APIRouter(prefix="/api/account", tags=["account"])
 _fetch_cache: dict[str, tuple[datetime, Any]] = {}
 _CACHE_TTL_S = 120
 
+# ── Guild name/tag cache: guild GUIDs resolve to stable names, cache indefinitely ──
+_guild_repr_cache: dict[str, dict] = {}
+
+
+async def _resolve_guild(resolved_key: str, guild_id: str) -> dict:
+    """Resolve a represented-guild GUID to {id, name, tag}, tolerant of failures."""
+    if not guild_id:
+        return {}
+    if guild_id in _guild_repr_cache:
+        return _guild_repr_cache[guild_id]
+    from gw2_progression.gw2_client import fetch_guild
+
+    try:
+        info = await fetch_guild(resolved_key, guild_id)
+        entry = {"id": guild_id, "name": info.get("name", ""), "tag": info.get("tag", "")}
+    except Exception as e:
+        logger.warning("Guild resolution failed for %s: %s", guild_id, e)
+        entry = {"id": guild_id, "name": "", "tag": ""}
+    _guild_repr_cache[guild_id] = entry
+    return entry
+
+
+async def _build_guild_representation(resolved_key: str, characters: list) -> tuple[dict[str, dict], list[dict]]:
+    """Resolve each character's represented guild and group characters by guild.
+
+    Returns (guild_id -> {name, tag}, [ {guild_id, name, tag, character_count, characters} ]).
+    The guild a character represents comes from the character record itself
+    (account + characters scopes) — no `guilds` scope required.
+    """
+    from asyncio import gather
+
+    unique_ids = {ch.get("guild") for ch in characters if ch.get("guild")}
+    resolved = await gather(*(_resolve_guild(resolved_key, gid) for gid in unique_ids))
+    by_id = {r["id"]: r for r in resolved if r}
+
+    groups: dict[str, dict] = {}
+    for ch in characters:
+        gid = ch.get("guild") or ""
+        info = by_id.get(gid, {})
+        key = gid or "__none__"
+        if key not in groups:
+            groups[key] = {
+                "guild_id": gid,
+                "name": info.get("name", ""),
+                "tag": info.get("tag", ""),
+                "character_count": 0,
+                "characters": [],
+            }
+        groups[key]["character_count"] += 1
+        groups[key]["characters"].append(ch.get("name", "?"))
+
+    representation = sorted(groups.values(), key=lambda g: g["character_count"], reverse=True)
+    return by_id, representation
+
+
 async def _cached_fetch(resolved_key: str, refresh: int = 0):
     now = datetime.now(timezone.utc)
     if not refresh and resolved_key in _fetch_cache:
@@ -50,7 +105,7 @@ async def account_overview(api_key: str = Query(...), lite: bool = Query(False),
 
     if lite:
         wallet_gold = 0
-        for entry in (contents.wallet or []):
+        for entry in contents.wallet or []:
             if entry.get("id") == 1:
                 wallet_gold = entry.get("value", 0) // 10000
         return {
@@ -90,6 +145,7 @@ async def account_overview(api_key: str = Query(...), lite: bool = Query(False),
 
     # Build object graph (gw2efficiency-level full data model)
     from gw2_progression.object_graph.mapper import map_to_graph
+
     object_graph = map_to_graph(contents)
 
     normalized = normalize_account(raw_dict)
@@ -119,9 +175,12 @@ async def account_overview(api_key: str = Query(...), lite: bool = Query(False),
     breakdown = derive_breakdown(normalized.assets)
     graph_nodes, node_details = _build_account_graph_payload(normalized.assets, breakdown, object_graph)
 
+    # Resolve which in-game guild each character is currently representing.
+    guild_by_id, guild_representation = await _build_guild_representation(resolved_key, contents.characters or [])
+
     # Character summary — compute gear value and build status from raw equipment
     char_rows = []
-    for ch in (contents.characters or []):
+    for ch in contents.characters or []:
         char_equip_list = ch.get("equipment") or []
         char_gear_value = 0
         for eq in char_equip_list:
@@ -130,19 +189,25 @@ async def account_overview(api_key: str = Query(...), lite: bool = Query(False),
                 if eq_price:
                     char_gear_value += eq_price.sell_unit_price
         prof = ch.get("profession", "")
-        char_rows.append({
-            "name": ch.get("name", "?"),
-            "profession": _profession_name(prof),
-            "level": ch.get("level", 0),
-            "playtime": _fmt_duration(ch.get("age", 0)),
-            "gear_value": char_gear_value,
-            "build_status": f"{len(char_equip_list)} equipped" if char_equip_list else "",
-            "last_login": _fmt_last_login(ch.get("created", "")),
-        })
+        guild_info = guild_by_id.get(ch.get("guild") or "", {})
+        char_rows.append(
+            {
+                "name": ch.get("name", "?"),
+                "profession": _profession_name(prof),
+                "level": ch.get("level", 0),
+                "playtime": _fmt_duration(ch.get("age", 0)),
+                "gear_value": char_gear_value,
+                "build_status": f"{len(char_equip_list)} equipped" if char_equip_list else "",
+                "last_login": _fmt_last_login(ch.get("created", "")),
+                "represented_guild": guild_info.get("name", ""),
+                "represented_guild_tag": guild_info.get("tag", ""),
+                "represented_guild_id": ch.get("guild") or "",
+            }
+        )
 
     # ── Additional raw data from GW2 API (not shown in asset table) ──
     wallet_currencies = [{"id": 1, "name": "Gold", "value": normalized.currencies.gold * 10000}]
-    for entry in (contents.wallet or []):
+    for entry in contents.wallet or []:
         if entry.get("id") in (2, 3, 4):  # karma, laurels, spirit shards
             wallet_currencies.append({"id": entry["id"], "value": entry.get("value", 0)})
 
@@ -179,32 +244,39 @@ async def account_overview(api_key: str = Query(...), lite: bool = Query(False),
             "achievement_count": len(contents.achievements or []),
             "mastery_count": len(contents.masteries or []),
         },
-        "assets": [{
-            "category": b.category,
-            "total_value": b.total_value,
-            "liquid_sell": b.liquid_value,
-            "liquid_buy": b.liquid_value,
-            "percentage": b.percentage,
-            "risk_flag": b.risk,
-            "count": b.item_count,
-        } for b in breakdown],
+        "assets": [
+            {
+                "category": b.category,
+                "total_value": b.total_value,
+                "liquid_sell": b.liquid_value,
+                "liquid_buy": b.liquid_value,
+                "percentage": b.percentage,
+                "risk_flag": b.risk,
+                "count": b.item_count,
+            }
+            for b in breakdown
+        ],
         "graph_nodes": graph_nodes,
         "node_details": node_details,
         "object_graph": {
             "item_count": len(object_graph.items),
             "character_count": len(object_graph.characters),
-            "currencies": {c.currency_id: c.value for c in [
-                object_graph.currencies.gold,
-                object_graph.currencies.karma,
-                object_graph.currencies.laurels,
-                object_graph.currencies.spirit_shards,
-                object_graph.currencies.fractal_relics,
-                object_graph.currencies.magnetite,
-                object_graph.currencies.gaeting,
-                object_graph.currencies.gems,
-                object_graph.currencies.volatile_magic,
-                object_graph.currencies.unbound_magic,
-            ] if c.value > 0},
+            "currencies": {
+                c.currency_id: c.value
+                for c in [
+                    object_graph.currencies.gold,
+                    object_graph.currencies.karma,
+                    object_graph.currencies.laurels,
+                    object_graph.currencies.spirit_shards,
+                    object_graph.currencies.fractal_relics,
+                    object_graph.currencies.magnetite,
+                    object_graph.currencies.gaeting,
+                    object_graph.currencies.gems,
+                    object_graph.currencies.volatile_magic,
+                    object_graph.currencies.unbound_magic,
+                ]
+                if c.value > 0
+            },
             "unlock_counts": {
                 "skins": object_graph.unlocks.skin_count,
                 "dyes": object_graph.unlocks.dye_count,
@@ -235,6 +307,7 @@ async def account_overview(api_key: str = Query(...), lite: bool = Query(False),
             "guild_count": len(contents.guilds or []),
         },
         "characters": char_rows,
+        "guild_representation": guild_representation,
         "snapshot_time": "",
     }
 
@@ -250,9 +323,15 @@ def _categorize_holdings(holdings) -> list[tuple[str, list]]:
     result = []
     for key in order:
         if key in mapping:
-            label = {"wallet": "Wallet", "material_storage": "Materials", "bank": "Bank",
-                     "character": "Characters", "shared_inventory": "Shared Inventory",
-                     "tradingpost": "Trading Post", "other": "Other"}.get(key, key)
+            label = {
+                "wallet": "Wallet",
+                "material_storage": "Materials",
+                "bank": "Bank",
+                "character": "Characters",
+                "shared_inventory": "Shared Inventory",
+                "tradingpost": "Trading Post",
+                "other": "Other",
+            }.get(key, key)
             result.append((label, mapping[key]))
     return result
 
@@ -293,15 +372,17 @@ def _build_account_graph_payload(assets, breakdown, object_graph) -> tuple[list[
     for asset in assets:
         by_category.setdefault(_asset_category(asset.location), []).append(asset)
 
-    nodes: list[dict] = [{
-        "id": "overview",
-        "group": "snapshot",
-        "label": "Account Snapshot",
-        "kind": "snapshot",
-        "count": len(assets),
-        "value": sum(a.value_after_fee for a in assets),
-        "risk": "low",
-    }]
+    nodes: list[dict] = [
+        {
+            "id": "overview",
+            "group": "snapshot",
+            "label": "Account Snapshot",
+            "kind": "snapshot",
+            "count": len(assets),
+            "value": sum(a.value_after_fee for a in assets),
+            "risk": "low",
+        }
+    ]
     details: dict[str, dict] = {
         "overview": {
             "title": "Account Snapshot",
@@ -327,16 +408,18 @@ def _build_account_graph_payload(assets, breakdown, object_graph) -> tuple[list[
         low_liquidity = sum(1 for a in cat_assets if a.liquidity in ("low", "illiquid", "unknown"))
         top_items = sorted(cat_assets, key=lambda a: a.value_after_fee or a.value_sell or a.value_buy, reverse=True)[:8]
 
-        nodes.append({
-            "id": node_id,
-            "group": "assets",
-            "label": b.category,
-            "kind": "asset_category",
-            "count": b.item_count,
-            "value": b.total_value,
-            "percentage": b.percentage,
-            "risk": b.risk,
-        })
+        nodes.append(
+            {
+                "id": node_id,
+                "group": "assets",
+                "label": b.category,
+                "kind": "asset_category",
+                "count": b.item_count,
+                "value": b.total_value,
+                "percentage": b.percentage,
+                "risk": b.risk,
+            }
+        )
         details[node_id] = {
             "title": b.category,
             "subtitle": "Value grouped by where the account holds this asset class.",
@@ -352,31 +435,36 @@ def _build_account_graph_payload(assets, breakdown, object_graph) -> tuple[list[
                 {"label": "Share of account value", "value": f"{b.percentage}%"},
                 {"label": "Risk", "value": b.risk.upper()},
             ],
-            "items": [{
-                "item_id": a.item_id,
-                "count": a.count,
-                "location": a.location,
-                "location_ref": a.location_ref,
-                "binding": a.binding or ("Tradable" if a.tradable else "Locked"),
-                "liquidity": a.liquidity,
-                "value": a.value_after_fee or a.value_sell or a.value_buy,
-            } for a in top_items],
+            "items": [
+                {
+                    "item_id": a.item_id,
+                    "count": a.count,
+                    "location": a.location,
+                    "location_ref": a.location_ref,
+                    "binding": a.binding or ("Tradable" if a.tradable else "Locked"),
+                    "liquidity": a.liquidity,
+                    "value": a.value_after_fee or a.value_sell or a.value_buy,
+                }
+                for a in top_items
+            ],
             "insight": _asset_insight(b.category, b.risk, unpriced, low_liquidity),
         }
 
-    nodes.extend([
-        {"id": "progression", "group": "progression", "label": "Progression", "kind": "progression", "count": object_graph.progression.mastery_count, "value": 0, "risk": "low"},
-        {"id": "unlocks", "group": "unlocks", "label": "Unlocks", "kind": "unlocks", "count": object_graph.unlocks.skin_count, "value": 0, "risk": "low"},
-        {
-            "id": "market",
-            "group": "market",
-            "label": "Trading Post Orders",
-            "kind": "market",
-            "count": len(object_graph.market.buy_orders) + len(object_graph.market.sell_orders),
-            "value": object_graph.market.total_buy_value + object_graph.market.total_sell_value,
-            "risk": "medium" if object_graph.market.buy_orders or object_graph.market.sell_orders else "low",
-        },
-    ])
+    nodes.extend(
+        [
+            {"id": "progression", "group": "progression", "label": "Progression", "kind": "progression", "count": object_graph.progression.mastery_count, "value": 0, "risk": "low"},
+            {"id": "unlocks", "group": "unlocks", "label": "Unlocks", "kind": "unlocks", "count": object_graph.unlocks.skin_count, "value": 0, "risk": "low"},
+            {
+                "id": "market",
+                "group": "market",
+                "label": "Trading Post Orders",
+                "kind": "market",
+                "count": len(object_graph.market.buy_orders) + len(object_graph.market.sell_orders),
+                "value": object_graph.market.total_buy_value + object_graph.market.total_sell_value,
+                "risk": "medium" if object_graph.market.buy_orders or object_graph.market.sell_orders else "low",
+            },
+        ]
+    )
 
     details["progression"] = {
         "title": "Progression",
@@ -435,14 +523,17 @@ def _build_account_graph_payload(assets, breakdown, object_graph) -> tuple[list[
                 {"label": "Deaths", "value": ch.deaths},
                 {"label": "Last login age", "value": f"{ch.last_login_days} days"},
             ],
-            "items": [{
-                "item_id": item.item_id,
-                "count": item.count,
-                "location": item.location,
-                "location_ref": item.location_ref,
-                "binding": item.binding or ("Tradable" if item.tradable else "Locked"),
-                "value": item.value_after_fee or item.value_sell or item.value_buy,
-            } for item in sorted(ch.bag_items, key=lambda item: item.value_after_fee or item.value_sell or item.value_buy, reverse=True)[:8]],
+            "items": [
+                {
+                    "item_id": item.item_id,
+                    "count": item.count,
+                    "location": item.location,
+                    "location_ref": item.location_ref,
+                    "binding": item.binding or ("Tradable" if item.tradable else "Locked"),
+                    "value": item.value_after_fee or item.value_sell or item.value_buy,
+                }
+                for item in sorted(ch.bag_items, key=lambda item: item.value_after_fee or item.value_sell or item.value_buy, reverse=True)[:8]
+            ],
             "insight": "Character nodes should connect equipment and inventory to build readiness, not just show roster facts.",
         }
 
@@ -463,15 +554,41 @@ def _asset_insight(category: str, risk: str, unpriced: int, low_liquidity: int) 
 
 def _profession_name(key: str) -> str:
     mapping = {
-        "Guardian": "Guardian", "Dragonhunter": "Dragonhunter", "Firebrand": "Firebrand",
-        "Warrior": "Warrior", "Berserker": "Berserker", "Spellbreaker": "Spellbreaker", "Bladesworn": "Bladesworn",
-        "Revenant": "Revenant", "Herald": "Herald", "Renegade": "Renegade", "Vindicator": "Vindicator",
-        "Ranger": "Ranger", "Druid": "Druid", "Soulbeast": "Soulbeast", "Untamed": "Untamed",
-        "Thief": "Thief", "Daredevil": "Daredevil", "Deadeye": "Deadeye", "Specter": "Specter",
-        "Elementalist": "Elementalist", "Tempest": "Tempest", "Weaver": "Weaver", "Catalyst": "Catalyst",
-        "Mesmer": "Mesmer", "Chronomancer": "Chronomancer", "Mirage": "Mirage", "Virtuoso": "Virtuoso",
-        "Necromancer": "Necromancer", "Reaper": "Reaper", "Scourge": "Scourge", "Harbinger": "Harbinger",
-        "Engineer": "Engineer", "Scrapper": "Scrapper", "Holosmith": "Holosmith", "Mechanist": "Mechanist",
+        "Guardian": "Guardian",
+        "Dragonhunter": "Dragonhunter",
+        "Firebrand": "Firebrand",
+        "Warrior": "Warrior",
+        "Berserker": "Berserker",
+        "Spellbreaker": "Spellbreaker",
+        "Bladesworn": "Bladesworn",
+        "Revenant": "Revenant",
+        "Herald": "Herald",
+        "Renegade": "Renegade",
+        "Vindicator": "Vindicator",
+        "Ranger": "Ranger",
+        "Druid": "Druid",
+        "Soulbeast": "Soulbeast",
+        "Untamed": "Untamed",
+        "Thief": "Thief",
+        "Daredevil": "Daredevil",
+        "Deadeye": "Deadeye",
+        "Specter": "Specter",
+        "Elementalist": "Elementalist",
+        "Tempest": "Tempest",
+        "Weaver": "Weaver",
+        "Catalyst": "Catalyst",
+        "Mesmer": "Mesmer",
+        "Chronomancer": "Chronomancer",
+        "Mirage": "Mirage",
+        "Virtuoso": "Virtuoso",
+        "Necromancer": "Necromancer",
+        "Reaper": "Reaper",
+        "Scourge": "Scourge",
+        "Harbinger": "Harbinger",
+        "Engineer": "Engineer",
+        "Scrapper": "Scrapper",
+        "Holosmith": "Holosmith",
+        "Mechanist": "Mechanist",
     }
     return mapping.get(key, key)
 
@@ -485,6 +602,7 @@ def _fmt_last_login(created: str) -> str:
     if not created:
         return "—"
     from datetime import datetime, timezone
+
     try:
         ts = datetime.fromisoformat(created.replace("Z", "+00:00"))
         now = datetime.now(timezone.utc)
