@@ -127,6 +127,18 @@ Production rule:
 
 Expert AI can suggest candidates, but Core Product must keep final response ownership.
 
+## Phase 6 Started: Ontology Execution OS Plugin Convergence
+
+Goal: collapse AI/Rule/Lifecycle/Commerce side effects into a single Ontology Kernel execution path.
+
+Implemented:
+
+1. Added `ontology/execution_os.py`.
+2. Added `KernelActionProposal`, `KernelPlugin`, and `KernelMutationGuard`.
+3. Added `OntologyExecutionOS`, which executes accepted proposals only through `OntologyKernel.execute_kernel_action()`.
+4. Added AI, Rule, and Commerce plugin examples that emit `record_decision` kernel actions.
+5. Added tests proving plugin evidence cannot carry direct state mutations and persisted replay remains deterministic.
+
 ## Current Maturity Impact
 
 | Area | Before | After Phase 1 |

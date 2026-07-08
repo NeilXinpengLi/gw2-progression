@@ -17,6 +17,7 @@ Implementation progress:
 - Code graph maturity and redundancy snapshot added: `docs/code-graph-maturity-redundancy-2026-07-01.md`.
 - P2/P3 started: architecture convergence contracts, production exposure report, unified evidence envelope, Data Mesh ownership boundary, and offline plan/action/outcome export were added.
 - P2/P3 improved: release report now emits pass/block status, evidence envelopes can be validated, source governance can be snapshotted, and offline learning has promotion gate evaluation plus best-effort training event publishing.
+- P3 started: Ontology Execution OS facade and Kernel Plugin contract now enforce propose-only plugins with OntologyKernel as the only state mutation path.
 
 ## 1. 评估结论
 
@@ -188,6 +189,7 @@ npx gitnexus detect-changes --scope unstaged --repo gw2-progression
 13. Completed P2：AI Lab Adapter 接入 Data Mesh confidence，输出 source-quality warnings 并调整低置信 action。
 14. Started P2/P3：新增架构收敛契约、生产暴露面 release report、统一 evidence envelope 和离线 plan/action/outcome 事件导出。
 15. Improved P2/P3：新增 release pass/block 状态、evidence envelope 校验、Data Mesh/Data Acquisition source governance snapshot、离线 promotion gate 与 best-effort training event publish。
+16. Started P3：新增 Ontology Execution OS facade、Kernel Plugin proposal contract、Mutation Guard，并验证 AI/Rule/Commerce 插件只能通过 OntologyKernel 执行。
 
 ## 10. 总体评级
 
