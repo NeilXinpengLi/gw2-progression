@@ -563,6 +563,16 @@ class TestArena:
 
 
 class TestAPI:
+    def test_arena_testclient_lifespan_can_restart_between_requests(self):
+        with TestClient(app) as client:
+            first = client.post("/arena/run_match", json={"max_steps": 3})
+            assert first.status_code == 200
+
+        with TestClient(app) as client:
+            second = client.post("/arena/simulate", json={"ticks": 3})
+            assert second.status_code == 200
+            assert "simulation_id" in second.json()
+
     def test_arena_run_match_api(self):
         with TestClient(app) as client:
             resp = client.post("/arena/run_match", json={"max_steps": 3})
