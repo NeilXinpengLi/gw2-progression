@@ -570,6 +570,8 @@ class LineageStore:
 class KernelPersistence:
     """SQLite persistence for ontology runtime state and lineage."""
 
+    SUPPORTED_MANIFEST_SCHEMA_VERSIONS = frozenset({"ontology-runtime/v3"})
+
     def __init__(self, tenant_id: str = "default", enabled: bool | None = None) -> None:
         self.tenant_id = tenant_id.strip() or "default"
         self.enabled = enabled if enabled is not None else os.getenv("ONTOLOGY_KERNEL_PERSISTENCE", "1") != "0"
@@ -582,6 +584,9 @@ class KernelPersistence:
         manifests = self.list_manifests()
         manifest_count = len(manifests)
         signed_manifest_count = sum(1 for manifest in manifests if manifest.get("signature_status") == "valid")
+        compatible_manifest_count = sum(
+            1 for manifest in manifests if manifest.get("compatibility_status") == "compatible"
+        )
         return {
             "enabled": True,
             "tenant_id": self.tenant_id,
@@ -590,6 +595,7 @@ class KernelPersistence:
             "lineage_count": lineage_count,
             "manifest_count": manifest_count,
             "signed_manifest_count": signed_manifest_count,
+            "compatible_manifest_count": compatible_manifest_count,
         }
 
     def save_state(
@@ -704,6 +710,8 @@ class KernelPersistence:
             "manifest_signature": signature,
             "signature_algorithm": "HMAC-SHA256",
             "signature_status": "valid",
+            "compatibility_status": self._manifest_compatibility_status(schema_version),
+            "supported_schema_versions": sorted(self.SUPPORTED_MANIFEST_SCHEMA_VERSIONS),
         }
 
     def load_manifest(self, graph_id: str) -> dict[str, Any] | None:
@@ -736,6 +744,7 @@ class KernelPersistence:
             kernel_version=str(row["kernel_version"]),
             signature=row["manifest_signature"],
         )
+        compatibility_status = self._manifest_compatibility_status(str(row["schema_version"]))
         return {
             "tenant_id": self.tenant_id,
             "graph_id": row["graph_id"],
@@ -746,6 +755,8 @@ class KernelPersistence:
             "manifest_signature": row["manifest_signature"],
             "signature_algorithm": row["signature_algorithm"],
             "signature_status": signature_status,
+            "compatibility_status": compatibility_status,
+            "supported_schema_versions": sorted(self.SUPPORTED_MANIFEST_SCHEMA_VERSIONS),
             "created_at": row["created_at"],
         }
 
@@ -780,6 +791,7 @@ class KernelPersistence:
                 kernel_version=str(row["kernel_version"]),
                 signature=row["manifest_signature"],
             )
+            compatibility_status = self._manifest_compatibility_status(str(row["schema_version"]))
             manifests.append({
                 "tenant_id": self.tenant_id,
                 "graph_id": row["graph_id"],
@@ -789,6 +801,8 @@ class KernelPersistence:
                 "manifest_signature": row["manifest_signature"],
                 "signature_algorithm": row["signature_algorithm"],
                 "signature_status": signature_status,
+                "compatibility_status": compatibility_status,
+                "supported_schema_versions": sorted(self.SUPPORTED_MANIFEST_SCHEMA_VERSIONS),
                 "created_at": row["created_at"],
             })
         return manifests
@@ -933,6 +947,13 @@ class KernelPersistence:
             kernel_version=kernel_version,
         )
         return "valid" if hmac.compare_digest(str(signature), expected) else "invalid"
+
+    def _manifest_compatibility_status(self, schema_version: str) -> str:
+        if schema_version in self.SUPPORTED_MANIFEST_SCHEMA_VERSIONS:
+            return "compatible"
+        if not schema_version:
+            return "unknown"
+        return "unsupported"
 
     def _sign_manifest(
         self,
@@ -1589,6 +1610,10 @@ class OntologyRuntimeKernel:
             "signed_manifests": (
                 persistence_status.get("manifest_count", 0) > 0
                 and persistence_status.get("manifest_count") == persistence_status.get("signed_manifest_count")
+            ),
+            "compatible_manifests": (
+                persistence_status.get("manifest_count", 0) > 0
+                and persistence_status.get("manifest_count") == persistence_status.get("compatible_manifest_count")
             ),
             "mismatches": replay["mismatches"],
         }

@@ -18,7 +18,7 @@ Implementation progress:
 - P2/P3 started: architecture convergence contracts, production exposure report, unified evidence envelope, Data Mesh ownership boundary, and offline plan/action/outcome export were added.
 - P2/P3 improved: release report now emits pass/block status, evidence envelopes can be validated, source governance can be snapshotted, and offline learning has promotion gate evaluation plus best-effort training event publishing.
 - P3 started: Ontology Execution OS facade and Kernel Plugin contract now enforce propose-only plugins with OntologyKernel as the only state mutation path.
-- P3 improved: implementation maturity release gate now scores 90% readiness signals, and Ontology Runtime persists signed compiled graph manifests with hash/schema metadata.
+- P3 improved: implementation maturity release gate now scores 90% readiness signals, and Ontology Runtime persists signed compiled graph manifests with hash/schema compatibility metadata.
 
 ## 1. 评估结论
 
@@ -109,12 +109,12 @@ Implementation progress:
    API 路由通过 `X-Ontology-Tenant` 分配独立 kernel，并可从 SQLite 恢复 tenant state；长历史 replay 性能和 schema 迁移策略仍未实现。
 
 4. manifest 已持久化并带签名校验。
-   编译结果会保存到 `ontology_kernel_manifests`，包含 graph_id、manifest_hash、schema_version、kernel_version 和 HMAC 签名；下一步仍需外部密钥管理和跨版本兼容策略。
+   编译结果会保存到 `ontology_kernel_manifests`，包含 graph_id、manifest_hash、schema_version、kernel_version 和 HMAC 签名；读取时会标记签名和 schema 兼容状态。下一步仍需外部密钥管理、schema migration 和跨版本 replay 矩阵。
 
 ### 升级到 L4 的门槛
 
-- 已完成：为 compiled graph manifest 加 `schema_version`、hash、HMAC 签名和持久化表。
-- 未完成：外部密钥管理、跨版本兼容策略和长期审计导出。
+- 已完成：为 compiled graph manifest 加 `schema_version`、hash、HMAC 签名、兼容状态和持久化表。
+- 未完成：外部密钥管理、schema migration、跨版本 replay 矩阵和长期审计导出。
 - 已完成：将 state/lineage 持久化，支持按 tenant 分区 replay。
 - 将 guarantees 拆成 evidence 列表，例如每条 action 的 validation result、compiler result、replay result。
 - 增加 lineage 大小/性能测试和 replay 快照 checkpoint。
