@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import copy
 import hashlib
+import hmac
 import json
 import os
 import sqlite3
@@ -578,7 +579,9 @@ class KernelPersistence:
             return {"enabled": False, "tenant_id": self.tenant_id, "backend": "sqlite"}
         state = self.load_state()
         lineage_count = len(self.load_lineage())
-        manifest_count = len(self.list_manifests())
+        manifests = self.list_manifests()
+        manifest_count = len(manifests)
+        signed_manifest_count = sum(1 for manifest in manifests if manifest.get("signature_status") == "valid")
         return {
             "enabled": True,
             "tenant_id": self.tenant_id,
@@ -586,6 +589,7 @@ class KernelPersistence:
             "state_hash": _stable_hash(state.to_dict()),
             "lineage_count": lineage_count,
             "manifest_count": manifest_count,
+            "signed_manifest_count": signed_manifest_count,
         }
 
     def save_state(
@@ -652,22 +656,41 @@ class KernelPersistence:
             return {"persisted": False, "tenant_id": self.tenant_id, "reason": "disabled"}
         manifest_payload = copy.deepcopy(manifest)
         manifest_hash = str(manifest_payload.get("manifest_hash") or _stable_hash(manifest_payload))
+        schema_version = str(manifest_payload.get("schema_version", ""))
+        signature = self._sign_manifest(
+            graph_id=graph_id,
+            manifest_hash=manifest_hash,
+            schema_version=schema_version,
+            kernel_version=kernel_version,
+        )
         now = datetime.now(timezone.utc).isoformat()
         with self._connect() as conn:
             self._ensure_schema(conn)
             conn.execute(
                 """
                 INSERT OR REPLACE INTO ontology_kernel_manifests
-                    (tenant_id, graph_id, manifest_hash, schema_version, kernel_version, manifest_json, created_at)
-                VALUES (?, ?, ?, ?, ?, ?, ?)
+                    (
+                        tenant_id,
+                        graph_id,
+                        manifest_hash,
+                        schema_version,
+                        kernel_version,
+                        manifest_json,
+                        manifest_signature,
+                        signature_algorithm,
+                        created_at
+                    )
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     self.tenant_id,
                     graph_id,
                     manifest_hash,
-                    str(manifest_payload.get("schema_version", "")),
+                    schema_version,
                     kernel_version,
                     json.dumps(manifest_payload, sort_keys=True, separators=(",", ":"), default=str),
+                    signature,
+                    "HMAC-SHA256",
                     now,
                 ),
             )
@@ -677,7 +700,10 @@ class KernelPersistence:
             "tenant_id": self.tenant_id,
             "graph_id": graph_id,
             "manifest_hash": manifest_hash,
-            "schema_version": str(manifest_payload.get("schema_version", "")),
+            "schema_version": schema_version,
+            "manifest_signature": signature,
+            "signature_algorithm": "HMAC-SHA256",
+            "signature_status": "valid",
         }
 
     def load_manifest(self, graph_id: str) -> dict[str, Any] | None:
@@ -687,7 +713,15 @@ class KernelPersistence:
             self._ensure_schema(conn)
             row = conn.execute(
                 """
-                SELECT graph_id, manifest_hash, schema_version, kernel_version, manifest_json, created_at
+                SELECT
+                    graph_id,
+                    manifest_hash,
+                    schema_version,
+                    kernel_version,
+                    manifest_json,
+                    manifest_signature,
+                    signature_algorithm,
+                    created_at
                 FROM ontology_kernel_manifests
                 WHERE tenant_id = ? AND graph_id = ?
                 """,
@@ -695,6 +729,13 @@ class KernelPersistence:
             ).fetchone()
         if not row:
             return None
+        signature_status = self._manifest_signature_status(
+            graph_id=str(row["graph_id"]),
+            manifest_hash=str(row["manifest_hash"]),
+            schema_version=str(row["schema_version"]),
+            kernel_version=str(row["kernel_version"]),
+            signature=row["manifest_signature"],
+        )
         return {
             "tenant_id": self.tenant_id,
             "graph_id": row["graph_id"],
@@ -702,6 +743,9 @@ class KernelPersistence:
             "schema_version": row["schema_version"],
             "kernel_version": row["kernel_version"],
             "manifest": json.loads(str(row["manifest_json"])),
+            "manifest_signature": row["manifest_signature"],
+            "signature_algorithm": row["signature_algorithm"],
+            "signature_status": signature_status,
             "created_at": row["created_at"],
         }
 
@@ -712,7 +756,14 @@ class KernelPersistence:
             self._ensure_schema(conn)
             rows = conn.execute(
                 """
-                SELECT graph_id, manifest_hash, schema_version, kernel_version, created_at
+                SELECT
+                    graph_id,
+                    manifest_hash,
+                    schema_version,
+                    kernel_version,
+                    manifest_signature,
+                    signature_algorithm,
+                    created_at
                 FROM ontology_kernel_manifests
                 WHERE tenant_id = ?
                 ORDER BY id DESC
@@ -720,17 +771,27 @@ class KernelPersistence:
                 """,
                 (self.tenant_id, max(int(limit), 1)),
             ).fetchall()
-        return [
-            {
+        manifests = []
+        for row in rows:
+            signature_status = self._manifest_signature_status(
+                graph_id=str(row["graph_id"]),
+                manifest_hash=str(row["manifest_hash"]),
+                schema_version=str(row["schema_version"]),
+                kernel_version=str(row["kernel_version"]),
+                signature=row["manifest_signature"],
+            )
+            manifests.append({
                 "tenant_id": self.tenant_id,
                 "graph_id": row["graph_id"],
                 "manifest_hash": row["manifest_hash"],
                 "schema_version": row["schema_version"],
                 "kernel_version": row["kernel_version"],
+                "manifest_signature": row["manifest_signature"],
+                "signature_algorithm": row["signature_algorithm"],
+                "signature_status": signature_status,
                 "created_at": row["created_at"],
-            }
-            for row in rows
-        ]
+            })
+        return manifests
 
     def load_state(self) -> KernelState:
         if not self.enabled:
@@ -832,15 +893,68 @@ class KernelPersistence:
                 schema_version TEXT NOT NULL DEFAULT '',
                 kernel_version TEXT NOT NULL DEFAULT '',
                 manifest_json TEXT NOT NULL,
+                manifest_signature TEXT,
+                signature_algorithm TEXT NOT NULL DEFAULT '',
                 created_at TEXT NOT NULL DEFAULT (datetime('now')),
                 UNIQUE(tenant_id, graph_id)
             )
             """
         )
+        manifest_columns = {
+            str(row["name"])
+            for row in conn.execute("PRAGMA table_info(ontology_kernel_manifests)").fetchall()
+        }
+        if "manifest_signature" not in manifest_columns:
+            conn.execute("ALTER TABLE ontology_kernel_manifests ADD COLUMN manifest_signature TEXT")
+        if "signature_algorithm" not in manifest_columns:
+            conn.execute(
+                "ALTER TABLE ontology_kernel_manifests ADD COLUMN signature_algorithm TEXT NOT NULL DEFAULT ''"
+            )
         conn.execute(
             "CREATE INDEX IF NOT EXISTS idx_ontology_kernel_manifests_tenant ON ontology_kernel_manifests(tenant_id, graph_id)"
         )
         conn.commit()
+
+    def _manifest_signature_status(
+        self,
+        *,
+        graph_id: str,
+        manifest_hash: str,
+        schema_version: str,
+        kernel_version: str,
+        signature: Any,
+    ) -> str:
+        if not signature:
+            return "unsigned"
+        expected = self._sign_manifest(
+            graph_id=graph_id,
+            manifest_hash=manifest_hash,
+            schema_version=schema_version,
+            kernel_version=kernel_version,
+        )
+        return "valid" if hmac.compare_digest(str(signature), expected) else "invalid"
+
+    def _sign_manifest(
+        self,
+        *,
+        graph_id: str,
+        manifest_hash: str,
+        schema_version: str,
+        kernel_version: str,
+    ) -> str:
+        payload = {
+            "tenant_id": self.tenant_id,
+            "graph_id": graph_id,
+            "manifest_hash": manifest_hash,
+            "schema_version": schema_version,
+            "kernel_version": kernel_version,
+        }
+        secret = os.getenv("ONTOLOGY_KERNEL_MANIFEST_SECRET") or "gw2-progression-ontology-kernel"
+        return hmac.new(
+            secret.encode("utf-8"),
+            json.dumps(payload, sort_keys=True, separators=(",", ":")).encode("utf-8"),
+            hashlib.sha256,
+        ).hexdigest()
 
 
 class ExecutionEngine:
@@ -1472,6 +1586,10 @@ class OntologyRuntimeKernel:
             "persistent_store": persistence_status["enabled"],
             "persistent_replay": persistence_status["enabled"],
             "persistent_manifests": persistence_status.get("manifest_count", 0) > 0,
+            "signed_manifests": (
+                persistence_status.get("manifest_count", 0) > 0
+                and persistence_status.get("manifest_count") == persistence_status.get("signed_manifest_count")
+            ),
             "mismatches": replay["mismatches"],
         }
 

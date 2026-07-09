@@ -61,11 +61,58 @@ def test_ontology_kernel_persists_compiled_manifest(tmp_path, monkeypatch):
 
     assert manifest["persistence"]["persisted"] is True
     assert manifest["manifest"]["manifest_hash"] == manifest["persistence"]["manifest_hash"]
+    assert manifest["persistence"]["signature_status"] == "valid"
     assert loaded is not None
     assert loaded["manifest"]["manifest_hash"] == manifest["manifest"]["manifest_hash"]
+    assert loaded["signature_status"] == "valid"
+    assert loaded["manifest_signature"] == manifest["persistence"]["manifest_signature"]
     assert listed[0]["graph_id"] == compiled.graph_id
+    assert listed[0]["signature_status"] == "valid"
     assert kernel.persistence.status()["manifest_count"] == 1
+    assert kernel.persistence.status()["signed_manifest_count"] == 1
     assert kernel.guarantees()["persistent_manifests"] is True
+    assert kernel.guarantees()["signed_manifests"] is True
+
+
+def test_ontology_kernel_detects_manifest_signature_tampering(tmp_path, monkeypatch):
+    db_path = tmp_path / "ontology-runtime-manifest-tamper.db"
+    monkeypatch.setattr(database, "_TEST_DB_URL", str(db_path))
+
+    kernel = OntologyKernel(tenant_id="manifest-tamper")
+    compiled = kernel.compile(
+        [
+            {
+                "node_id": "asset",
+                "type": "add_entity",
+                "entity": {
+                    "id": "asset:tamper",
+                    "type": "account_asset",
+                    "properties": {"item_id": 19721, "count": 1, "location": "bank"},
+                },
+            }
+        ],
+        graph_id="manifest-tamper",
+    )
+
+    with kernel.persistence._connect() as conn:
+        conn.execute(
+            """
+            UPDATE ontology_kernel_manifests
+            SET manifest_signature = ?
+            WHERE tenant_id = ? AND graph_id = ?
+            """,
+            ("tampered", kernel.tenant_id, compiled.graph_id),
+        )
+        conn.commit()
+
+    loaded = kernel.persistence.load_manifest(compiled.graph_id)
+    listed = kernel.persistence.list_manifests()
+
+    assert loaded is not None
+    assert loaded["signature_status"] == "invalid"
+    assert listed[0]["signature_status"] == "invalid"
+    assert kernel.persistence.status()["signed_manifest_count"] == 0
+    assert kernel.guarantees()["signed_manifests"] is False
 
 
 def test_ontology_runtime_persistence_api_reports_and_replays(tmp_path, monkeypatch):
