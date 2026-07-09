@@ -18,6 +18,7 @@ Implementation progress:
 - P2/P3 started: architecture convergence contracts, production exposure report, unified evidence envelope, Data Mesh ownership boundary, and offline plan/action/outcome export were added.
 - P2/P3 improved: release report now emits pass/block status, evidence envelopes can be validated, source governance can be snapshotted, and offline learning has promotion gate evaluation plus best-effort training event publishing.
 - P3 started: Ontology Execution OS facade and Kernel Plugin contract now enforce propose-only plugins with OntologyKernel as the only state mutation path.
+- P3 improved: implementation maturity release gate now scores 90% readiness signals, and Ontology Runtime persists compiled graph manifests with hash/schema metadata.
 
 ## 1. 评估结论
 
@@ -47,7 +48,7 @@ Implementation progress:
 | Commerce 订单/许可证 | L3 Beta | `create_order()` 支持 idempotency key 回放；同 key 创建在 `BEGIN IMMEDIATE` 写锁内串行化；真实 SQLite 测试覆盖重复 key。 | 仍缺少外部支付平台沙箱压测和版本化 migration。 |
 | Payment Webhook | L3 Beta | `payment_events` 持久化 provider event receipt；重复 event 只 fulfillment 一次。 | 缺少 Stripe 沙箱乱序事件矩阵和人工补偿后台。 |
 | Delivery Retry | L3 Beta | `delivery_outbox` 记录邮件副作用；delivery job 对 order 唯一；测试覆盖重复处理只发送一次。 | 缺少独立 outbox worker、死信队列和运营 dashboard。 |
-| Ontology Runtime vFinal Execution | L3 Beta | `OntologyKernel.execute()` 是唯一状态变更入口；公开 API 已收敛到 `/kernel/action`、`/scheduler/execute`、`/persistence/replay`；state/lineage 按 tenant 持久化。 | compiled manifest 仍未持久化/签名；跨版本 replay 还没有长期兼容策略；长 lineage 未 checkpoint。 |
+| Ontology Runtime vFinal Execution | L3 Beta | `OntologyKernel.execute()` 是唯一状态变更入口；公开 API 已收敛到 `/kernel/action`、`/scheduler/execute`、`/persistence/replay`；state/lineage 和 compiled manifest 按 tenant 持久化。 | manifest 已有 hash/schema 持久化但仍缺签名；跨版本 replay 还没有长期兼容策略；长 lineage 未 checkpoint。 |
 | Goal-Driven OS 职责边界 | L3 Beta | governance 中定义为 Core Product 的 product planning layer；Ontology Runtime 定位为 governance/evidence layer；Expert AI 归 AI Lab。 | 代码层还缺少硬性依赖约束，不能自动阻止 AI Lab 直接参与生产决策。 |
 | AI Lab 隔离 | L3 Beta | production 默认禁用 experimental/AI Lab 路由；测试覆盖。 | 还缺少部署时路由快照检查、运行时安全告警、实验数据与生产数据隔离策略。 |
 | 数据库/迁移 | L2 Alpha | SQLite schema 有基础外键、部分唯一约束、连接池和 WAL。 | schema 直接内嵌在 `CREATE_TABLES`，缺少版本化 migration；幂等和交付约束不完整。 |
@@ -107,12 +108,13 @@ Implementation progress:
 3. runtime 已具备 durable state/lineage，但缺少长期 checkpoint。
    API 路由通过 `X-Ontology-Tenant` 分配独立 kernel，并可从 SQLite 恢复 tenant state；长历史 replay 性能和 schema 迁移策略仍未实现。
 
-4. manifest 没有持久化或签名。
-   编译结果可返回，但还不能作为长期审计证据。
+4. manifest 已持久化但还未签名。
+   编译结果会保存到 `ontology_kernel_manifests`，包含 graph_id、manifest_hash、schema_version 和 kernel_version；下一步仍需签名和跨版本兼容策略。
 
 ### 升级到 L4 的门槛
 
-- 为 compiled graph manifest 加 `schema_version`、签名/hash、持久化表。
+- 已完成：为 compiled graph manifest 加 `schema_version`、hash 和持久化表。
+- 未完成：manifest 签名、跨版本兼容策略和长期审计导出。
 - 已完成：将 state/lineage 持久化，支持按 tenant 分区 replay。
 - 将 guarantees 拆成 evidence 列表，例如每条 action 的 validation result、compiler result、replay result。
 - 增加 lineage 大小/性能测试和 replay 快照 checkpoint。
@@ -190,6 +192,7 @@ npx gitnexus detect-changes --scope unstaged --repo gw2-progression
 14. Started P2/P3：新增架构收敛契约、生产暴露面 release report、统一 evidence envelope 和离线 plan/action/outcome 事件导出。
 15. Improved P2/P3：新增 release pass/block 状态、evidence envelope 校验、Data Mesh/Data Acquisition source governance snapshot、离线 promotion gate 与 best-effort training event publish。
 16. Started P3：新增 Ontology Execution OS facade、Kernel Plugin proposal contract、Mutation Guard，并验证 AI/Rule/Commerce 插件只能通过 OntologyKernel 执行。
+17. Improved P3：新增 implementation maturity release gate，并将 Ontology Runtime compiled manifest 持久化为可审计记录。
 
 ## 10. 总体评级
 
@@ -202,4 +205,4 @@ npx gitnexus detect-changes --scope unstaged --repo gw2-progression
 | 生产运维 | L2 |
 | 发布门禁 | L2-L3 |
 
-总体判断：当前代码适合 Beta/受控试运行，不建议直接承诺强生产级商业化交付。下一轮最应该集中在 compiled manifest 持久化/签名、跨版本 replay 兼容、长 lineage checkpoint，以及 AI Lab adapter 收敛，这些会继续降低生产决策和审计风险。
+总体判断：当前代码适合 Beta/受控试运行，不建议直接承诺强生产级商业化交付。下一轮最应该集中在 manifest 签名、跨版本 replay 兼容、长 lineage checkpoint、全量测试门禁耗时治理，以及 AI Lab adapter 收敛，这些会继续降低生产决策和审计风险。

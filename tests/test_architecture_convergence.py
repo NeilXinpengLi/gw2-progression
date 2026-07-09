@@ -13,6 +13,7 @@ from gw2_progression.architecture_contracts import (
     data_source_governance_contract,
     data_source_governance_snapshot,
     decision_owner_contract,
+    implementation_maturity_release_gate,
     validate_evidence_envelope,
 )
 from gw2_progression.models import GoalType, ParsedGoal, PlanAction, ProgressionPlan
@@ -153,3 +154,48 @@ def test_publish_offline_plan_events_is_best_effort(monkeypatch):
 
     assert result == {"attempted": 1, "published": 1, "best_effort": True, "blocks_product_flow": False}
     assert calls[0][1] == "training:test"
+
+
+def test_implementation_maturity_gate_blocks_below_90_without_full_suite():
+    report = implementation_maturity_release_gate(
+        {
+            "lint_clean": True,
+            "gitnexus_current": True,
+            "gitnexus_risk": "none",
+            "core_contract_tests_pass": True,
+            "affected_flow_tests_pass": True,
+            "full_test_suite_pass": False,
+            "production_blockers_resolved": False,
+            "governance_release_report": {
+                "release_status": "pass",
+                "snapshot_hash": "stable",
+            },
+        }
+    )
+
+    assert report["score"] < 0.90
+    assert report["passes_target"] is False
+    assert "full_test_suite_pass" in report["blockers"]
+    assert "production_blockers_resolved" in report["blockers"]
+
+
+def test_implementation_maturity_gate_passes_only_with_all_core_signals():
+    report = implementation_maturity_release_gate(
+        {
+            "lint_clean": True,
+            "gitnexus_current": True,
+            "gitnexus_risk": "medium",
+            "core_contract_tests_pass": True,
+            "affected_flow_tests_pass": True,
+            "full_test_suite_pass": True,
+            "production_blockers_resolved": True,
+            "governance_release_report": {
+                "release_status": "pass",
+                "snapshot_hash": "stable",
+            },
+        }
+    )
+
+    assert report["score"] >= 0.90
+    assert report["passes_target"] is True
+    assert report["blockers"] == []

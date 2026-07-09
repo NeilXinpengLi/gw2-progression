@@ -35,6 +35,39 @@ def test_ontology_kernel_persists_state_and_replays_lineage(tmp_path, monkeypatc
     assert replay["persisted_state_hash"] == replay["replayed_state_hash"]
 
 
+def test_ontology_kernel_persists_compiled_manifest(tmp_path, monkeypatch):
+    db_path = tmp_path / "ontology-runtime-manifest.db"
+    monkeypatch.setattr(database, "_TEST_DB_URL", str(db_path))
+
+    kernel = OntologyKernel(tenant_id="persist-manifest")
+    compiled = kernel.compile(
+        [
+            {
+                "node_id": "asset",
+                "type": "add_entity",
+                "entity": {
+                    "id": "asset:manifest",
+                    "type": "account_asset",
+                    "properties": {"item_id": 19721, "count": 1, "location": "bank"},
+                },
+            }
+        ],
+        graph_id="manifest-test",
+    )
+
+    manifest = compiled.to_dict()
+    loaded = kernel.persistence.load_manifest(compiled.graph_id)
+    listed = kernel.persistence.list_manifests()
+
+    assert manifest["persistence"]["persisted"] is True
+    assert manifest["manifest"]["manifest_hash"] == manifest["persistence"]["manifest_hash"]
+    assert loaded is not None
+    assert loaded["manifest"]["manifest_hash"] == manifest["manifest"]["manifest_hash"]
+    assert listed[0]["graph_id"] == compiled.graph_id
+    assert kernel.persistence.status()["manifest_count"] == 1
+    assert kernel.guarantees()["persistent_manifests"] is True
+
+
 def test_ontology_runtime_persistence_api_reports_and_replays(tmp_path, monkeypatch):
     db_path = tmp_path / "ontology-runtime-api.db"
     monkeypatch.setattr(database, "_TEST_DB_URL", str(db_path))
@@ -67,6 +100,7 @@ def test_ontology_runtime_persistence_api_reports_and_replays(tmp_path, monkeypa
     assert status.status_code == 200
     assert status.json()["persistence"]["enabled"] is True
     assert status.json()["persistence"]["lineage_count"] == 1
+    assert status.json()["persistence"]["manifest_count"] >= 1
 
     replay = client.post("/ontology/runtime/persistence/replay", headers=tenant)
     assert replay.status_code == 200

@@ -27,6 +27,17 @@ EXPERIMENTAL_DECISION_MODULES = {
     "gw2_progression.lifecycle",
 }
 
+MATURITY_RELEASE_WEIGHTS = {
+    "lint_clean": 0.12,
+    "gitnexus_current": 0.12,
+    "gitnexus_risk_controlled": 0.10,
+    "governance_release_pass": 0.14,
+    "core_contract_tests_pass": 0.14,
+    "affected_flow_tests_pass": 0.12,
+    "full_test_suite_pass": 0.16,
+    "production_blockers_resolved": 0.10,
+}
+
 
 @dataclass(frozen=True)
 class EvidenceEnvelope:
@@ -147,4 +158,48 @@ def data_source_governance_snapshot() -> dict[str, Any]:
         "fetch_pipeline_owner": "Data Acquisition",
         "mesh_source_ids": sorted(mesh_sources)[:25],
         "acquisition_source_ids": sorted(source.get("id", "") for source in acquisition_sources)[:25],
+    }
+
+
+def implementation_maturity_release_gate(signals: dict[str, Any] | None = None) -> dict[str, Any]:
+    """Score production readiness from release-gate quality signals.
+
+    The gate is intentionally conservative: missing signals count as blockers,
+    and a score below 0.90 remains beta/integrated rather than production-ready.
+    """
+    signals = dict(signals or {})
+    governance_report = signals.get("governance_release_report")
+    if governance_report is None:
+        from gw2_progression.api.governance import governance_release_report
+
+        governance_report = governance_release_report()
+
+    gate_values = {
+        "lint_clean": bool(signals.get("lint_clean", False)),
+        "gitnexus_current": bool(signals.get("gitnexus_current", False)),
+        "gitnexus_risk_controlled": signals.get("gitnexus_risk", "unknown") in {"none", "low", "medium"},
+        "governance_release_pass": governance_report.get("release_status") == "pass",
+        "core_contract_tests_pass": bool(signals.get("core_contract_tests_pass", False)),
+        "affected_flow_tests_pass": bool(signals.get("affected_flow_tests_pass", False)),
+        "full_test_suite_pass": bool(signals.get("full_test_suite_pass", False)),
+        "production_blockers_resolved": bool(signals.get("production_blockers_resolved", False)),
+    }
+    weighted_score = sum(MATURITY_RELEASE_WEIGHTS[key] for key, passed in gate_values.items() if passed)
+    score = round(weighted_score / sum(MATURITY_RELEASE_WEIGHTS.values()), 3)
+    blockers = [key for key, passed in gate_values.items() if not passed]
+    status = "production_ready" if score >= 0.90 and not blockers else "beta_integrated"
+    return {
+        "target": 0.90,
+        "score": score,
+        "status": status,
+        "passes_target": status == "production_ready",
+        "gate_values": gate_values,
+        "blockers": blockers,
+        "weights": dict(MATURITY_RELEASE_WEIGHTS),
+        "governance_snapshot_hash": governance_report.get("snapshot_hash", ""),
+        "recommendation": (
+            "Release gate passes production threshold."
+            if status == "production_ready"
+            else "Continue hardening blockers before claiming 90% production maturity."
+        ),
     }

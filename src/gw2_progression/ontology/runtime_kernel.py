@@ -58,11 +58,13 @@ class CompiledRuntimeGraph:
     graph_id: str
     execution_graph: "ExecutionGraph"
     manifest: dict[str, Any]
+    persistence: dict[str, Any] = field(default_factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
         return {
             "graph_id": self.graph_id,
             "manifest": copy.deepcopy(self.manifest),
+            "persistence": copy.deepcopy(self.persistence),
             "nodes": [
                 {
                     "node_id": node.node_id,
@@ -576,12 +578,14 @@ class KernelPersistence:
             return {"enabled": False, "tenant_id": self.tenant_id, "backend": "sqlite"}
         state = self.load_state()
         lineage_count = len(self.load_lineage())
+        manifest_count = len(self.list_manifests())
         return {
             "enabled": True,
             "tenant_id": self.tenant_id,
             "backend": "sqlite",
             "state_hash": _stable_hash(state.to_dict()),
             "lineage_count": lineage_count,
+            "manifest_count": manifest_count,
         }
 
     def save_state(
@@ -643,6 +647,91 @@ class KernelPersistence:
             "lineage_count": len(lineage_records),
         }
 
+    def save_manifest(self, graph_id: str, manifest: dict[str, Any], kernel_version: str) -> dict[str, Any]:
+        if not self.enabled:
+            return {"persisted": False, "tenant_id": self.tenant_id, "reason": "disabled"}
+        manifest_payload = copy.deepcopy(manifest)
+        manifest_hash = str(manifest_payload.get("manifest_hash") or _stable_hash(manifest_payload))
+        now = datetime.now(timezone.utc).isoformat()
+        with self._connect() as conn:
+            self._ensure_schema(conn)
+            conn.execute(
+                """
+                INSERT OR REPLACE INTO ontology_kernel_manifests
+                    (tenant_id, graph_id, manifest_hash, schema_version, kernel_version, manifest_json, created_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    self.tenant_id,
+                    graph_id,
+                    manifest_hash,
+                    str(manifest_payload.get("schema_version", "")),
+                    kernel_version,
+                    json.dumps(manifest_payload, sort_keys=True, separators=(",", ":"), default=str),
+                    now,
+                ),
+            )
+            conn.commit()
+        return {
+            "persisted": True,
+            "tenant_id": self.tenant_id,
+            "graph_id": graph_id,
+            "manifest_hash": manifest_hash,
+            "schema_version": str(manifest_payload.get("schema_version", "")),
+        }
+
+    def load_manifest(self, graph_id: str) -> dict[str, Any] | None:
+        if not self.enabled:
+            return None
+        with self._connect() as conn:
+            self._ensure_schema(conn)
+            row = conn.execute(
+                """
+                SELECT graph_id, manifest_hash, schema_version, kernel_version, manifest_json, created_at
+                FROM ontology_kernel_manifests
+                WHERE tenant_id = ? AND graph_id = ?
+                """,
+                (self.tenant_id, graph_id),
+            ).fetchone()
+        if not row:
+            return None
+        return {
+            "tenant_id": self.tenant_id,
+            "graph_id": row["graph_id"],
+            "manifest_hash": row["manifest_hash"],
+            "schema_version": row["schema_version"],
+            "kernel_version": row["kernel_version"],
+            "manifest": json.loads(str(row["manifest_json"])),
+            "created_at": row["created_at"],
+        }
+
+    def list_manifests(self, limit: int = 50) -> list[dict[str, Any]]:
+        if not self.enabled:
+            return []
+        with self._connect() as conn:
+            self._ensure_schema(conn)
+            rows = conn.execute(
+                """
+                SELECT graph_id, manifest_hash, schema_version, kernel_version, created_at
+                FROM ontology_kernel_manifests
+                WHERE tenant_id = ?
+                ORDER BY id DESC
+                LIMIT ?
+                """,
+                (self.tenant_id, max(int(limit), 1)),
+            ).fetchall()
+        return [
+            {
+                "tenant_id": self.tenant_id,
+                "graph_id": row["graph_id"],
+                "manifest_hash": row["manifest_hash"],
+                "schema_version": row["schema_version"],
+                "kernel_version": row["kernel_version"],
+                "created_at": row["created_at"],
+            }
+            for row in rows
+        ]
+
     def load_state(self) -> KernelState:
         if not self.enabled:
             return KernelState()
@@ -679,6 +768,7 @@ class KernelPersistence:
             self._ensure_schema(conn)
             conn.execute("DELETE FROM ontology_kernel_lineage WHERE tenant_id = ?", (self.tenant_id,))
             conn.execute("DELETE FROM ontology_kernel_states WHERE tenant_id = ?", (self.tenant_id,))
+            conn.execute("DELETE FROM ontology_kernel_manifests WHERE tenant_id = ?", (self.tenant_id,))
             conn.commit()
         return {"cleared": True, "tenant_id": self.tenant_id}
 
@@ -731,6 +821,24 @@ class KernelPersistence:
         )
         conn.execute(
             "CREATE INDEX IF NOT EXISTS idx_ontology_kernel_lineage_tenant ON ontology_kernel_lineage(tenant_id, step)"
+        )
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS ontology_kernel_manifests (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                tenant_id TEXT NOT NULL,
+                graph_id TEXT NOT NULL,
+                manifest_hash TEXT NOT NULL,
+                schema_version TEXT NOT NULL DEFAULT '',
+                kernel_version TEXT NOT NULL DEFAULT '',
+                manifest_json TEXT NOT NULL,
+                created_at TEXT NOT NULL DEFAULT (datetime('now')),
+                UNIQUE(tenant_id, graph_id)
+            )
+            """
+        )
+        conn.execute(
+            "CREATE INDEX IF NOT EXISTS idx_ontology_kernel_manifests_tenant ON ontology_kernel_manifests(tenant_id, graph_id)"
         )
         conn.commit()
 
@@ -1242,7 +1350,14 @@ class OntologyRuntimeKernel:
         return self.execute_compiled(self.compile(actions, graph_id="ad-hoc"))
 
     def compile(self, actions: list[dict[str, Any]] | None = None, graph_id: str = "runtime") -> CompiledRuntimeGraph:
-        return self.compiler.compile(actions or [], graph_id=graph_id)
+        compiled = self.compiler.compile(actions or [], graph_id=graph_id)
+        persistence = self.persistence.save_manifest(compiled.graph_id, compiled.manifest, kernel_version=self.FINALIZATION_VERSION)
+        return CompiledRuntimeGraph(
+            graph_id=compiled.graph_id,
+            execution_graph=compiled.execution_graph,
+            manifest=compiled.manifest,
+            persistence=persistence,
+        )
 
     def execute_compiled(self, compiled: CompiledRuntimeGraph | dict[str, Any]) -> dict[str, Any]:
         if isinstance(compiled, CompiledRuntimeGraph):
@@ -1356,6 +1471,7 @@ class OntologyRuntimeKernel:
             "evidence_backed_lineage": all("evidence" in record for record in self.lineage_store.list()),
             "persistent_store": persistence_status["enabled"],
             "persistent_replay": persistence_status["enabled"],
+            "persistent_manifests": persistence_status.get("manifest_count", 0) > 0,
             "mismatches": replay["mismatches"],
         }
 
