@@ -154,6 +154,17 @@ class TestSearchHoldings:
         call_args = mock_db.execute.call_args
         assert "valuation_status" in call_args[0][0]
 
+    @pytest.mark.asyncio
+    async def test_search_holdings_text_query_stays_parameterized(self):
+        mock_db = AsyncMock()
+        cursor = AsyncMock()
+        cursor.fetchall = AsyncMock(return_value=[])
+        mock_db.execute = AsyncMock(return_value=cursor)
+        await search_latest_holdings(mock_db, "Player.Test", query="'; DROP TABLE item_holdings; --")
+        sql, params = mock_db.execute.call_args[0]
+        assert "DROP TABLE" not in sql
+        assert "'; DROP TABLE item_holdings; --" not in params
+
 
 class TestSaveSnapshot:
     @pytest.mark.asyncio

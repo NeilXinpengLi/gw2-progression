@@ -7,29 +7,37 @@ Usage:
 from __future__ import annotations
 
 import argparse
+import http.client
 import json
 import sys
 from typing import Any
-from urllib.error import HTTPError, URLError
-from urllib.request import Request, urlopen
+from urllib.parse import urlsplit
 
 
 def request_json(base_url: str, method: str, path: str, payload: dict[str, Any] | None = None) -> dict[str, Any]:
-    data = None if payload is None else json.dumps(payload).encode("utf-8")
-    request = Request(
-        f"{base_url.rstrip('/')}{path}",
-        data=data,
-        method=method,
-        headers={"Content-Type": "application/json"},
-    )
+    parsed = urlsplit(base_url)
+    if parsed.scheme not in {"http", "https"} or not parsed.hostname:
+        raise ValueError("--base-url must be an http(s) URL with a host")
+
+    connection_cls = http.client.HTTPSConnection if parsed.scheme == "https" else http.client.HTTPConnection
+    request_path = f"{parsed.path.rstrip('/')}{path}" or path
+    if parsed.query:
+        request_path = f"{request_path}?{parsed.query}"
+    body = None if payload is None else json.dumps(payload).encode("utf-8")
+
     try:
-        with urlopen(request, timeout=20) as response:
-            return json.loads(response.read().decode("utf-8"))
-    except HTTPError as exc:
-        detail = exc.read().decode("utf-8", errors="replace")
-        raise RuntimeError(f"{method} {path} failed with HTTP {exc.code}: {detail}") from exc
-    except URLError as exc:
+        conn = connection_cls(parsed.hostname, parsed.port, timeout=20)
+        conn.request(method, request_path, body=body, headers={"Content-Type": "application/json"})
+        response = conn.getresponse()
+        detail = response.read().decode("utf-8", errors="replace")
+        if response.status >= 400:
+            raise RuntimeError(f"{method} {path} failed with HTTP {response.status}: {detail}")
+        return json.loads(detail)
+    except OSError as exc:
         raise RuntimeError(f"{method} {path} failed: {exc}") from exc
+    finally:
+        if "conn" in locals():
+            conn.close()
 
 
 def run_smoke(base_url: str) -> dict[str, Any]:

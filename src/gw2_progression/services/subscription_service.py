@@ -41,22 +41,20 @@ async def get_subscription(account_name: str) -> dict | None:
 
 
 async def update_subscription(account_name: str, email: str | None = None, active: bool | None = None) -> bool:
-    sets = []
-    params = []
-    if email is not None:
-        sets.append("email = ?")
-        params.append(email)
-    if active is not None:
-        sets.append("active = ?")
-        params.append(1 if active else 0)
-    if not sets:
+    active_value = None if active is None else 1 if active else 0
+    if email is not None and active_value is not None:
+        sql = "UPDATE subscriptions SET email = ?, active = ? WHERE account_name = ?"
+        params = (email, active_value, account_name)
+    elif email is not None:
+        sql = "UPDATE subscriptions SET email = ? WHERE account_name = ?"
+        params = (email, account_name)
+    elif active_value is not None:
+        sql = "UPDATE subscriptions SET active = ? WHERE account_name = ?"
+        params = (active_value, account_name)
+    else:
         return False
-    params.append(account_name)
     async with using_db() as conn:
-        cursor = await conn.execute(
-            f"UPDATE subscriptions SET {', '.join(sets)} WHERE account_name = ?",
-            params,
-        )
+        cursor = await conn.execute(sql, params)
         return cursor.rowcount > 0
 
 

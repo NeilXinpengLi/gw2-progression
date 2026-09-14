@@ -934,34 +934,38 @@ async def search_latest_holdings(
     valuation_status: str | None = None,
     limit: int = 100,
 ) -> list[ItemHolding]:
-    conditions = ["s.account_name = ?", "s.id = (SELECT MAX(id) FROM account_snapshots WHERE account_name = ?)"]
-    params = [account_name, account_name]
-
+    item_id: int | None = None
     if query:
         try:
             item_id = int(query)
-            conditions.append("ih.item_id = ?")
-            params.append(item_id)
         except ValueError:
             pass
-    if location_type:
-        conditions.append("ih.location_type = ?")
-        params.append(location_type)
-    if valuation_status:
-        conditions.append("ih.valuation_status = ?")
-        params.append(valuation_status)
 
-    sql = f"""SELECT ih.item_id, ih.count, ih.location_type, ih.location_ref,
+    sql = """SELECT ih.item_id, ih.count, ih.location_type, ih.location_ref,
            ih.binding_status, ih.tradable, ih.vendor_value,
            ih.price_buy, ih.price_sell, ih.value_buy, ih.value_sell, ih.valuation_status,
            ih.quality_status, ih.liquidity_score, ih.liquidity_reason, ih.confidence,
            ih.data_sources, ih.price_timestamp, ih.risk_reason
            FROM item_holdings ih
            JOIN account_snapshots s ON ih.snapshot_id = s.id
-           WHERE {" AND ".join(conditions)}
+           WHERE s.account_name = ?
+             AND s.id = (SELECT MAX(id) FROM account_snapshots WHERE account_name = ?)
+             AND (? IS NULL OR ih.item_id = ?)
+             AND (? IS NULL OR ih.location_type = ?)
+             AND (? IS NULL OR ih.valuation_status = ?)
            ORDER BY ih.value_buy DESC
            LIMIT ?"""
-    params.append(limit)
+    params = [
+        account_name,
+        account_name,
+        item_id,
+        item_id,
+        location_type,
+        location_type,
+        valuation_status,
+        valuation_status,
+        limit,
+    ]
 
     cursor = await db.execute(sql, params)
     rows = await cursor.fetchall()

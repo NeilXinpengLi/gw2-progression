@@ -101,7 +101,12 @@ services:
   redis:
     image: redis:7-alpine
     ports:
-      - "6379:6379"
+      - "127.0.0.1:6379:6379"
+    security_opt:
+      - no-new-privileges:true
+    read_only: true
+    tmpfs:
+      - /tmp
     volumes:
       - redis_data:/data
 
@@ -112,7 +117,13 @@ services:
       - POSTGRES_PASSWORD=gw2
       - POSTGRES_DB=gw2_factory
     ports:
-      - "5432:5432"
+      - "127.0.0.1:5432:5432"
+    security_opt:
+      - no-new-privileges:true
+    read_only: true
+    tmpfs:
+      - /tmp
+      - /var/run/postgresql
     volumes:
       - postgres_data:/var/lib/postgresql/data
 

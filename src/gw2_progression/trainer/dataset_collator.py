@@ -116,7 +116,7 @@ class DatasetCollator:
 
     @classmethod
     def load(cls, path: str | Path) -> tuple[np.ndarray, np.ndarray, dict]:
-        data = np.load(str(path), allow_pickle=True)
+        data = np.load(str(path), allow_pickle=False)
         metadata = json.loads(str(data.get("metadata", b"{}")))
         return data["X"], data["y"], metadata
 

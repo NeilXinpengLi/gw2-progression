@@ -231,15 +231,21 @@ async def process_pending_deliveries(retry_failed: bool = False):
     from gw2_progression.services.report_service import generate_report
 
     rows = []
-    statuses = ("pending", "failed") if retry_failed else ("pending",)
-    placeholders = ",".join("?" for _ in statuses)
     async with using_db() as conn:
-        cursor = await conn.execute(
-            f"""SELECT dj.id, dj.order_id, dj.product_id, o.customer_email, o.customer_name
-                FROM delivery_jobs dj JOIN orders o ON dj.order_id = o.id
-                WHERE dj.status IN ({placeholders}) LIMIT 10""",
-            statuses,
-        )
+        if retry_failed:
+            cursor = await conn.execute(
+                """SELECT dj.id, dj.order_id, dj.product_id, o.customer_email, o.customer_name
+                   FROM delivery_jobs dj JOIN orders o ON dj.order_id = o.id
+                   WHERE dj.status IN (?,?) LIMIT 10""",
+                ("pending", "failed"),
+            )
+        else:
+            cursor = await conn.execute(
+                """SELECT dj.id, dj.order_id, dj.product_id, o.customer_email, o.customer_name
+                   FROM delivery_jobs dj JOIN orders o ON dj.order_id = o.id
+                   WHERE dj.status = ? LIMIT 10""",
+                ("pending",),
+            )
         rows = await cursor.fetchall()
     for row in rows:
         job_id, order_id, product_id, email, name = row
@@ -288,14 +294,19 @@ async def process_pending_deliveries(retry_failed: bool = False):
 async def process_delivery_outbox(retry_failed: bool = False):
     from gw2_progression.services.delivery_service import _send_email
 
-    statuses = ("pending", "failed") if retry_failed else ("pending",)
-    placeholders = ",".join("?" for _ in statuses)
     async with using_db() as conn:
-        cursor = await conn.execute(
-            f"""SELECT id, recipient_email, payload_json, attempts
-                FROM delivery_outbox WHERE status IN ({placeholders}) LIMIT 10""",
-            statuses,
-        )
+        if retry_failed:
+            cursor = await conn.execute(
+                """SELECT id, recipient_email, payload_json, attempts
+                   FROM delivery_outbox WHERE status IN (?,?) LIMIT 10""",
+                ("pending", "failed"),
+            )
+        else:
+            cursor = await conn.execute(
+                """SELECT id, recipient_email, payload_json, attempts
+                   FROM delivery_outbox WHERE status = ? LIMIT 10""",
+                ("pending",),
+            )
         rows = await cursor.fetchall()
     for outbox_id, email, payload_json, attempts in rows:
         try:

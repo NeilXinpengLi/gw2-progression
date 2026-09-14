@@ -105,11 +105,12 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title="GW2 Progression", version="0.1.0", lifespan=lifespan)
 
-# CORS — restrict in production via CORS_ORIGINS env var
-_cors_origins = os.environ.get("CORS_ORIGINS", "*").split(",")
+# CORS — set CORS_ORIGINS explicitly for deployed web clients.
+_default_cors_origins = "http://localhost:3000,http://127.0.0.1:3000,http://localhost:8000,http://127.0.0.1:8000"
+_cors_origins = [origin.strip() for origin in os.environ.get("CORS_ORIGINS", _default_cors_origins).split(",") if origin.strip()]
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=_cors_origins if _cors_origins != ["*"] else ["*"],
+    allow_origins=_cors_origins,
     allow_methods=["GET", "POST", "DELETE", "OPTIONS"],
     allow_headers=["Content-Type", "Authorization"],
     allow_credentials=True,

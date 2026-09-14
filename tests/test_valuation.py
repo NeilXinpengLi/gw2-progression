@@ -334,9 +334,14 @@ class TestValuationRoute:
     }
 
     @pytest.mark.asyncio
-    async def test_value_analyze_endpoint_integration(self):
+    async def test_value_analyze_endpoint_integration(self, tmp_path, monkeypatch):
         """Test the full value/analyze pipeline with mocked GW2 API."""
+        from gw2_progression import database
         from gw2_progression.services.snapshot_service import run_full_analysis
+
+        await database.close_pool()
+        monkeypatch.setattr(database, "_TEST_DB_URL", str(tmp_path / "valuation.db"))
+        await database.init_db()
 
         BASE = "gw2_progression.analyzer"
         stubs = {
@@ -376,11 +381,15 @@ class TestValuationRoute:
             19720: type("PriceData", (), {"buy_unit_price": 3000, "sell_unit_price": 3500, "buy_quantity": 2000, "sell_quantity": 1500})(),
         }
         with (
-            patch("gw2_progression.services.price_service.fetch_prices", AsyncMock(return_value=mock_prices)),
-            patch("gw2_progression.database.get_db", AsyncMock()),
+            patch("gw2_progression.services.snapshot_service.fetch_prices", AsyncMock(return_value=mock_prices)),
+            patch("gw2_progression.services.item_service.is_account_bound", AsyncMock(return_value={})),
         ):
-            with stack:
-                result = await run_full_analysis("fake-key-12345678")
+            try:
+                with stack:
+                    result = await run_full_analysis("fake-key-12345678")
+            finally:
+                await database.close_pool()
+                monkeypatch.setattr(database, "_TEST_DB_URL", "")
 
         assert result.summary.total_value_buy > 0
         assert result.summary.wallet_value == 123456
