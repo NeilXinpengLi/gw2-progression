@@ -116,9 +116,7 @@ class LearningLoop:
             results.append(result)
             if verbose and (ep + 1) % 10 == 0:
                 avg = self.reward_fn.average_reward(10)
-                print(f"  Episode {ep + 1}/{episodes} | reward={result['total_reward']:.3f} | "
-                      f"steps={result['steps']} | avg_last10={avg:.3f} | "
-                      f"ε={self.policy.epsilon:.3f}")
+                print(f"  Episode {ep + 1}/{episodes} | reward={result['total_reward']:.3f} | steps={result['steps']} | avg_last10={avg:.3f} | ε={self.policy.epsilon:.3f}")
 
         for cb in self._callbacks.get("training_complete", []):
             cb(episodes, self._episode_rewards)
@@ -129,7 +127,7 @@ class LearningLoop:
             "final_avg_reward": self.reward_fn.average_reward(min(50, len(self._episode_rewards))),
             "policy_state": self.policy.to_dict(),
             "reward_history": self.reward_fn.reward_history(),
-            "episode_rewards": self._episode_rewards[-min(100, len(self._episode_rewards)):],
+            "episode_rewards": self._episode_rewards[-min(100, len(self._episode_rewards)) :],
         }
 
     def evaluate(

@@ -51,15 +51,15 @@ def build_character_states(account_data: dict) -> list[dict]:
     achievement_ids_done = [a["id"] for a in achievements if a.get("done")]
 
     char_states = []
-    for char in (contents.characters or []):
+    for char in contents.characters or []:
         char_name = char.get("name", "unknown")
         profession = char.get("profession", "Unknown")
         level = char.get("level", 0)
 
         inventory: dict[str, int] = {}
-        for bag in (char.get("bags") or char.get("equipment_packed") or char.get("inventory") or []):
+        for bag in char.get("bags") or char.get("equipment_packed") or char.get("inventory") or []:
             if isinstance(bag, dict):
-                for slot in (bag.get("inventory") or bag.get("items") or bag.get("slots") or []):
+                for slot in bag.get("inventory") or bag.get("items") or bag.get("slots") or []:
                     if isinstance(slot, dict) and slot.get("id"):
                         iid = str(slot["id"])
                         inventory[iid] = inventory.get(iid, 0) + slot.get("count", 1)
@@ -83,10 +83,7 @@ def build_character_states(account_data: dict) -> list[dict]:
             "inventory": inventory,
             "items": list(inventory.keys()),
             "gold": gold,
-            "market": {
-                cid: {"price": val}
-                for cid, val in wallet.items()
-            },
+            "market": {cid: {"price": val} for cid, val in wallet.items()},
             "achievements": achievement_ids_done,
             "created": char.get("created", ""),
             "deaths": char.get("deaths", 0),
@@ -139,12 +136,10 @@ def run_lifecycle_reconstruction(char_states: list[dict]) -> dict:
                 print(f"     Consistency: {top_path.get('rule_consistency', 0):.4f}")
                 vs = top_path.get("validation_summary", {})
                 if vs:
-                    print(f"     Action accuracy: {vs.get('accuracy', 0):.3f} "
-                          f"(valid={vs.get('valid',0)}/{vs.get('total_actions',0)})")
+                    print(f"     Action accuracy: {vs.get('accuracy', 0):.3f} (valid={vs.get('valid', 0)}/{vs.get('total_actions', 0)})")
                     rc = vs.get("recipe_crafts", 0)
                     if rc > 0:
-                        print(f"     Recipe craft accuracy: {vs.get('recipe_accuracy', 0):.3f} "
-                              f"({vs.get('valid_recipe_crafts',0)}/{rc})")
+                        print(f"     Recipe craft accuracy: {vs.get('recipe_accuracy', 0):.3f} ({vs.get('valid_recipe_crafts', 0)}/{rc})")
 
             results[char_name] = {
                 "character": char_name,
@@ -176,12 +171,8 @@ def print_summary(results: dict, char_states: list[dict]):
     print(f"{'=' * 72}")
 
     total_chars = len(results)
-    total_paths = sum(
-        r.get("total_paths", 0) for r in results.values() if r.get("total_paths")
-    )
-    avg_items = sum(
-        r.get("inventory_items", 0) for r in results.values() if "inventory_items" in r
-    ) / max(total_chars, 1)
+    total_paths = sum(r.get("total_paths", 0) for r in results.values() if r.get("total_paths"))
+    avg_items = sum(r.get("inventory_items", 0) for r in results.values() if "inventory_items" in r) / max(total_chars, 1)
 
     print(f"\n  Account: {char_states[0]['character'] if char_states else 'N/A'}")
     print(f"  Characters processed: {total_chars}")
@@ -196,11 +187,13 @@ def print_summary(results: dict, char_states: list[dict]):
         if r.get("error"):
             print(f"  {name:<20} {'ERROR':<14}")
         else:
-            top_score = r.get('top_score')
+            top_score = r.get("top_score")
             score_str = f"{top_score:>8.4f}" if top_score is not None else f"{'N/A':>8}"
-            print(f"  {name:<20} {r.get('profession',''):<14} {r.get('total_paths',0):>6} "
-                  f"{score_str} {r.get('top_steps',0):>6} "
-                  f"{r.get('top_probability', 0):>6.3f} {r.get('top_consistency', 0):>8.4f}")
+            print(
+                f"  {name:<20} {r.get('profession', ''):<14} {r.get('total_paths', 0):>6} "
+                f"{score_str} {r.get('top_steps', 0):>6} "
+                f"{r.get('top_probability', 0):>6.3f} {r.get('top_consistency', 0):>8.4f}"
+            )
 
     # Detailed path output for top characters
     print(f"\n{'─' * 72}")
@@ -222,13 +215,10 @@ def print_summary(results: dict, char_states: list[dict]):
                 rc = vs.get("recipe_crafts", 0)
                 if rc > 0:
                     val_str += f" recipe_acc={vs.get('recipe_accuracy', 0):.3f}"
-            print(f"      #{i+1}: score={p['score']:.4f} prob={p.get('probability',0):.4f} "
-                  f"steps={p['step_count']} [{types}]{val_str}")
+            print(f"      #{i + 1}: score={p['score']:.4f} prob={p.get('probability', 0):.4f} steps={p['step_count']} [{types}]{val_str}")
             for j, step in enumerate(p.get("steps", [])[:5]):
                 label = " [recipe]" if step.get("recipe_sourced") else ""
-                print(f"        Step {j+1}: {step.get('type', '?')}{label} "
-                      f"item={step.get('item_id', '')} "
-                      f"qty={step.get('quantity', step.get('count', ''))}")
+                print(f"        Step {j + 1}: {step.get('type', '?')}{label} item={step.get('item_id', '')} qty={step.get('quantity', step.get('count', ''))}")
                 consumes = step.get("consumes", {})
                 if consumes:
                     parts = [f"{iid}×{c}" for iid, c in consumes.items()]
@@ -261,14 +251,14 @@ def main():
     print("\n[2/3] Building character lifecycle states...")
     char_states = build_character_states(account_data)
     for s in char_states:
-        print(f"  {s['character']:<20} {s['profession']:<14} Lv.{s['level']:<3} "
-              f"items={len(s['inventory']):>3}  achievement_done={len(s['achievements']):>4}")
+        print(f"  {s['character']:<20} {s['profession']:<14} Lv.{s['level']:<3} items={len(s['inventory']):>3}  achievement_done={len(s['achievements']):>4}")
     print(f"  Total characters: {len(char_states)}")
 
     print("\n[2b/3] Classifying inventory items via GW2 API (caching enabled)...")
     all_item_ids = list({int(iid) for state in char_states for iid in state["items"] if iid.isdigit()})
     print(f"  Unique item IDs to classify: {len(all_item_ids)}")
     from gw2_progression.lifecycle.core.utils.item_categorizer import get_categorizer
+
     categorizer = get_categorizer()
     asyncio.run(categorizer.fetch_batch(all_item_ids))
     stats = categorizer.cache_stats()
@@ -283,6 +273,7 @@ def main():
 
     print("\n[2c/3] Preheating all GW2 recipes via /v2/recipes (paginated)...")
     from gw2_progression.lifecycle.core.utils.recipe_resolver import get_recipe_resolver
+
     recipe_resolver = get_recipe_resolver()
     preheat_result = asyncio.run(recipe_resolver.preheat_all())
     print(f"  Preheat result: {json.dumps(preheat_result, indent=2)}")
@@ -301,6 +292,7 @@ def main():
     print(f"  Character items with recipes: {has_recipes} / {len(eq_ids)}")
 
     from gw2_progression.lifecycle.core.backward.dependency_solver import DependencySolver
+
     solver = DependencySolver()
     solver.register_account_dependencies()
     registered = solver.register_real_recipes_from_resolver(recipe_resolver, eq_ids)

@@ -58,21 +58,23 @@ class BenchmarkReport:
             simulation_score = self._simulation_score(agent, agent_history)
             reasoning_score = self._reasoning_score(agent, agent_history)
             overall = (economy_score + decision_score + simulation_score + reasoning_score) / 4
-            results.append(EvaluationResult(
-                agent_id=agent.id,
-                agent_name=agent.name,
-                agent_type=agent.agent_type,
-                economy_score=economy_score,
-                decision_score=decision_score,
-                simulation_score=simulation_score,
-                reasoning_score=reasoning_score,
-                overall_score=overall,
-                details={
-                    "total_reward": agent.total_reward,
-                    "actions_taken": len(agent_history),
-                    "rating": agent.rating.to_dict(),
-                },
-            ))
+            results.append(
+                EvaluationResult(
+                    agent_id=agent.id,
+                    agent_name=agent.name,
+                    agent_type=agent.agent_type,
+                    economy_score=economy_score,
+                    decision_score=decision_score,
+                    simulation_score=simulation_score,
+                    reasoning_score=reasoning_score,
+                    overall_score=overall,
+                    details={
+                        "total_reward": agent.total_reward,
+                        "actions_taken": len(agent_history),
+                        "rating": agent.rating.to_dict(),
+                    },
+                )
+            )
         return results
 
     def _economy_score(self, agent: Agent, history: list[dict[str, Any]]) -> float:
@@ -91,10 +93,10 @@ class BenchmarkReport:
         diversity = min(unique_types / 5, 1.0)
         reward_trend = 0.0
         if len(history) >= 2:
-            first_half = sum(h.get("reward", {}).get("score", 0) for h in history[:len(history)//2])
-            second_half = sum(h.get("reward", {}).get("score", 0) for h in history[len(history)//2:])
+            first_half = sum(h.get("reward", {}).get("score", 0) for h in history[: len(history) // 2])
+            second_half = sum(h.get("reward", {}).get("score", 0) for h in history[len(history) // 2 :])
             reward_trend = min(max((second_half - first_half) / max(abs(first_half) + 1, 1) * 0.5, 0), 1.0)
-        return (diversity * 0.6 + reward_trend * 0.4)
+        return diversity * 0.6 + reward_trend * 0.4
 
     def _simulation_score(self, agent: Agent, history: list[dict[str, Any]]) -> float:
         if not history:
@@ -102,7 +104,7 @@ class BenchmarkReport:
         interaction_rate = min(len(history) / 10, 1.0)
         rewards = [h.get("reward", {}).get("score", 0) for h in history]
         consistency = 1.0 - min(statistics.stdev(rewards) if len(rewards) > 1 else 0, 1.0)
-        return (interaction_rate * 0.5 + consistency * 0.5)
+        return interaction_rate * 0.5 + consistency * 0.5
 
     def _reasoning_score(self, agent: Agent, history: list[dict[str, Any]]) -> float:
         if not history:
@@ -115,7 +117,7 @@ class BenchmarkReport:
         rewards = [h.get("reward", {}).get("score", 0) for h in history]
         if len(rewards) > 1:
             reward_consistency = 1.0 - min(statistics.stdev(rewards) * 2, 1.0)
-        return (adaptability * 0.7 + reward_consistency * 0.3)
+        return adaptability * 0.7 + reward_consistency * 0.3
 
     def _compute_economy_impact(self, results: list[EvaluationResult]) -> dict[str, Any]:
         if not results:

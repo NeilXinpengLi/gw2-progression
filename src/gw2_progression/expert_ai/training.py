@@ -52,12 +52,14 @@ class TrainingPipeline:
         label = self._label(reasoning, body)
         dataset = self._version_dataset(graph, reasoning, label, body.get("dataset_type", "full_production"))
         train = self.system.scheduler.trainer.train(dataset, model_type=body.get("model_type", "expert_reasoner"))
-        feedback = self.system.feedback.observe({
-            "decision": label["decision"]["decision"],
-            "outcome": "success" if train["artifact"]["status"] == "trained" else "review",
-            "risk": label["risk_score"],
-            "dataset_version": dataset["version"],
-        })
+        feedback = self.system.feedback.observe(
+            {
+                "decision": label["decision"]["decision"],
+                "outcome": "success" if train["artifact"]["status"] == "trained" else "review",
+                "risk": label["risk_score"],
+                "dataset_version": dataset["version"],
+            }
+        )
         return {
             "run_id": train["artifact"]["id"],
             "status": "completed" if train["artifact"]["status"] == "trained" else train["artifact"]["status"],
@@ -93,13 +95,15 @@ class TrainingPipeline:
     def _label(self, reasoning: dict[str, Any], body: dict[str, Any]) -> dict[str, Any]:
         chain_length = len(reasoning.get("chain", []))
         risk_score = float(body.get("risk_score", 0.2 if chain_length else 0.7))
-        decision = self.system.evaluate_decision({
-            "decision_type": "approve_recommendation",
-            "factors": [
-                {"name": "reasoning_chain", "value": min(chain_length / 3, 1), "weight": 0.6, "impact": "positive"},
-                {"name": "risk", "value": risk_score, "weight": 0.4, "impact": "negative" if risk_score >= 0.7 else "positive"},
-            ],
-        })
+        decision = self.system.evaluate_decision(
+            {
+                "decision_type": "approve_recommendation",
+                "factors": [
+                    {"name": "reasoning_chain", "value": min(chain_length / 3, 1), "weight": 0.6, "impact": "positive"},
+                    {"name": "risk", "value": risk_score, "weight": 0.4, "impact": "negative" if risk_score >= 0.7 else "positive"},
+                ],
+            }
+        )
         return {"decision": decision, "risk_score": risk_score, "chain_length": chain_length}
 
     def _version_dataset(self, graph: dict[str, Any], reasoning: dict[str, Any], label: dict[str, Any], dataset_type: str) -> dict[str, Any]:
@@ -109,6 +113,7 @@ class TrainingPipeline:
         dataset["examples"][0]["label"] = {"quality": "bors_labeled", "risk_score": label["risk_score"]}
         dataset["version"] = _dataset_version(dataset_type, {"graph": graph, "label": label})
         return dataset
+
 
 def _dataset_version(dataset_type: str, graph: dict[str, Any]) -> str:
     node_count = len(graph.get("nodes", graph.get("graph", {}).get("nodes", [])))

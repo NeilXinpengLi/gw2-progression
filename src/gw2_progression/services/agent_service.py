@@ -64,6 +64,7 @@ def _infer_action_source(action: dict) -> str:
         return "routine"
     return "account"
 
+
 AGENT_PROMPT = """You are GW2 Progression Advisor, a Guild Wars 2 account progression assistant.
 Analyze the account data below and provide personalized advice.
 
@@ -353,6 +354,7 @@ async def generate_advice(api_key: str) -> ProgressionAdvice:
 
     try:
         from ..ontology.action_registry import execute_action
+
         await execute_action(
             "generate_report",
             account_name=account_name,

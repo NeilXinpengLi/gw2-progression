@@ -282,17 +282,20 @@ class TestAgents:
 class TestSimulationFidelity:
     def test_tp_economics(self):
         from gw2_progression.cognitive_os.simulation_fidelity import tp_buy_cost, tp_sell_proceeds
+
         assert tp_sell_proceeds(100) == 85.0
         assert tp_sell_proceeds(100, 5) == 425.0
         assert tp_buy_cost(100) == 105.0
 
     def test_price_elasticity(self):
         from gw2_progression.cognitive_os.simulation_fidelity import price_elasticity
+
         eq = price_elasticity(100, 200, 100, 0.5)
         assert eq > 100
 
     def test_uncertainty_tracker(self):
         from gw2_progression.cognitive_os.simulation_fidelity import UncertaintyTracker
+
         ut = UncertaintyTracker()
         ut.set("gold", 500, "api")
         ut.set("inv.x", 10, "inferred")
@@ -305,6 +308,7 @@ class TestSimulationFidelity:
 
     def test_enhanced_dgsk_disciplines(self):
         from gw2_progression.cognitive_os.simulation_fidelity import DGSKEnhancedConstraints, Discipline
+
         dgsk = DGSKEnhancedConstraints()
         dgsk.set_discipline(Discipline.ARMORSMITH, 400)
         assert dgsk.can_craft_with_discipline(350, Discipline.ARMORSMITH)
@@ -312,6 +316,7 @@ class TestSimulationFidelity:
 
     def test_enhanced_dgsk_rarity(self):
         from gw2_progression.cognitive_os.simulation_fidelity import DGSKEnhancedConstraints, Rarity
+
         dgsk = DGSKEnhancedConstraints()
         dgsk.set_item_rarity("legendary_sword", Rarity.LEGENDARY)
         inv = {"legendary_sword": 1}
@@ -323,6 +328,7 @@ class TestSimulationFidelity:
 
     def test_achievement_chain(self):
         from gw2_progression.cognitive_os.simulation_fidelity import AchievementChain
+
         chain = AchievementChain(
             chain_id="legendary_weapon",
             name="Legendary Weapon",
@@ -335,6 +341,7 @@ class TestSimulationFidelity:
 
     def test_enhanced_economy(self):
         from gw2_progression.cognitive_os.simulation_fidelity import EnhancedEconomyRules, ItemCategory
+
         eco = EnhancedEconomyRules()
         eco.set_category("ore", ItemCategory.RAW_MATERIAL)
         result = eco.compute_equilibrium_price("ore", 500, 300, 100)
@@ -343,6 +350,7 @@ class TestSimulationFidelity:
 
     def test_enhanced_economy_trade_validation(self):
         from gw2_progression.cognitive_os.simulation_fidelity import EnhancedEconomyRules
+
         eco = EnhancedEconomyRules()
         result = eco.validate_trade_after_tax(100, 150)
         assert result["valid"]
@@ -352,6 +360,7 @@ class TestSimulationFidelity:
 
     def test_enhanced_economy_category_health(self):
         from gw2_progression.cognitive_os.simulation_fidelity import EnhancedEconomyRules, ItemCategory
+
         eco = EnhancedEconomyRules()
         eco.set_category("ore", ItemCategory.RAW_MATERIAL)
         eco.set_category("plank", ItemCategory.CRAFTED_MATERIAL)
@@ -365,6 +374,7 @@ class TestSimulationFidelity:
 
     def test_fidelity_assessment(self):
         from gw2_progression.cognitive_os.simulation_fidelity import SimulationFidelity
+
         sf = SimulationFidelity()
         report = sf.full_report()
         assert "fidelity_scores" in report
@@ -375,13 +385,16 @@ class TestSimulationFidelity:
 
     def test_rarity_enum_values(self):
         from gw2_progression.cognitive_os.simulation_fidelity import Rarity
+
         assert Rarity.LEGENDARY.value == "legendary"
         assert Rarity.ASCENDED.value == "ascended"
 
     def test_discipline_enum_values(self):
         from gw2_progression.cognitive_os.simulation_fidelity import Discipline
+
         assert Discipline.ARMORSMITH.value == "armorsmith"
         assert Discipline.MYSTIC_FORGE.value == "mystic_forge"
+
     def test_initialize(self):
         os = CognitiveOSEngine()
         os.initialize({"gold": 500, "inventory": {"item_1": 5, "item_2": 3}, "achievements": ["ach_1"]})
@@ -450,9 +463,11 @@ class TestSimulationFidelity:
 
 # ─── Probabilistic World Model v1 Tests ───────────────────────────
 
+
 class TestProbabilisticDGSK:
     def test_add_node_and_edge(self):
         from gw2_progression.cognitive_os.probabilistic import ProbabilisticDGSK
+
         dgsk = ProbabilisticDGSK()
         dgsk.add_node("n1", "entity", {"gold": 100})
         dgsk.add_node("n2", "state")
@@ -482,6 +497,7 @@ class TestProbabilisticDGSK:
 
     def test_merge_with_cognition_graph(self):
         from gw2_progression.cognitive_os.cognition_graph.graph import CognitionGraph, EdgeType, NodeType
+
         cg = CognitionGraph()
         cg.add_node(NodeType.ENTITY, "char", {}, node_id="c1")
         cg.add_node(NodeType.STATE, "world", {}, node_id="s1")
@@ -649,6 +665,7 @@ class TestWorldInferenceLoop:
 
         def sim(s, a):
             return dict(s)
+
         loop.set_simulator(sim)
         loop.set_action_sampler(lambda s: [{"type": "farm", "item_id": "gold", "quantity": 1}])
 
@@ -665,6 +682,7 @@ class TestWorldInferenceLoop:
 
         def sim(s, a):
             return dict(s)
+
         loop.set_simulator(sim)
         loop.set_action_sampler(lambda s: [{"type": "farm", "item_id": "gold", "quantity": 1}])
 
@@ -677,6 +695,7 @@ class TestWorldInferenceLoop:
 
         def sim(s, a):
             return dict(s)
+
         loop.set_simulator(sim)
         loop.set_action_sampler(lambda s: [{"type": "farm", "item_id": "gold", "quantity": 1}])
 
@@ -689,6 +708,7 @@ class TestWorldInferenceLoop:
 class TestBehaviorModel:
     def test_profile_action_distribution(self):
         from gw2_progression.cognitive_os.behavior import Archetype, BehaviorProfile
+
         profile = BehaviorProfile(archetype_weights={Archetype.TRADER: 1.0})
         dist = profile.action_distribution()
         assert ActionType.TRADE.value in (k.value for k in dist) or ActionType.TRADE in dist
@@ -712,6 +732,7 @@ class TestBehaviorModel:
 
     def test_model_classify_from_state(self):
         from gw2_progression.cognitive_os.behavior import BehaviorModel
+
         model = BehaviorModel()
         state = {"gold": 10000, "inventory": {"mystic_coin": 50}, "achievements": [], "market": {}}
         scores = model.classify_from_state(state)
@@ -733,6 +754,7 @@ class TestBehaviorModel:
 
     def test_evolution_model(self):
         from gw2_progression.cognitive_os.behavior import BehaviorEvolutionModel
+
         evo = BehaviorEvolutionModel(stability=1.0, drift_rate=0.0, shock_rate=0.0)
         profile = BehaviorProfile(archetype_weights={Archetype.TRADER: 1.0})
         evolved = evo.evolve(profile)
@@ -780,6 +802,7 @@ class TestCalibrationLoop:
 class TestProbabilisticEngineIntegration:
     def test_engine_has_probabilistic_layers(self):
         from gw2_progression.cognitive_os.engine import CognitiveOSEngine
+
         os = CognitiveOSEngine()
         assert hasattr(os, "probabilistic_world")
         assert hasattr(os, "probabilistic_dgsk")
@@ -791,6 +814,7 @@ class TestProbabilisticEngineIntegration:
 
     def test_engine_probabilistic_step(self):
         from gw2_progression.cognitive_os.engine import CognitiveOSEngine
+
         os = CognitiveOSEngine()
         os.initialize({"gold": 100, "inventory": {"ore": 5}, "achievements": []})
         result = os.probabilistic_step()
@@ -799,6 +823,7 @@ class TestProbabilisticEngineIntegration:
 
     def test_engine_classify_behavior(self):
         from gw2_progression.cognitive_os.engine import CognitiveOSEngine
+
         os = CognitiveOSEngine()
         os.initialize({"gold": 500, "inventory": {"mystic_coin": 20}, "achievements": []})
         result = os.classify_behavior()
@@ -807,6 +832,7 @@ class TestProbabilisticEngineIntegration:
 
     def test_engine_calibrate(self):
         from gw2_progression.cognitive_os.engine import CognitiveOSEngine
+
         os = CognitiveOSEngine()
         os.initialize({"gold": 100, "inventory": {}, "achievements": []})
         result = os.calibrate({"gold": 200, "inventory": {}, "achievements": []})
@@ -815,6 +841,7 @@ class TestProbabilisticEngineIntegration:
 
     def test_engine_gnn_induction(self):
         from gw2_progression.cognitive_os.engine import CognitiveOSEngine
+
         os = CognitiveOSEngine()
         os.initialize({"gold": 100, "inventory": {}, "achievements": []})
         result = os.gnn_induction()
@@ -822,6 +849,7 @@ class TestProbabilisticEngineIntegration:
 
     def test_engine_counterfactual(self):
         from gw2_progression.cognitive_os.engine import CognitiveOSEngine
+
         os = CognitiveOSEngine()
         os.initialize({"gold": 100, "inventory": {}, "achievements": []})
         original = {"type": "farm", "item_id": "gold", "quantity": 1}
@@ -832,6 +860,7 @@ class TestProbabilisticEngineIntegration:
 
     def test_engine_multi_world(self):
         from gw2_progression.cognitive_os.engine import CognitiveOSEngine
+
         os = CognitiveOSEngine()
         os.initialize({"gold": 100, "inventory": {}, "achievements": []})
         result = os.run_multi_world(num_worlds=2, steps=5)
@@ -841,26 +870,31 @@ class TestProbabilisticEngineIntegration:
 
 # ─── Data Acquisition OS Tests ───────────────────────────────────
 
+
 class TestSourceRegistry:
     def test_init_default_sources(self):
         from gw2_progression.data_acquisition.registry.source_registry import SourceRegistry
+
         reg = SourceRegistry()
         assert len(reg.get_enabled()) > 0
 
     def test_register_source(self):
         from gw2_progression.data_acquisition.registry.source_registry import SourceRegistry
+
         reg = SourceRegistry()
         reg.register({"id": "test_api", "type": "api", "priority": 0, "frequency": "realtime"})
         assert reg.get("test_api") is not None
 
     def test_get_by_type(self):
         from gw2_progression.data_acquisition.registry.source_registry import SourceRegistry, SourceType
+
         reg = SourceRegistry()
         api_sources = reg.get_by_type(SourceType.API)
         assert len(api_sources) > 0
 
     def test_get_sorted_order(self):
         from gw2_progression.data_acquisition.registry.source_registry import SourceRegistry
+
         reg = SourceRegistry()
         sorted_sources = reg.get_sorted()
         assert len(sorted_sources) > 0
@@ -870,6 +904,7 @@ class TestFetcher:
     def test_fetch_api(self):
         from gw2_progression.data_acquisition.ingestion.fetcher import Fetcher
         from gw2_progression.data_acquisition.registry.source_registry import SourceConfig, SourcePriority, SourceType
+
         fetcher = Fetcher()
         source = SourceConfig(id="test", type=SourceType.API, priority=SourcePriority.HIGH, frequency="realtime", endpoint="/v2/account/wallet")
         result = fetcher.fetch(source)
@@ -879,6 +914,7 @@ class TestFetcher:
     def test_fetch_market(self):
         from gw2_progression.data_acquisition.ingestion.fetcher import Fetcher
         from gw2_progression.data_acquisition.registry.source_registry import SourceConfig, SourcePriority, SourceType
+
         fetcher = Fetcher()
         source = SourceConfig(id="tp", type=SourceType.MARKET, priority=SourcePriority.HIGH, frequency="hourly")
         result = fetcher.fetch(source)
@@ -888,6 +924,7 @@ class TestFetcher:
 class TestIngestionOrchestrator:
     def test_ingest_source(self):
         from gw2_progression.data_acquisition import IngestionOrchestrator, SourceRegistry
+
         reg = SourceRegistry()
         orch = IngestionOrchestrator(registry=reg)
         sources = reg.get_enabled()
@@ -897,6 +934,7 @@ class TestIngestionOrchestrator:
 
     def test_ingest_all(self):
         from gw2_progression.data_acquisition import IngestionOrchestrator, SourceRegistry
+
         reg = SourceRegistry()
         orch = IngestionOrchestrator(registry=reg)
         results = orch.ingest_all()
@@ -904,6 +942,7 @@ class TestIngestionOrchestrator:
 
     def test_orchestrator_to_dict(self):
         from gw2_progression.data_acquisition import IngestionOrchestrator, SourceRegistry
+
         reg = SourceRegistry()
         orch = IngestionOrchestrator(registry=reg)
         d = orch.to_dict()
@@ -914,8 +953,10 @@ class TestIngestionOrchestrator:
 class TestExpansion:
     def test_horizontal_expand(self):
         from gw2_progression.data_acquisition.expansion.horizontal import HorizontalExpander
+
         expander = HorizontalExpander()
         from gw2_progression.data_acquisition.registry.source_registry import SourceConfig, SourcePriority, SourceType
+
         source = SourceConfig(id="test", type=SourceType.API, priority=SourcePriority.HIGH, frequency="realtime")
         data = {"entities": [{"id": "e1", "properties": {"gold": 100}}], "relations": [], "source": "test"}
         result = expander.expand(data, source)
@@ -923,8 +964,10 @@ class TestExpansion:
 
     def test_vertical_expand(self):
         from gw2_progression.data_acquisition.expansion.vertical import VerticalExpander
+
         expander = VerticalExpander()
         from gw2_progression.data_acquisition.registry.source_registry import SourceConfig, SourcePriority, SourceType
+
         source = SourceConfig(id="test", type=SourceType.API, priority=SourcePriority.HIGH, frequency="realtime")
         data = {"entities": [{"id": "recipe:1", "type": "recipe", "name": "Test"}], "relations": [], "source": "test"}
         result = expander.expand(data, source)
@@ -932,8 +975,10 @@ class TestExpansion:
 
     def test_temporal_expand(self):
         from gw2_progression.data_acquisition.expansion.temporal import TemporalExpander
+
         expander = TemporalExpander(history_depth=2)
         from gw2_progression.data_acquisition.registry.source_registry import SourceConfig, SourcePriority, SourceType
+
         source = SourceConfig(id="test", type=SourceType.API, priority=SourcePriority.HIGH, frequency="realtime")
         data = {"entities": [{"id": "e1", "properties": {"gold": 100}}], "relations": [], "source": "test"}
         result = expander.expand(data, source)
@@ -941,8 +986,10 @@ class TestExpansion:
 
     def test_synthetic_expand(self):
         from gw2_progression.data_acquisition.expansion.synthetic import SyntheticExpander
+
         expander = SyntheticExpander(synthetic_ratio=1.0)
         from gw2_progression.data_acquisition.registry.source_registry import SourceConfig, SourcePriority, SourceType
+
         source = SourceConfig(id="test", type=SourceType.API, priority=SourcePriority.HIGH, frequency="realtime")
         data = {"entities": [{"id": "e1"}], "relations": [], "source": "test"}
         result = expander.expand(data, source)
@@ -952,6 +999,7 @@ class TestExpansion:
 class TestStreamEngine:
     def test_stream_push_and_flush(self):
         from gw2_progression.data_acquisition.streaming.stream_engine import StreamEngine
+
         stream = StreamEngine(buffer_size=3, flush_interval=999)
         stream.push_data("src1", "test", {"gold": 100})
         stream.push_data("src2", "test", {"gold": 200})
@@ -961,6 +1009,7 @@ class TestStreamEngine:
 
     def test_event_bus(self):
         from gw2_progression.data_acquisition.streaming.event_bus import DataEvent, EventBus
+
         bus = EventBus()
         received = []
 
@@ -973,6 +1022,7 @@ class TestStreamEngine:
 
     def test_event_replay(self):
         from gw2_progression.data_acquisition.streaming.event_bus import DataEvent, EventBus
+
         bus = EventBus()
         bus.publish(DataEvent(source_id="s1", data_type="a", data={}))
         bus.publish(DataEvent(source_id="s2", data_type="b", data={}))
@@ -983,6 +1033,7 @@ class TestStreamEngine:
 class TestDGSKGraphBuilder:
     def test_build(self):
         from gw2_progression.data_acquisition.dgsk.graph_builder import DGSKGraphBuilder
+
         builder = DGSKGraphBuilder()
         data = {
             "entities": [{"id": "e1", "type": "entity", "name": "Test", "properties": {}}],
@@ -994,6 +1045,7 @@ class TestDGSKGraphBuilder:
 
     def test_graph_property(self):
         from gw2_progression.data_acquisition.dgsk.graph_builder import DGSKGraphBuilder
+
         builder = DGSKGraphBuilder()
         g = builder.graph
         assert "nodes" in g
@@ -1001,6 +1053,7 @@ class TestDGSKGraphBuilder:
 
     def test_node_manager(self):
         from gw2_progression.data_acquisition.dgsk.node_manager import NodeManager
+
         nm = NodeManager()
         nm.ensure_node("n1", "entity", "Node1", {"gold": 100})
         nm.ensure_node("n1", "entity", "Node1", {"gold": 200})
@@ -1010,6 +1063,7 @@ class TestDGSKGraphBuilder:
 
     def test_edge_builder(self):
         from gw2_progression.data_acquisition.dgsk.edge_builder import EdgeBuilder
+
         eb = EdgeBuilder()
         edge = eb.build_edge("a", "b", "depends_on", 0.9)
         assert edge["source"] == "a"
@@ -1019,11 +1073,13 @@ class TestDGSKGraphBuilder:
 class TestTaskScheduler:
     def test_schedule_and_run(self):
         from gw2_progression.data_acquisition.scheduler.task_scheduler import TaskScheduler
+
         sched = TaskScheduler()
         assert len(sched.tasks) > 0
 
     def test_enable_disable(self):
         from gw2_progression.data_acquisition.scheduler.task_scheduler import TaskScheduler
+
         sched = TaskScheduler()
         task_ids = list(sched.tasks.keys())
         if task_ids:
@@ -1036,17 +1092,20 @@ class TestTaskScheduler:
 class TestDataFlywheel:
     def test_flywheel_init(self):
         from gw2_progression.data_acquisition.flywheel.data_loop import DataFlywheel
+
         flywheel = DataFlywheel()
         assert flywheel.iteration_count == 0
 
     def test_flywheel_one_iteration(self):
         from gw2_progression.data_acquisition.flywheel.data_loop import DataFlywheel
+
         flywheel = DataFlywheel()
         ingest_called = [False]
 
         def mock_ingest():
             ingest_called[0] = True
             from gw2_progression.data_acquisition.ingestion.orchestrator import IngestionResult
+
             return [IngestionResult(source_id="mock", success=True, events=[], total_entities=5, total_relations=3, duration_ms=10)]
 
         def mock_graph():
@@ -1069,6 +1128,7 @@ class TestDataFlywheel:
 
     def test_flywheel_stop(self):
         from gw2_progression.data_acquisition.flywheel.data_loop import DataFlywheel
+
         flywheel = DataFlywheel()
         flywheel.stop()
         assert not flywheel._running
@@ -1077,6 +1137,7 @@ class TestDataFlywheel:
 class TestDatasetBuilder:
     def test_build_rl_dataset(self):
         from gw2_progression.data_acquisition.flywheel.dataset_builder import DatasetBuilder
+
         builder = DatasetBuilder()
         trajectory = [{"state": {"gold": 100}, "action": {"type": "farm"}, "reward": 0.5}]
         ds = builder.build_rl_dataset(trajectory, 1)
@@ -1085,12 +1146,14 @@ class TestDatasetBuilder:
 
     def test_build_behavior_dataset(self):
         from gw2_progression.data_acquisition.flywheel.dataset_builder import DatasetBuilder
+
         builder = DatasetBuilder()
         ds = builder.build_behavior_dataset({"gold": 100}, {"trader": 0.8, "crafter": 0.2}, 1)
         assert ds.samples[0].labels["trader"] == 0.8
 
     def test_save_all(self):
         from gw2_progression.data_acquisition.flywheel.dataset_builder import DatasetBuilder
+
         builder = DatasetBuilder()
         builder.build_rl_dataset([{"state": {}, "action": {}, "reward": 1.0}], 1)
         count = builder.save_all()
@@ -1098,6 +1161,7 @@ class TestDatasetBuilder:
 
     def test_total_samples(self):
         from gw2_progression.data_acquisition.flywheel.dataset_builder import DatasetBuilder
+
         builder = DatasetBuilder()
         assert builder.total_samples() == 0
         builder.build_rl_dataset([{"state": {}, "action": {}, "reward": 1.0}], 1)
@@ -1107,18 +1171,21 @@ class TestDatasetBuilder:
 class TestDataFactory:
     def test_factory_init(self):
         from gw2_progression.data_acquisition.factory import DataFactory
+
         factory = DataFactory()
         assert factory.source_registry is not None
         assert factory.flywheel is not None
 
     def test_factory_collect_all(self):
         from gw2_progression.data_acquisition.factory import DataFactory
+
         factory = DataFactory()
         results = factory.collect_all()
         assert len(results) > 0
 
     def test_factory_status(self):
         from gw2_progression.data_acquisition.factory import DataFactory
+
         factory = DataFactory()
         status = factory.status_report()
         assert "source_registry" in status
@@ -1127,12 +1194,14 @@ class TestDataFactory:
 
     def test_factory_stream_push(self):
         from gw2_progression.data_acquisition.factory import DataFactory
+
         factory = DataFactory()
         factory.push_event("test", "custom", {"key": "val"})
         assert factory.stream_engine.buffer_size_current >= 1
 
     def test_factory_lifecycle(self):
         from gw2_progression.data_acquisition.factory import DataFactory
+
         factory = DataFactory()
         factory.start()
         assert factory.status.running
@@ -1143,12 +1212,14 @@ class TestDataFactory:
 class TestFactoryIntegration:
     def test_engine_has_data_factory(self):
         from gw2_progression.cognitive_os.engine import CognitiveOSEngine
+
         os = CognitiveOSEngine()
         assert hasattr(os, "data_factory")
         assert hasattr(os, "dataset_builder")
 
     def test_engine_ingest_source(self):
         from gw2_progression.cognitive_os.engine import CognitiveOSEngine
+
         os = CognitiveOSEngine()
         os.initialize({"gold": 100, "inventory": {}, "achievements": []})
         result = os.ingest_source()
@@ -1156,6 +1227,7 @@ class TestFactoryIntegration:
 
     def test_engine_generate_datasets(self):
         from gw2_progression.cognitive_os.engine import CognitiveOSEngine
+
         os = CognitiveOSEngine()
         os.initialize({"gold": 100, "inventory": {"ore": 5}, "achievements": ["a"]})
         result = os.generate_datasets()
@@ -1164,6 +1236,7 @@ class TestFactoryIntegration:
 
     def test_engine_factory_status(self):
         from gw2_progression.cognitive_os.engine import CognitiveOSEngine
+
         os = CognitiveOSEngine()
         os.initialize({"gold": 100, "inventory": {}, "achievements": []})
         status = os.factory_status()
@@ -1171,6 +1244,7 @@ class TestFactoryIntegration:
 
     def test_engine_flywheel(self):
         from gw2_progression.cognitive_os.engine import CognitiveOSEngine
+
         os = CognitiveOSEngine()
         os.initialize({"gold": 100, "inventory": {"ore": 3}, "achievements": []})
         result = os.run_flywheel(iterations=1)
@@ -1180,6 +1254,7 @@ class TestFactoryIntegration:
 class TestFinalGCOSIntegration:
     def test_maturity_evaluator_covers_l0_to_l10(self):
         from gw2_progression.cognitive_os.engine import CognitiveOSEngine
+
         os = CognitiveOSEngine()
         os.initialize({"gold": 250, "inventory": {"ore": 8}, "achievements": ["first_login"]})
 
@@ -1194,6 +1269,7 @@ class TestFinalGCOSIntegration:
 
     def test_population_intelligence_summarizes_behavior_strategy_and_economy(self):
         from gw2_progression.cognitive_os.engine import CognitiveOSEngine
+
         os = CognitiveOSEngine()
         os.initialize({"gold": 5000, "inventory": {"mystic_coin": 20}, "achievements": []})
         os.step({"type": "trade", "item_id": "mystic_coin", "quantity": 2})
@@ -1209,6 +1285,7 @@ class TestFinalGCOSIntegration:
 
     def test_closed_loop_cycle_generates_datasets_and_maturity(self):
         from gw2_progression.cognitive_os.engine import CognitiveOSEngine
+
         os = CognitiveOSEngine()
         os.initialize({"gold": 100, "inventory": {"ore": 5}, "achievements": []})
 

@@ -14,12 +14,14 @@ class MetaAgent(BaseAgent):
     """
 
     def __init__(self, name: str = "MetaAnalyst", skill_level: float = 0.85) -> None:
-        super().__init__(AgentProfile(
-            name=name,
-            agent_type="meta",
-            skill_level=skill_level,
-            specialization="build_optimization",
-        ))
+        super().__init__(
+            AgentProfile(
+                name=name,
+                agent_type="meta",
+                skill_level=skill_level,
+                specialization="build_optimization",
+            )
+        )
         self._meta_priority: dict[str, float] = {}
 
     def update_meta(self, item_id: str, priority: float) -> None:

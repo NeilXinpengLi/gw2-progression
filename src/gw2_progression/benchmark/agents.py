@@ -97,6 +97,7 @@ class RLAgent(Agent):
         if self.model_path:
             try:
                 import joblib
+
                 self.model = joblib.load(self.model_path)
             except Exception:
                 self.model = None

@@ -1,4 +1,5 @@
 """Verify Data Mesh v1 bridge health."""
+
 from gw2_progression.data_mesh.integration import HAS_GW2RADAR, DataMeshBridge
 
 bridge = DataMeshBridge()
@@ -16,10 +17,13 @@ print(f"  Errors:            {result['errors']}")
 print(f"  OOSK registry:     {'yes' if result.get('oosk_registry') else 'no'}")
 print(f"  BORS mappings:     {'yes' if result.get('bors_mappings') else 'no'}")
 
-d = bridge.evaluate_decision("health_check", [
-    {"name": "wealth", "value": 0.8, "weight": 0.6, "impact": "positive"},
-    {"name": "risk", "value": 0.2, "weight": 0.4, "impact": "negative"},
-])
+d = bridge.evaluate_decision(
+    "health_check",
+    [
+        {"name": "wealth", "value": 0.8, "weight": 0.6, "impact": "positive"},
+        {"name": "risk", "value": 0.2, "weight": 0.4, "impact": "negative"},
+    ],
+)
 print(f"  BORS decision:     {d['decision']} (score={d['score']:.3f}, conf={d['confidence']:.3f})")
 
 snap = bridge.sync_oosk(

@@ -171,43 +171,49 @@ def _normalized_payload(source_id: str, recipes: list[dict[str, Any]], items: li
         recipe_id = int(recipe["id"])
         output_id = int(recipe.get("output_item_id") or 0)
         item = item_by_id.get(output_id, {})
-        entities.append({
-            "id": f"{source_id}:{recipe_id}",
-            "type": "recipe",
-            "name": item.get("name") or f"Recipe {recipe_id}",
-            "properties": {
-                "native_id": recipe_id,
-                "output_item_id": output_id,
-                "output_item_count": int(recipe.get("output_item_count") or 1),
-                "disciplines": recipe.get("disciplines", []),
-                "min_rating": recipe.get("min_rating", 0),
-                "flags": recipe.get("flags", []),
-                "ingredients": recipe.get("ingredients", []),
-            },
-            "source": source_id,
-            "confidence": 0.95,
-            "lineage": [source_id, "gw2_api_recipes"],
-        })
+        entities.append(
+            {
+                "id": f"{source_id}:{recipe_id}",
+                "type": "recipe",
+                "name": item.get("name") or f"Recipe {recipe_id}",
+                "properties": {
+                    "native_id": recipe_id,
+                    "output_item_id": output_id,
+                    "output_item_count": int(recipe.get("output_item_count") or 1),
+                    "disciplines": recipe.get("disciplines", []),
+                    "min_rating": recipe.get("min_rating", 0),
+                    "flags": recipe.get("flags", []),
+                    "ingredients": recipe.get("ingredients", []),
+                },
+                "source": source_id,
+                "confidence": 0.95,
+                "lineage": [source_id, "gw2_api_recipes"],
+            }
+        )
     for item_id, item in item_by_id.items():
-        entities.append({
-            "id": f"item:{item_id}",
-            "type": "item",
-            "name": item.get("name", str(item_id)),
-            "properties": {"native_id": item_id, **item},
-            "source": "gw2_api_items",
-            "confidence": 0.95,
-            "lineage": ["gw2_api_items"],
-        })
+        entities.append(
+            {
+                "id": f"item:{item_id}",
+                "type": "item",
+                "name": item.get("name", str(item_id)),
+                "properties": {"native_id": item_id, **item},
+                "source": "gw2_api_items",
+                "confidence": 0.95,
+                "lineage": ["gw2_api_items"],
+            }
+        )
     for item_id, price in price_by_id.items():
-        entities.append({
-            "id": f"price:{item_id}",
-            "type": "market_price_snapshot",
-            "name": f"Price {item_id}",
-            "properties": {"native_id": item_id, **price},
-            "source": "gw2_api_commerce_prices",
-            "confidence": 0.9,
-            "lineage": ["gw2_api_commerce_prices"],
-        })
+        entities.append(
+            {
+                "id": f"price:{item_id}",
+                "type": "market_price_snapshot",
+                "name": f"Price {item_id}",
+                "properties": {"native_id": item_id, **price},
+                "source": "gw2_api_commerce_prices",
+                "confidence": 0.9,
+                "lineage": ["gw2_api_commerce_prices"],
+            }
+        )
     return {"entities": entities, "relations": [], "source": source_id, "observed_at": time.time()}
 
 
@@ -242,15 +248,17 @@ def _account_feasibility_report(
         entity = opportunity_by_entity.get(row["entity_id"], {})
         props = entity.get("properties", {}) if isinstance(entity, dict) else {}
         opportunity = dict(row)
-        opportunity.update({
-            "output_item_name": row.get("name", ""),
-            "recipe_native_id": props.get("recipe_native_id"),
-            "craft_revenue_sell": props.get("craft_revenue_sell", 0),
-            "tp_fee_adjusted_revenue": props.get("tp_fee_adjusted_revenue", 0),
-            "profitable": int(row.get("net_profit", 0)) > 0,
-            "base_score": row.get("score", 0),
-            "account_feasibility": _feasibility(props.get("ingredient_item_ids", []), _recipe_requirements(base_report, props.get("recipe_id")), holdings),
-        })
+        opportunity.update(
+            {
+                "output_item_name": row.get("name", ""),
+                "recipe_native_id": props.get("recipe_native_id"),
+                "craft_revenue_sell": props.get("craft_revenue_sell", 0),
+                "tp_fee_adjusted_revenue": props.get("tp_fee_adjusted_revenue", 0),
+                "profitable": int(row.get("net_profit", 0)) > 0,
+                "base_score": row.get("score", 0),
+                "account_feasibility": _feasibility(props.get("ingredient_item_ids", []), _recipe_requirements(base_report, props.get("recipe_id")), holdings),
+            }
+        )
         opportunity["account_executable_score"] = _account_score(opportunity)
         opportunities.append(opportunity)
     executable = [row for row in opportunities if row["account_feasibility"]["craftable_now"] > 0]
@@ -362,9 +370,7 @@ def _quality_report(**kwargs: Any) -> dict[str, Any]:
     craft_incomplete = sum(
         1
         for record in records
-        if record.entity_type == "merged_asset"
-        and record.normalized_payload.get("properties", {}).get("has_recipe")
-        and not record.normalized_payload.get("properties", {}).get("craft_cost_complete")
+        if record.entity_type == "merged_asset" and record.normalized_payload.get("properties", {}).get("has_recipe") and not record.normalized_payload.get("properties", {}).get("craft_cost_complete")
     )
     return {
         "run_id": kwargs["run_id"],

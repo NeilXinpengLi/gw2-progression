@@ -23,11 +23,13 @@ class TestExtractWallet:
         assert result[0].location_type == "wallet"
 
     def test_skips_non_gold_currencies(self):
-        result = extract_wallet_holdings([
-            {"id": 1, "value": 100000},
-            {"id": 2, "value": 5000},  # karma
-            {"id": 4, "value": 200},   # gems
-        ])
+        result = extract_wallet_holdings(
+            [
+                {"id": 1, "value": 100000},
+                {"id": 2, "value": 5000},  # karma
+                {"id": 4, "value": 200},  # gems
+            ]
+        )
         assert len(result) == 1
         assert result[0].item_id == 1
 
@@ -99,10 +101,12 @@ class TestExtractCharacterInventory:
         assert extract_character_holdings([]) == []
 
     def test_extracts_bag_inventory(self):
-        chars = [{
-            "name": "TestChar",
-            "bags": [{"inventory": [{"id": 19976, "count": 10}, None]}],
-        }]
+        chars = [
+            {
+                "name": "TestChar",
+                "bags": [{"inventory": [{"id": 19976, "count": 10}, None]}],
+            }
+        ]
         result = extract_character_holdings(chars)
         assert len(result) == 1
         assert result[0].item_id == 19976

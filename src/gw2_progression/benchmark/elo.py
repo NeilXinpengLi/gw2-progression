@@ -84,7 +84,7 @@ class GW2ELO:
         total_profit = sum(h.get("reward", {}).get("score", 0) for h in match_history)
         actions = [h.get("action", {}) for h in match_history]
         varied_actions = len(set(a.get("type") for a in actions if a.get("type")))
-        efficiency = min(len(match_history) / max(getattr(agent, '_world_max_steps', 100), 1), 1.0)
+        efficiency = min(len(match_history) / max(getattr(agent, "_world_max_steps", 100), 1), 1.0)
         reasoning = min(varied_actions / 5, 1.0)
         profit = min(max(total_profit, 0), 1.0)
         rewards = [h.get("reward", {}).get("score", 0) for h in match_history]

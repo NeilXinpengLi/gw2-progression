@@ -21,6 +21,7 @@ try:
     from gw2radar.bors.decision_engine import DecisionFactor as RadarDecisionFactor
     from gw2radar.domain_graph.domain_engine import DomainGraphEngine as RadarDomainGraphEngine
     from gw2radar.oosk.runtime_store import RuntimeStore as RadarRuntimeStore
+
     HAS_GW2RADAR = True
 except ImportError:
     RadarDomainGraphEngine = None
@@ -57,6 +58,7 @@ class DataMeshBridge:
                 self._dgsk = RadarDomainGraphEngine()
             else:
                 from gw2_progression.domain_graph.domain_engine import DomainGraphEngine as LocalDG
+
                 self._dgsk = LocalDG()
         return self._dgsk
 
@@ -95,6 +97,7 @@ class DataMeshBridge:
                 self._oosk = RadarRuntimeStore()
             else:
                 from gw2_progression.expert_ai.core import ExpertRuntime
+
                 self._oosk = ExpertRuntime()
         return self._oosk
 
@@ -110,26 +113,31 @@ class DataMeshBridge:
                 etype = e.get("type", "item").lower().replace(" ", "_")
                 if etype not in {t.value for t in EntityType}:
                     etype = "item"
-                graph.add_entity(Entity(
-                    id=e["id"],
-                    type=EntityType(etype),
-                    canonical_name=e.get("properties", {}).get("name", e["id"]),
-                    properties=e.get("properties", {}),
-                ))
+                graph.add_entity(
+                    Entity(
+                        id=e["id"],
+                        type=EntityType(etype),
+                        canonical_name=e.get("properties", {}).get("name", e["id"]),
+                        properties=e.get("properties", {}),
+                    )
+                )
             from gw2radar.graph.graph_builder import RelationType as RadarRelationType
+
             valid_predicates = {t.value for t in RadarRelationType}
             for r in relations:
                 rel_pred = r.get("relation_type", "related_to").lower()
                 if rel_pred not in valid_predicates:
                     rel_pred = "related_to"
                 predicate_val = rel_pred if rel_pred in valid_predicates else "requires"
-                graph.add_relation(Relation(
-                    id=str(uuid.uuid4()),
-                    subject_id=r["source"],
-                    predicate=predicate_val,
-                    object_id=r["target"],
-                    properties=r.get("properties", {}),
-                ))
+                graph.add_relation(
+                    Relation(
+                        id=str(uuid.uuid4()),
+                        subject_id=r["source"],
+                        predicate=predicate_val,
+                        object_id=r["target"],
+                        properties=r.get("properties", {}),
+                    )
+                )
             snapshot_id = str(uuid.uuid4())
             return {"snapshot_id": snapshot_id, "entity_count": len(entities), "relation_count": len(relations), "engine": "gw2radar"}
         else:
@@ -151,6 +159,7 @@ class DataMeshBridge:
                 self._bors = RadarDecisionEngine()
             else:
                 from gw2_progression.bors.business_decision import DecisionEngine as LocalDE
+
                 self._bors = LocalDE()
         return self._bors
 
@@ -158,10 +167,7 @@ class DataMeshBridge:
         """Evaluate a BORS decision with weighted factors."""
         engine = self.get_bors_engine()
         if self.use_radar:
-            radar_factors = [
-                RadarDecisionFactor(name=f["name"], value=float(f.get("value", 0)), weight=float(f.get("weight", 1)), impact=f.get("impact", ""))
-                for f in factors
-            ]
+            radar_factors = [RadarDecisionFactor(name=f["name"], value=float(f.get("value", 0)), weight=float(f.get("weight", 1)), impact=f.get("impact", "")) for f in factors]
             result = engine.decide(decision_type, radar_factors)
             return {
                 "decision": result.decision.value if hasattr(result.decision, "value") else str(result.decision),
@@ -182,6 +188,7 @@ class DataMeshBridge:
         if self.use_radar:
             try:
                 from gw2radar.kb.kb_repository import list_articles, list_rules, list_sources
+
                 sources = list_sources()
                 articles = list_articles()
                 rules = list_rules()
@@ -222,13 +229,15 @@ class DataMeshBridge:
             ds = dataset.copy()
             ds["model_type"] = model_type
             result = trainer.train(ds, model_type=model_type)
-            trained.append({
-                "round": rnd,
-                "model_id": result["artifact"]["id"],
-                "quality": result["metrics"]["estimated_quality"],
-                "status": result["artifact"]["status"],
-                "path": str(result["artifact"]["path"]),
-            })
+            trained.append(
+                {
+                    "round": rnd,
+                    "model_id": result["artifact"]["id"],
+                    "quality": result["metrics"]["estimated_quality"],
+                    "status": result["artifact"]["status"],
+                    "path": str(result["artifact"]["path"]),
+                }
+            )
         return trained
 
     # ── Multi-Source Ingestion ──────────────────────────────────────────
@@ -261,6 +270,7 @@ class DataMeshBridge:
     def normalize(raw: dict) -> dict:
         """Legacy wrapper — delegates to SchemaNormalizer."""
         from gw2_progression.data_mesh.schema.normalizer import SchemaNormalizer
+
         ds = SchemaNormalizer.normalize(raw, source_type="legacy")
         return ds.to_dict()
 

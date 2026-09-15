@@ -233,9 +233,9 @@ async with using_db() as db:
 ### 4.3 数据归档
 
 ```python
-SNAPSHOT_RETENTION = 20   # 保留最近 20 快照
-PRICE_RETENTION = 7       # 价格保留 7 天
-HISTORY_RETENTION = 90    # 历史保留 90 天
+SNAPSHOT_RETENTION = 20  # 保留最近 20 快照
+PRICE_RETENTION = 7  # 价格保留 7 天
+HISTORY_RETENTION = 90  # 历史保留 90 天
 ```
 
 ---

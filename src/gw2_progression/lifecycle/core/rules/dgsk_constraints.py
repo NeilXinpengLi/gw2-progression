@@ -12,11 +12,7 @@ class DGSKConstraints:
         self.economy = economy or EconomyRules()
 
     def validate(self, state: dict[str, Any]) -> bool:
-        return (
-            self.check_crafting(state)
-            and self.check_economy(state)
-            and self.check_consistency(state)
-        )
+        return self.check_crafting(state) and self.check_economy(state) and self.check_consistency(state)
 
     def validate_detailed(self, state: dict[str, Any]) -> dict[str, Any]:
         crafting_result = self.crafting.validate_crafting_state(state)

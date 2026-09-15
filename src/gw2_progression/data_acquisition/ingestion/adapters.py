@@ -151,11 +151,13 @@ class MarketTimeSeriesAdapter(GW2OfficialAdapter):
         for row in data if isinstance(data, list) else []:
             if not isinstance(row, dict):
                 continue
-            snapshots.append({
-                **row,
-                "snapshot_observed_at": observed_at,
-                "snapshot_source_id": source.id,
-            })
+            snapshots.append(
+                {
+                    **row,
+                    "snapshot_observed_at": observed_at,
+                    "snapshot_source_id": source.id,
+                }
+            )
         payload["data"] = snapshots
         payload["metadata"] = {**payload.get("metadata", {}), "adapter": "market_timeseries"}
         return payload

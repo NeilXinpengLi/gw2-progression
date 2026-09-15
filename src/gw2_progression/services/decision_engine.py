@@ -43,6 +43,7 @@ async def decide(account_name: str, wallet_gold: int = 0, characters: list = Non
 
     try:
         from ..ontology.impact_analyzer import analyze_sell_impact
+
         for priority_group in [p0, p1, p2]:
             for action in priority_group:
                 if "sell" in action.get("action", "").lower():

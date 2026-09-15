@@ -84,6 +84,7 @@ class DataFactory:
 
     def _wire_flywheel(self) -> None:
         """Wire the flywheel hooks to factory components."""
+
         def ingest_all():
             return self.ingestion.ingest_all()
 

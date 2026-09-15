@@ -53,15 +53,13 @@ class TestConcreteAgents:
 
     def test_crafter_agent_policy(self):
         agent = CrafterAgent()
-        state = {"market": {"mystic_coin": {"price": 100, "supply": 50, "demand": 100, "velocity": 1.0}},
-                 "inventory": {"mystic_coin": 2}}
+        state = {"market": {"mystic_coin": {"price": 100, "supply": 50, "demand": 100, "velocity": 1.0}}, "inventory": {"mystic_coin": 2}}
         action = agent.act(state)
         assert action["type"] == "craft"
 
     def test_crafter_agent_collects_when_no_inventory(self):
         agent = CrafterAgent()
-        state = {"market": {"mystic_coin": {"price": 200, "supply": 50, "demand": 100, "velocity": 1.0}},
-                 "inventory": {}}
+        state = {"market": {"mystic_coin": {"price": 200, "supply": 50, "demand": 100, "velocity": 1.0}}, "inventory": {}}
         action = agent.act(state)
         assert action["type"] == "collect"
 
@@ -73,16 +71,14 @@ class TestConcreteAgents:
 
     def test_meta_agent_delegates(self):
         agent = MetaStrategyAgent()
-        state = {"market": {"mystic_coin": {"price": 100, "supply": 50, "demand": 100, "velocity": 1.0}},
-                 "inventory": {"mystic_coin": 1}}
+        state = {"market": {"mystic_coin": {"price": 100, "supply": 50, "demand": 100, "velocity": 1.0}}, "inventory": {"mystic_coin": 1}}
         action = agent.act(state)
         assert "meta_agent" in action
         assert "delegated_to" in action
 
     def test_meta_agent_switches_strategy(self):
         agent = MetaStrategyAgent()
-        state = {"market": {"mystic_coin": {"price": 100, "supply": 50, "demand": 100, "velocity": 1.0}},
-                 "inventory": {}}
+        state = {"market": {"mystic_coin": {"price": 100, "supply": 50, "demand": 100, "velocity": 1.0}}, "inventory": {}}
         initial_idx = agent.current_idx
         for i in range(6):
             agent.act(state)
@@ -91,13 +87,13 @@ class TestConcreteAgents:
 
     def test_efficiency_agent(self):
         agent = GW2EfficiencyToolAgent()
-        state = {"market": {"mystic_coin": {"price": 100, "supply": 50, "demand": 100, "velocity": 1.0}},
-                 "inventory": {}}
+        state = {"market": {"mystic_coin": {"price": 100, "supply": 50, "demand": 100, "velocity": 1.0}}, "inventory": {}}
         action = agent.act(state)
         assert action["type"] is not None
 
     def test_default_roster_size(self):
         from gw2_progression.benchmark.agents import create_default_agent_roster
+
         roster = create_default_agent_roster()
         assert len(roster) == 5
         types = [a.agent_type for a in roster]
@@ -620,11 +616,14 @@ class TestAPI:
         arena = Arena(seed=1)
         agents = arena.register_default_roster()
         with TestClient(app) as client:
-            resp = client.post("/arena/elo/update", json={
-                "agent_id": agents[0].id,
-                "profit": 0.8,
-                "efficiency": 0.7,
-                "reasoning": 0.6,
-                "stability": 0.9,
-            })
+            resp = client.post(
+                "/arena/elo/update",
+                json={
+                    "agent_id": agents[0].id,
+                    "profit": 0.8,
+                    "efficiency": 0.7,
+                    "reasoning": 0.6,
+                    "stability": 0.9,
+                },
+            )
             assert resp.status_code in (200, 422)

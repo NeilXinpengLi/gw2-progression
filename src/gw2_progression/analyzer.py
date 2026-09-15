@@ -172,6 +172,7 @@ async def fetch_all(api_key: str) -> AccountContents:
 
     try:
         from .services.event_bus import EventType, emit
+
         emit(EventType.ONTOLOGY, payload={"api_key": api_key, "account_name": contents.account_name or "unknown"}, source="analyzer")
     except Exception:
         pass

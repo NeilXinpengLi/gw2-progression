@@ -27,11 +27,8 @@ async def test_replayed_stripe_event_fulfills_once(commerce_db, monkeypatch):
     assert second == "fulfilled"
     async with using_db() as conn:
         order_count = (await (await conn.execute("SELECT COUNT(*) FROM orders")).fetchone())[0]
-        event_row = await (
-            await conn.execute("SELECT status, order_id FROM payment_events WHERE provider_event_id = 'evt_once'")
-        ).fetchone()
+        event_row = await (await conn.execute("SELECT status, order_id FROM payment_events WHERE provider_event_id = 'evt_once'")).fetchone()
 
     assert order_count == 1
     assert event_row["status"] == "fulfilled"
     assert event_row["order_id"] is not None
-

@@ -87,11 +87,7 @@ def filter_recommendations_by_freshness(
 
     sorted_recs = sorted(
         evaluated,
-        key=lambda r: (
-            0 if r["recommendation_strength"] == "strong" else
-            1 if r["recommendation_strength"] == "weak" else
-            2
-        ),
+        key=lambda r: 0 if r["recommendation_strength"] == "strong" else 1 if r["recommendation_strength"] == "weak" else 2,
     )
 
     strong = [r for r in sorted_recs if r["recommendation_strength"] == "strong"]
@@ -103,7 +99,7 @@ def filter_recommendations_by_freshness(
     if remaining > 0:
         result.extend(weak[:remaining])
     if len(result) < max_results:
-        result.extend(none_recs[:max_results - len(result)])
+        result.extend(none_recs[: max_results - len(result)])
 
     return result
 

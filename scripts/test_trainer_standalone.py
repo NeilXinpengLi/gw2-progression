@@ -1,4 +1,5 @@
 """End-to-end test of the standalone training worker."""
+
 import sys
 from pathlib import Path
 
@@ -8,19 +9,21 @@ sys.path.insert(0, str(SRC.parent))
 
 events = []
 for i in range(30):
-    events.append({
-        "id": f"seed-{i}",
-        "state": {"nodes": [{"id": f"n{j}"} for j in range(5 + i % 3)], "edges": []},
-        "decision": {"decision": ["APPROVE", "REVIEW", "REJECT"][i % 3], "score": 0.3 + i * 0.02, "confidence": 0.5 + i * 0.01},
-        "outcome": {"success": i % 2 == 0, "value_delta": i * 200, "time_saved_hours": i % 4},
-        "factors": [
-            {"name": "liquid_wealth", "value": 0.7, "weight": 1},
-            {"name": "asset_risk", "value": 0.3, "weight": 1},
-            {"name": "market_volatility", "value": 0.2, "weight": 1},
-        ],
-        "agent_type": "test",
-        "timestamp": 1000 + i,
-    })
+    events.append(
+        {
+            "id": f"seed-{i}",
+            "state": {"nodes": [{"id": f"n{j}"} for j in range(5 + i % 3)], "edges": []},
+            "decision": {"decision": ["APPROVE", "REVIEW", "REJECT"][i % 3], "score": 0.3 + i * 0.02, "confidence": 0.5 + i * 0.01},
+            "outcome": {"success": i % 2 == 0, "value_delta": i * 200, "time_saved_hours": i % 4},
+            "factors": [
+                {"name": "liquid_wealth", "value": 0.7, "weight": 1},
+                {"name": "asset_risk", "value": 0.3, "weight": 1},
+                {"name": "market_volatility", "value": 0.2, "weight": 1},
+            ],
+            "agent_type": "test",
+            "timestamp": 1000 + i,
+        }
+    )
 
 from gw2_progression.trainer.worker import TrainingWorker  # noqa: E402
 

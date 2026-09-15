@@ -147,6 +147,7 @@ class CognitiveOSEngine:
             data = self.temporal_expander.expand(data, source)
             data = self.synthetic_expander.expand(data, source)
             return data
+
         self.ingestion_orchestrator.register_expansion_hook(expansion_hook)
 
         # Wire graph builder hook
@@ -174,7 +175,9 @@ class CognitiveOSEngine:
                 rel = relation.get("relation", "related_to")
                 if src and tgt:
                     self.probabilistic_dgsk.add_edge(
-                        src, tgt, rel,
+                        src,
+                        tgt,
+                        rel,
                         probability=relation.get("confidence", 0.8),
                     )
 
@@ -201,14 +204,24 @@ class CognitiveOSEngine:
         g = self.cognition
         state = state or {}
 
-        entity_node = g.add_node(NodeType.ENTITY, "character", {
-            "gold": state.get("gold", 0),
-            "items": len(state.get("inventory", {}) or {}),
-        }, node_id="entity:character")
-        state_node = g.add_node(NodeType.STATE, "world_state", {
-            "t": 0,
-            "achievements": len(state.get("achievements", []) or []),
-        }, node_id="state:world")
+        entity_node = g.add_node(
+            NodeType.ENTITY,
+            "character",
+            {
+                "gold": state.get("gold", 0),
+                "items": len(state.get("inventory", {}) or {}),
+            },
+            node_id="entity:character",
+        )
+        state_node = g.add_node(
+            NodeType.STATE,
+            "world_state",
+            {
+                "t": 0,
+                "achievements": len(state.get("achievements", []) or []),
+            },
+            node_id="state:world",
+        )
         goal_node = g.add_node(NodeType.GOAL, "progression", {}, node_id="goal:progression")
         decision_node = g.add_node(NodeType.DECISION, "initial_decision", {}, node_id="decision:init")
 
@@ -524,23 +537,25 @@ class CognitiveOSEngine:
                 training = self.train(episodes=train_episodes, max_steps=max(1, simulation_steps), verbose=False)
             population = self.population_intelligence()
             maturity = self.evaluate_maturity()
-            loop_results.append({
-                "iteration": iteration + 1,
-                "scheduler": {
-                    "tasks_run": len(scheduler),
-                    "results": scheduler,
-                },
-                "simulation": {
-                    "simulation_id": simulation["simulation_id"],
-                    "steps": simulation["steps"],
-                    "total_reward": simulation["total_reward"],
-                    "final_t": simulation["final_t"],
-                },
-                "datasets": datasets,
-                "training": training,
-                "population": population,
-                "maturity": maturity,
-            })
+            loop_results.append(
+                {
+                    "iteration": iteration + 1,
+                    "scheduler": {
+                        "tasks_run": len(scheduler),
+                        "results": scheduler,
+                    },
+                    "simulation": {
+                        "simulation_id": simulation["simulation_id"],
+                        "steps": simulation["steps"],
+                        "total_reward": simulation["total_reward"],
+                        "final_t": simulation["final_t"],
+                    },
+                    "datasets": datasets,
+                    "training": training,
+                    "population": population,
+                    "maturity": maturity,
+                }
+            )
 
         return {
             "status": "completed",
@@ -625,7 +640,7 @@ class CognitiveOSEngine:
         """Build training datasets from current state."""
         state = self.temporal.current
         archetype_scores = self.behavior_model.classify_from_state(state)
-        economy_state = self.economy.to_dict() if hasattr(self.economy, 'to_dict') else {}
+        economy_state = self.economy.to_dict() if hasattr(self.economy, "to_dict") else {}
 
         self.dataset_builder.build_behavior_dataset(state, archetype_scores, self._simulation_count)
         self.dataset_builder.build_economy_dataset(economy_state, self._simulation_count)

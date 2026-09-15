@@ -85,19 +85,21 @@ def gen_balanced(contents, gold, total=900):
                 delta = int(rng.gauss(2000, 4000))
                 time_saved = rng.randint(0, 4)
 
-            events.append({
-                "id": f"balanced-{klass.lower()}-{i:04d}",
-                "state": {
-                    "nodes": [{"id": f"n{j}"} for j in range(max(5, char_count * 2 + rng.randint(-5, 15)))],
-                    "edges": [{"source": f"n{j}", "target": f"n{j+1}"} for j in range(max(3, char_count + rng.randint(-2, 8)))],
-                },
-                "decision": {"decision": klass, "score": round(score, 4), "confidence": round(confidence, 4)},
-                "outcome": {"success": success, "value_delta": delta, "time_saved_hours": time_saved},
-                "factors": [{"name": f.name, "value": f.value, "weight": f.weight} for f in factors],
-                "agent_type": "bors_real_account",
-                "account": contents.account_name,
-                "timestamp": time.time() + i,
-            })
+            events.append(
+                {
+                    "id": f"balanced-{klass.lower()}-{i:04d}",
+                    "state": {
+                        "nodes": [{"id": f"n{j}"} for j in range(max(5, char_count * 2 + rng.randint(-5, 15)))],
+                        "edges": [{"source": f"n{j}", "target": f"n{j + 1}"} for j in range(max(3, char_count + rng.randint(-2, 8)))],
+                    },
+                    "decision": {"decision": klass, "score": round(score, 4), "confidence": round(confidence, 4)},
+                    "outcome": {"success": success, "value_delta": delta, "time_saved_hours": time_saved},
+                    "factors": [{"name": f.name, "value": f.value, "weight": f.weight} for f in factors],
+                    "agent_type": "bors_real_account",
+                    "account": contents.account_name,
+                    "timestamp": time.time() + i,
+                }
+            )
     rng.shuffle(events)
     return events
 
@@ -113,11 +115,13 @@ def main():
     print("\n[2/2] Generating balanced training events...")
     events = gen_balanced(contents, gold, total=900)
     from collections import Counter
+
     dist = Counter(e["decision"]["decision"] for e in events)
     print(f"  Generated {len(events)} events (balanced)")
     print(f"  Distribution: {dict(dist)}")
 
     from gw2_progression.trainer.worker import TrainingWorker
+
     worker = TrainingWorker(checkpoint_dir="data/trainer_models", min_batch=50)
     result = worker.run_once(events)
 
@@ -132,7 +136,7 @@ def main():
     for f in latest:
         meta = json.loads(f.read_text(encoding="utf-8"))
         samples = meta.get("train_samples", 0) + meta.get("test_samples", 0)
-        print(f"  [{meta['status']}] {meta['model_id'][:12]} acc={meta.get('accuracy',0):.4f} f1={meta.get('f1_weighted',0):.4f} classes={meta.get('class_count',0)} samples={samples}")
+        print(f"  [{meta['status']}] {meta['model_id'][:12]} acc={meta.get('accuracy', 0):.4f} f1={meta.get('f1_weighted', 0):.4f} classes={meta.get('class_count', 0)} samples={samples}")
 
 
 if __name__ == "__main__":

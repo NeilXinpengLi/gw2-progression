@@ -154,9 +154,7 @@ class DomainGraphEngine:
                     errors.append(f"Event '{event.name}': produces '{prod}' not in nodes")
 
         for rule in dg.rules:
-            referenced = [
-                w.split(".")[0] for w in rule.rule.split() if "." in w
-            ]
+            referenced = [w.split(".")[0] for w in rule.rule.split() if "." in w]
             for ref in referenced:
                 if ref not in node_names:
                     errors.append(f"Rule '{rule.name}': references '{ref}' not in nodes")
@@ -171,14 +169,8 @@ class DomainGraphEngine:
             "domain_types": list(dg.nodes.keys()),
             "relation_types": list(dg.edges.keys()),
             "event_types": [e.name for e in dg.events],
-            "action_types": {
-                e.name: {"triggered_by": e.source, "produces": e.produces}
-                for e in dg.events
-            },
-            "constraint_rules": [
-                {"name": r.name, "severity": r.severity, "rule": r.rule}
-                for r in dg.rules
-            ],
+            "action_types": {e.name: {"triggered_by": e.source, "produces": e.produces} for e in dg.events},
+            "constraint_rules": [{"name": r.name, "severity": r.severity, "rule": r.rule} for r in dg.rules],
             "node_defs": {name: self._node_to_dict(n) for name, n in dg.nodes.items()},
             "edge_defs": {name: self._edge_to_dict(e) for name, e in dg.edges.items()},
         }

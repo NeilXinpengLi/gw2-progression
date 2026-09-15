@@ -24,23 +24,27 @@ class StateEvolver:
             inventory[item_id] = inventory.get(item_id, 0) + quantity
             if item_id in market:
                 market[item_id]["supply"] = market[item_id].get("supply", 100) + quantity
-            validations.append({
-                "action": action_type,
-                "item_id": item_id,
-                "valid": True,
-                "reason": f"gained {quantity}x {item_id}",
-            })
+            validations.append(
+                {
+                    "action": action_type,
+                    "item_id": item_id,
+                    "valid": True,
+                    "reason": f"gained {quantity}x {item_id}",
+                }
+            )
 
         elif action_type == "trade":
             inventory[item_id] = inventory.get(item_id, 0) + quantity
             if item_id in market:
                 market[item_id]["demand"] = market[item_id].get("demand", 100) + quantity
-            validations.append({
-                "action": "trade",
-                "item_id": item_id,
-                "valid": True,
-                "reason": f"traded {quantity}x {item_id}",
-            })
+            validations.append(
+                {
+                    "action": "trade",
+                    "item_id": item_id,
+                    "valid": True,
+                    "reason": f"traded {quantity}x {item_id}",
+                }
+            )
 
         elif action_type == "craft":
             consumes = action.get("consumes", {})
@@ -60,46 +64,54 @@ class StateEvolver:
                 inventory[item_id] = inventory.get(item_id, 0) + produced_qty
                 if item_id in market:
                     market[item_id]["supply"] = market[item_id].get("supply", 100) + produced_qty
-                validations.append({
-                    "action": "craft",
-                    "item_id": item_id,
-                    "valid": True,
-                    "recipe_sourced": True,
-                    "reason": f"crafted {produced_qty}x {item_id} from {len(consumes)} ingredients",
-                })
+                validations.append(
+                    {
+                        "action": "craft",
+                        "item_id": item_id,
+                        "valid": True,
+                        "recipe_sourced": True,
+                        "reason": f"crafted {produced_qty}x {item_id} from {len(consumes)} ingredients",
+                    }
+                )
             elif recipe_sourced and not all_present:
-                validations.append({
-                    "action": "craft",
-                    "item_id": item_id,
-                    "valid": False,
-                    "recipe_sourced": True,
-                    "reason": f"missing ingredients: {'; '.join(missing)}",
-                    "missing": missing,
-                })
+                validations.append(
+                    {
+                        "action": "craft",
+                        "item_id": item_id,
+                        "valid": False,
+                        "recipe_sourced": True,
+                        "reason": f"missing ingredients: {'; '.join(missing)}",
+                        "missing": missing,
+                    }
+                )
             else:
                 for consumed, cqty in consumes.items():
                     inventory[consumed] = max(inventory.get(consumed, 0) - int(cqty), 0)
                 inventory[item_id] = inventory.get(item_id, 0) + 1
                 if item_id in market:
                     market[item_id]["supply"] = market[item_id].get("supply", 100) + 1
-                validations.append({
-                    "action": "craft",
-                    "item_id": item_id,
-                    "valid": True,
-                    "recipe_sourced": False,
-                    "reason": f"non-recipe craft {item_id}",
-                })
+                validations.append(
+                    {
+                        "action": "craft",
+                        "item_id": item_id,
+                        "valid": True,
+                        "recipe_sourced": False,
+                        "reason": f"non-recipe craft {item_id}",
+                    }
+                )
 
         elif action_type == "achievement":
             achievements = new_state.setdefault("achievements", [])
             if item_id and item_id not in achievements:
                 achievements.append(item_id)
-            validations.append({
-                "action": "achievement",
-                "item_id": item_id,
-                "valid": True,
-                "reason": f"completed achievement {item_id}",
-            })
+            validations.append(
+                {
+                    "action": "achievement",
+                    "item_id": item_id,
+                    "valid": True,
+                    "reason": f"completed achievement {item_id}",
+                }
+            )
 
         new_state["time"] = new_state.get("time", 0) + self.step_size
         return new_state

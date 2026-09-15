@@ -91,10 +91,7 @@ class TaskScheduler:
             TaskFrequency.WEEKLY: 604800,
         }
         interval = interval_map.get(frequency, 3600)
-        return [
-            t for t in self.tasks.values()
-            if t.enabled and t.frequency == frequency and (current_time - t.last_run) >= interval
-        ]
+        return [t for t in self.tasks.values() if t.enabled and t.frequency == frequency and (current_time - t.last_run) >= interval]
 
     def run_pending(self, current_time: float) -> list[dict[str, Any]]:
         results: list[dict[str, Any]] = []
@@ -107,41 +104,43 @@ class TaskScheduler:
                         task.handler(source)
                         task.last_run = current_time
                         task.run_count += 1
-                        results.append({
-                            "source_id": task.source_id,
-                            "status": "completed",
-                            "frequency": freq.value,
-                        })
+                        results.append(
+                            {
+                                "source_id": task.source_id,
+                                "status": "completed",
+                                "frequency": freq.value,
+                            }
+                        )
                     except Exception as e:
-                        results.append({
-                            "source_id": task.source_id,
-                            "status": "failed",
-                            "error": str(e),
-                            "frequency": freq.value,
-                        })
+                        results.append(
+                            {
+                                "source_id": task.source_id,
+                                "status": "failed",
+                                "error": str(e),
+                                "frequency": freq.value,
+                            }
+                        )
         self._run_history.extend(results)
         return results
 
     def enqueue_refresh_requests(self, requests: list[dict[str, Any]], current_time: float | None = None) -> int:
         current_time = current_time if current_time is not None else 0.0
-        existing = {
-            (item.source_id, item.reason, item.entity_type, item.entity_id)
-            for item in self._refresh_queue
-            if item.status == "pending"
-        }
+        existing = {(item.source_id, item.reason, item.entity_type, item.entity_id) for item in self._refresh_queue if item.status == "pending"}
         added = 0
         for request in requests:
             key = (request.get("source_id"), request.get("reason", "coverage_gap"), request.get("entity_type"), request.get("entity_id"))
             if not key[0] or key in existing:
                 continue
-            self._refresh_queue.append(RefreshQueueItem(
-                source_id=str(key[0]),
-                reason=str(key[1]),
-                priority=int(request.get("priority", 3)),
-                entity_type=key[2],
-                entity_id=key[3],
-                enqueued_at=current_time,
-            ))
+            self._refresh_queue.append(
+                RefreshQueueItem(
+                    source_id=str(key[0]),
+                    reason=str(key[1]),
+                    priority=int(request.get("priority", 3)),
+                    entity_type=key[2],
+                    entity_id=key[3],
+                    enqueued_at=current_time,
+                )
+            )
             existing.add(key)
             added += 1
         self._refresh_queue.sort(key=lambda item: (item.priority, item.enqueued_at, item.source_id))

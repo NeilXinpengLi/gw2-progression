@@ -267,17 +267,20 @@ async def check_report_publishable(report_data: dict) -> QAReport:
         patch = bd.get("patch_version", "")
         review = bd.get("review_status", "unreviewed")
         if review != "reviewed":
-            checks.append({
-                "check": f"build_source.{bd.get('build_id', 'unknown')}",
-                "passed": False,
-                "detail": f"Build '{bd.get('name', '')}' has unreviewed source",
-                "blocking": True,
-            })
+            checks.append(
+                {
+                    "check": f"build_source.{bd.get('build_id', 'unknown')}",
+                    "passed": False,
+                    "detail": f"Build '{bd.get('name', '')}' has unreviewed source",
+                    "blocking": True,
+                }
+            )
             errors.append(f"Build '{bd.get('name', '')}' is unreviewed and cannot be strongly recommended.")
         if patch:
             try:
                 from ..models import BuildTemplate
                 from .build_trust import evaluate_build_source_freshness
+
                 fake = BuildTemplate(
                     build_id=bd.get("build_id", ""),
                     source=bd.get("source", ""),
@@ -288,12 +291,14 @@ async def check_report_publishable(report_data: dict) -> QAReport:
                 )
                 fb = evaluate_build_source_freshness(fake)
                 if fb.get("is_stale"):
-                    checks.append({
-                        "check": f"build_freshness.{bd.get('build_id', 'unknown')}",
-                        "passed": False,
-                        "detail": f"Build '{bd.get('name', '')}' patch {patch} is {fb['days_old']} days old",
-                        "blocking": False,
-                    })
+                    checks.append(
+                        {
+                            "check": f"build_freshness.{bd.get('build_id', 'unknown')}",
+                            "passed": False,
+                            "detail": f"Build '{bd.get('name', '')}' patch {patch} is {fb['days_old']} days old",
+                            "blocking": False,
+                        }
+                    )
                     warnings.append(f"Build '{bd.get('name', '')}' patch is stale ({fb['days_old']} days).")
             except Exception:
                 pass
@@ -301,12 +306,14 @@ async def check_report_publishable(report_data: dict) -> QAReport:
     # 7. Report has data sources (for paid reports)
     if report_data.get("report_type") in ("commercial", "paid"):
         if not report_data.get("snapshot_time"):
-            checks.append({
-                "check": "paid_report_has_snapshot",
-                "passed": False,
-                "detail": "Paid report must have a snapshot timestamp",
-                "blocking": True,
-            })
+            checks.append(
+                {
+                    "check": "paid_report_has_snapshot",
+                    "passed": False,
+                    "detail": "Paid report must have a snapshot timestamp",
+                    "blocking": True,
+                }
+            )
             errors.append("Paid report requires a snapshot timestamp.")
 
     passed = sum(1 for c in checks if c.get("passed", False))

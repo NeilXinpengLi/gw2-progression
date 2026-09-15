@@ -22,4 +22,3 @@ async def test_concurrent_license_use_does_not_exceed_max_uses(commerce_db):
     assert results.count(True) == 1
     assert results.count(False) == 1
     assert row["used_count"] == 1
-

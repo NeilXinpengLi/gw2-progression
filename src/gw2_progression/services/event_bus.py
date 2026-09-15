@@ -43,10 +43,12 @@ _worker_task: asyncio.Task | None = None
 
 def on(event_type: EventType) -> Callable[[Handler], Handler]:
     """Decorator to register an event handler."""
+
     def decorator(handler: Handler) -> Handler:
         _handlers.setdefault(event_type, []).append(handler)
         logger.debug("Handler registered for %s: %s", event_type.value, handler.__name__)
         return handler
+
     return decorator
 
 

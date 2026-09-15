@@ -71,24 +71,28 @@ async def execute(tool_id: str, payload: dict | None = None, caller: str = "") -
             result = tool.handler(**payload)
         entry["success_count"] += 1
         duration = (datetime.now(timezone.utc) - start).total_seconds()
-        _execution_history.append({
-            "tool_id": tool_id,
-            "caller": caller,
-            "success": True,
-            "duration_ms": round(duration * 1000),
-            "timestamp": start.isoformat(),
-        })
+        _execution_history.append(
+            {
+                "tool_id": tool_id,
+                "caller": caller,
+                "success": True,
+                "duration_ms": round(duration * 1000),
+                "timestamp": start.isoformat(),
+            }
+        )
         return {"success": True, "result": result, "tool_id": tool_id, "duration_ms": round(duration * 1000)}
     except Exception as e:
         duration = (datetime.now(timezone.utc) - start).total_seconds()
-        _execution_history.append({
-            "tool_id": tool_id,
-            "caller": caller,
-            "success": False,
-            "error": str(e),
-            "duration_ms": round(duration * 1000),
-            "timestamp": start.isoformat(),
-        })
+        _execution_history.append(
+            {
+                "tool_id": tool_id,
+                "caller": caller,
+                "success": False,
+                "error": str(e),
+                "duration_ms": round(duration * 1000),
+                "timestamp": start.isoformat(),
+            }
+        )
         logger.error("Tool %s failed: %s", tool_id, e)
         return {"success": False, "error": str(e), "tool_id": tool_id, "duration_ms": round(duration * 1000)}
 

@@ -56,9 +56,7 @@ class PartialButValidExpertLayer:
             "provider": "openai_compatible",
             "mode": "read_only",
             "config": {"configured": True, "model": "partial-model"},
-            "explanation": {
-                "content": "Crafting Carrion Silk Insignia fits your beginner gold goal with 1s 87c net profit and low market risk."
-            },
+            "explanation": {"content": "Crafting Carrion Silk Insignia fits your beginner gold goal with 1s 87c net profit and low market risk."},
         }
 
 

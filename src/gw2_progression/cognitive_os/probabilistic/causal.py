@@ -7,6 +7,7 @@ from typing import Any
 @dataclass
 class CausalChain:
     """A causal explanation chain: A → B → C."""
+
     chain_id: str
     chain: list[str]
     confidence: float
@@ -16,6 +17,7 @@ class CausalChain:
 @dataclass
 class CounterfactualResult:
     """Result of a counterfactual query: what if X instead of Y?"""
+
     question: str
     actual_outcome: dict[str, Any]
     counterfactual_outcome: dict[str, Any]

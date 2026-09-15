@@ -8,6 +8,7 @@ from typing import Any
 @dataclass
 class RuleEmbedding:
     """Embedding vector for a graph rule/relation."""
+
     source_type: str
     target_type: str
     relation: str
@@ -19,6 +20,7 @@ class RuleEmbedding:
 @dataclass
 class InducedRule:
     """A rule induced from graph patterns."""
+
     antecedent: str
     consequent: str
     relation: str
@@ -175,14 +177,16 @@ class RuleGNN:
             expected = (c1 / max(total_nodes_with_edges, 1)) * (c2 / max(total_nodes_with_edges, 1))
             lift = (count / max(total_nodes_with_edges, 1)) / max(expected, 0.001)
 
-            rules.append(InducedRule(
-                antecedent=r1,
-                consequent=r2,
-                relation="co_occurs_with",
-                confidence=max(confidence_12, confidence_21),
-                support=count,
-                lift=round(lift, 3),
-            ))
+            rules.append(
+                InducedRule(
+                    antecedent=r1,
+                    consequent=r2,
+                    relation="co_occurs_with",
+                    confidence=max(confidence_12, confidence_21),
+                    support=count,
+                    lift=round(lift, 3),
+                )
+            )
 
         rules.sort(key=lambda r: -r.confidence)
         return rules
@@ -200,11 +204,13 @@ class RuleGNN:
                 if src < tgt:
                     strength = self.predict_relation_strength(src, tgt)
                     if strength > 0.3:
-                        edge_predictions.append({
-                            "source": src,
-                            "target": tgt,
-                            "predicted_strength": round(strength, 4),
-                        })
+                        edge_predictions.append(
+                            {
+                                "source": src,
+                                "target": tgt,
+                                "predicted_strength": round(strength, 4),
+                            }
+                        )
 
         return {
             "node_embeddings": {k: [round(v, 4) for v in emb] for k, emb in embeddings.items()},

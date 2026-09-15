@@ -22,6 +22,7 @@ def _fresh_ts() -> str:
 
 # ── Fixtures ──────────────────────────────────────────────────────────
 
+
 @pytest.fixture(autouse=True)
 def clear_ontology():
     store.clear()
@@ -74,6 +75,7 @@ def make_reservation(item_id: int, count: int, goal_id: str, account: str = "Tes
 
 # ── Config Tests ──────────────────────────────────────────────────────
 
+
 class TestConfig:
     def test_class_definitions_exist(self):
         assert len(config.CLASS_DEFINITIONS) >= 10
@@ -102,6 +104,7 @@ class TestConfig:
 
 
 # ── Object Store Tests ────────────────────────────────────────────────
+
 
 class TestObjectStore:
     def test_register_and_get_object(self):
@@ -153,6 +156,7 @@ class TestObjectStore:
 
 
 # ── Relation Store Tests ──────────────────────────────────────────────
+
 
 class TestRelationStore:
     def test_register_and_get_relation(self):
@@ -214,6 +218,7 @@ class TestRelationStore:
 
 # ── Graph Query Tests ─────────────────────────────────────────────────
 
+
 class TestGraphQuery:
     def test_find_related_objects(self):
         a = store.register_object("type_a")
@@ -273,6 +278,7 @@ class TestGraphQuery:
 
 
 # ── Impact Analyzer Tests ─────────────────────────────────────────────
+
 
 class TestImpactAnalyzer:
     @pytest.mark.asyncio
@@ -334,6 +340,7 @@ class TestImpactAnalyzer:
 
 
 # ── QA Gate Tests ─────────────────────────────────────────────────────
+
 
 class TestQAGate:
     def test_validate_object_unknown_class(self):
@@ -484,38 +491,45 @@ class TestExplanationConstraints:
 
     @pytest.mark.asyncio
     async def test_check_report_publishable_fresh(self):
-        qa = await check_report_publishable({
-            "report_id": 1,
-            "snapshot_time": _fresh_ts(),
-            "access_level": "private",
-            "recommendations": ["Do X", "Do Y"],
-        })
+        qa = await check_report_publishable(
+            {
+                "report_id": 1,
+                "snapshot_time": _fresh_ts(),
+                "access_level": "private",
+                "recommendations": ["Do X", "Do Y"],
+            }
+        )
         assert qa.status == "pass"
         assert qa.passed >= 1
 
     @pytest.mark.asyncio
     async def test_check_report_publishable_no_snapshot(self):
-        qa = await check_report_publishable({
-            "report_id": 2,
-            "snapshot_time": "",
-            "access_level": "private",
-        })
+        qa = await check_report_publishable(
+            {
+                "report_id": 2,
+                "snapshot_time": "",
+                "access_level": "private",
+            }
+        )
         assert qa.status == "fail"
         assert any("snapshot" in e.lower() for e in qa.blocking_errors)
 
     @pytest.mark.asyncio
     async def test_check_report_publishable_api_key_leak(self):
-        qa = await check_report_publishable({
-            "report_id": 3,
-            "snapshot_time": "2026-06-26T12:00:00",
-            "access_level": "public",
-            "api_key": "ABCDEF01-2345-6789-ABCD-EF0123456789AB",
-        })
+        qa = await check_report_publishable(
+            {
+                "report_id": 3,
+                "snapshot_time": "2026-06-26T12:00:00",
+                "access_level": "public",
+                "api_key": "ABCDEF01-2345-6789-ABCD-EF0123456789AB",
+            }
+        )
         assert qa.status == "fail"
         assert any("API key" in e for e in qa.blocking_errors)
 
 
 # ── Account Mapper Tests ──────────────────────────────────────────────
+
 
 @pytest.mark.asyncio
 class TestAccountMapper:
@@ -555,8 +569,7 @@ class TestAccountMapper:
 
         from gw2_progression.ontology.account_mapper import sync_account_to_ontology
 
-        with patch("gw2_progression.ontology.account_mapper.using_db") as mock_db_ctx, \
-             patch("gw2_progression.ontology.account_mapper.load_latest_holdings", AsyncMock(return_value=mock_holdings)):
+        with patch("gw2_progression.ontology.account_mapper.using_db") as mock_db_ctx, patch("gw2_progression.ontology.account_mapper.load_latest_holdings", AsyncMock(return_value=mock_holdings)):
             mock_db = AsyncMock()
             mock_db_ctx.return_value.__aenter__ = AsyncMock(return_value=mock_db)
             mock_db_ctx.return_value.__aexit__ = AsyncMock()
@@ -573,8 +586,7 @@ class TestAccountMapper:
         assert len(owns_rels) == 2
 
     async def test_sync_empty_account(self):
-        with patch("gw2_progression.ontology.account_mapper.using_db") as mock_db_ctx, \
-             patch("gw2_progression.ontology.account_mapper.load_latest_holdings", AsyncMock(return_value=[])):
+        with patch("gw2_progression.ontology.account_mapper.using_db") as mock_db_ctx, patch("gw2_progression.ontology.account_mapper.load_latest_holdings", AsyncMock(return_value=[])):
             mock_db = AsyncMock()
             mock_db_ctx.return_value.__aenter__ = AsyncMock(return_value=mock_db)
             mock_db_ctx.return_value.__aexit__ = AsyncMock()
@@ -585,6 +597,7 @@ class TestAccountMapper:
 
 
 # ── Goal Mapper Tests ─────────────────────────────────────────────────
+
 
 class TestGoalMapper:
     def test_map_goal_to_ontology(self):
@@ -640,16 +653,19 @@ class TestGoalMapper:
 
 # ── Action Registry Tests ─────────────────────────────────────────────
 
+
 class TestActionRegistry:
     @pytest.mark.asyncio
     async def test_execute_unknown_action_fails(self):
         from gw2_progression.ontology.action_registry import execute_action
+
         with pytest.raises(ValueError, match="Unknown action"):
             await execute_action("nonexistent_action")
 
     @pytest.mark.asyncio
     async def test_execute_action_preconditions_blocked(self):
         from gw2_progression.ontology.action_registry import execute_action
+
         with patch("gw2_progression.ontology.action_registry.persist_action", AsyncMock()):
             action = await execute_action(
                 "create_legendary_goal",
@@ -661,6 +677,7 @@ class TestActionRegistry:
 
 
 # ── End-to-End Tests ──────────────────────────────────────────────────
+
 
 @pytest.mark.asyncio
 class TestEndToEnd:
@@ -679,24 +696,29 @@ class TestEndToEnd:
         assert report.safe_surplus == 43
 
     async def test_report_qa_gate_flow(self):
-        qa = await check_report_publishable({
-            "report_id": 42,
-            "snapshot_time": _fresh_ts(),
-            "access_level": "public",
-            "recommendations": ["Sell excess Mystic Coins"],
-        })
+        qa = await check_report_publishable(
+            {
+                "report_id": 42,
+                "snapshot_time": _fresh_ts(),
+                "access_level": "public",
+                "recommendations": ["Sell excess Mystic Coins"],
+            }
+        )
         assert qa.status == "pass"
 
-        qa_blocked = await check_report_publishable({
-            "report_id": 43,
-            "snapshot_time": "",
-            "access_level": "public",
-            "recommendations": [],
-        })
+        qa_blocked = await check_report_publishable(
+            {
+                "report_id": 43,
+                "snapshot_time": "",
+                "access_level": "public",
+                "recommendations": [],
+            }
+        )
         assert qa_blocked.status == "fail"
 
 
 # ── Phase B: Build Fit Trust Tests ────────────────────────────────────
+
 
 class TestBuildTrust:
     def test_evaluate_fresh_build(self):
@@ -783,6 +805,7 @@ class TestBuildTrust:
 
 # ── Phase C: Report Mapper Tests ──────────────────────────────────────
 
+
 @pytest.mark.asyncio
 class TestReportMapper:
     async def test_map_report_to_evidence(self):
@@ -825,6 +848,7 @@ class TestReportMapper:
 
     async def test_publication_requirements_blocked(self):
         from gw2_progression.ontology.report_mapper import check_publication_requirements
+
         result = check_publication_requirements({"report_id": 1}, None)
         assert result["publishable"] is False
         assert "qa_report" in result["missing_requirements"]
@@ -832,50 +856,55 @@ class TestReportMapper:
 
 # ── Phase B + C E2E Tests ─────────────────────────────────────────────
 
+
 @pytest.mark.asyncio
 class TestBuildAndReportE2E:
     async def test_build_trust_in_report_gate(self):
         from gw2_progression.ontology.qa_gate import check_report_publishable
 
-        qa = await check_report_publishable({
-            "report_id": 100,
-            "snapshot_time": _fresh_ts(),
-            "access_level": "public",
-            "recommendations": ["Try Dragonhunter build"],
-            "build_details": [
-                {
-                    "build_id": "sc_dh",
-                    "name": "Dragonhunter",
-                    "source": "snowcrows",
-                    "profession": "Guardian",
-                    "patch_version": "2026.06",
-                    "review_status": "reviewed",
-                },
-            ],
-            "report_type": "free",
-        })
+        qa = await check_report_publishable(
+            {
+                "report_id": 100,
+                "snapshot_time": _fresh_ts(),
+                "access_level": "public",
+                "recommendations": ["Try Dragonhunter build"],
+                "build_details": [
+                    {
+                        "build_id": "sc_dh",
+                        "name": "Dragonhunter",
+                        "source": "snowcrows",
+                        "profession": "Guardian",
+                        "patch_version": "2026.06",
+                        "review_status": "reviewed",
+                    },
+                ],
+                "report_type": "free",
+            }
+        )
         assert qa.status == "pass"
 
     async def test_build_trust_blocks_unreviewed(self):
         from gw2_progression.ontology.qa_gate import check_report_publishable
 
-        qa = await check_report_publishable({
-            "report_id": 101,
-            "snapshot_time": "2026-06-26T12:00:00",
-            "access_level": "public",
-            "recommendations": ["Try custom build"],
-            "build_details": [
-                {
-                    "build_id": "custom_1",
-                    "name": "My Build",
-                    "source": "user",
-                    "profession": "Guardian",
-                    "patch_version": "2026.06",
-                    "review_status": "unreviewed",
-                },
-            ],
-            "report_type": "free",
-        })
+        qa = await check_report_publishable(
+            {
+                "report_id": 101,
+                "snapshot_time": "2026-06-26T12:00:00",
+                "access_level": "public",
+                "recommendations": ["Try custom build"],
+                "build_details": [
+                    {
+                        "build_id": "custom_1",
+                        "name": "My Build",
+                        "source": "user",
+                        "profession": "Guardian",
+                        "patch_version": "2026.06",
+                        "review_status": "unreviewed",
+                    },
+                ],
+                "report_type": "free",
+            }
+        )
         assert qa.status == "fail"
         assert any("unreviewed" in e.lower() for e in qa.blocking_errors)
 
@@ -901,6 +930,7 @@ class TestBuildAndReportE2E:
 
 
 # ── Phase D: Market Domain Tests ──────────────────────────────────────
+
 
 class TestMarketMapper:
     def test_map_sell_candidate(self):
@@ -971,13 +1001,13 @@ class TestMarketMapper:
 
 # ── Delta Sync Tests ──────────────────────────────────────────────────
 
+
 @pytest.mark.asyncio
 class TestDeltaSync:
     async def test_delta_sync_updates_existing(self):
         from gw2_progression.ontology.account_mapper import sync_account_to_ontology
 
-        with patch("gw2_progression.ontology.account_mapper.using_db") as mock_ctx, \
-             patch("gw2_progression.ontology.account_mapper.load_latest_holdings") as mock_holdings:
+        with patch("gw2_progression.ontology.account_mapper.using_db") as mock_ctx, patch("gw2_progression.ontology.account_mapper.load_latest_holdings") as mock_holdings:
             mock_db = AsyncMock()
             mock_ctx.return_value.__aenter__ = AsyncMock(return_value=mock_db)
             mock_ctx.return_value.__aexit__ = AsyncMock()
@@ -1029,8 +1059,7 @@ class TestDeltaSync:
     async def test_delta_sync_adds_new_items(self):
         from gw2_progression.ontology.account_mapper import sync_account_to_ontology
 
-        with patch("gw2_progression.ontology.account_mapper.using_db") as mock_ctx, \
-             patch("gw2_progression.ontology.account_mapper.load_latest_holdings") as mock_holdings:
+        with patch("gw2_progression.ontology.account_mapper.using_db") as mock_ctx, patch("gw2_progression.ontology.account_mapper.load_latest_holdings") as mock_holdings:
             mock_db = AsyncMock()
             mock_ctx.return_value.__aenter__ = AsyncMock(return_value=mock_db)
             mock_ctx.return_value.__aexit__ = AsyncMock()
@@ -1074,6 +1103,7 @@ class TestDeltaSync:
 
 # ── Error Handling Tests ──────────────────────────────────────────────
 
+
 class TestOntologyExceptions:
     def test_exception_hierarchy(self):
         from gw2_progression.ontology.exceptions import (
@@ -1084,6 +1114,7 @@ class TestOntologyExceptions:
             RelationNotFoundError,
             ValidationError,
         )
+
         assert issubclass(ObjectNotFoundError, OntologyError)
         assert issubclass(RelationNotFoundError, OntologyError)
         assert issubclass(ValidationError, OntologyError)
@@ -1092,16 +1123,19 @@ class TestOntologyExceptions:
 
     def test_object_not_found_raised(self):
         from gw2_progression.ontology.exceptions import ObjectNotFoundError
+
         with pytest.raises(ObjectNotFoundError):
             raise ObjectNotFoundError("Object not found")
 
     def test_persistence_error_raised(self):
         from gw2_progression.ontology.exceptions import PersistenceError
+
         with pytest.raises(PersistenceError):
             raise PersistenceError("DB failed")
 
 
 # ── Object Store Retry Tests ─────────────────────────────────────────
+
 
 @pytest.mark.asyncio
 class TestObjectStoreRetry:
@@ -1139,6 +1173,7 @@ class TestObjectStoreRetry:
 
 # ── Phase D1: Guild Workspace Tests ───────────────────────────────────
 
+
 class TestGuildMapper:
     @pytest.mark.asyncio
     async def test_map_guild_to_ontology(self):
@@ -1164,13 +1199,19 @@ class TestGuildMapper:
     async def test_sync_guild_goals(self):
         from gw2_progression.ontology.guild_mapper import map_guild_to_ontology, sync_guild_goals
 
-        guild_data = {"id": 2, "name": "Shared Guild", "invite_code": "xyz", "members": [
-            {"account_name": "Player.A"},
-            {"account_name": "Player.B"},
-        ]}
+        guild_data = {
+            "id": 2,
+            "name": "Shared Guild",
+            "invite_code": "xyz",
+            "members": [
+                {"account_name": "Player.A"},
+                {"account_name": "Player.B"},
+            ],
+        }
         await map_guild_to_ontology(guild_data)
 
         from gw2_progression.ontology.goal_mapper import map_goal_to_ontology
+
         map_goal_to_ontology(TrackedGoal(goal_id="g1", account_name="Player.A", target_item_id=46765, status="active"))
         map_goal_to_ontology(TrackedGoal(goal_id="g2", account_name="Player.B", target_item_id=46765, status="active"))
 
@@ -1190,6 +1231,7 @@ class TestGuildMapper:
 
 
 # ── Phase D2: Quest Mapper Tests ──────────────────────────────────────
+
 
 class TestQuestMapper:
     def test_map_quest_to_ontology(self):
@@ -1343,14 +1385,16 @@ class TestOntologyRuntimeKernel:
         from gw2_progression.ontology import OntologyRuntimeKernel
 
         kernel = OntologyRuntimeKernel()
-        invalid = kernel.execute_llm_action({
-            "type": "add_relation",
-            "relation": {
-                "source": "missing:source",
-                "target": "missing:target",
-                "relation_type": "owns",
-            },
-        })
+        invalid = kernel.execute_llm_action(
+            {
+                "type": "add_relation",
+                "relation": {
+                    "source": "missing:source",
+                    "target": "missing:target",
+                    "relation_type": "owns",
+                },
+            }
+        )
 
         assert invalid["status"] == "rejected"
         assert invalid["validation"]["accepted"] is False
@@ -1360,14 +1404,16 @@ class TestOntologyRuntimeKernel:
         from gw2_progression.ontology import OntologyRuntimeKernel
 
         kernel = OntologyRuntimeKernel()
-        kernel.execute({
-            "type": "add_entity",
-            "entity": {
-                "id": "asset:2",
-                "type": "account_asset",
-                "properties": {"item_id": 2, "count": 3, "location": "wallet"},
-            },
-        })
+        kernel.execute(
+            {
+                "type": "add_entity",
+                "entity": {
+                    "id": "asset:2",
+                    "type": "account_asset",
+                    "properties": {"item_id": 2, "count": 3, "location": "wallet"},
+                },
+            }
+        )
         kernel.execute({"type": "update_entity", "entity_id": "asset:2", "patch": {"count": 8}})
         snapshot = kernel.snapshot()
         replay = kernel.replay()
@@ -1398,33 +1444,35 @@ class TestOntologyRuntimeKernel:
         from gw2_progression.ontology import OntologyRuntimeKernel
 
         kernel = OntologyRuntimeKernel()
-        result = kernel.execute_graph([
-            {
-                "node_id": "account",
-                "type": "add_entity",
-                "entity": {
-                    "id": "account:Dag.1234",
-                    "type": "account_snapshot",
-                    "properties": {"account_name": "Dag.1234", "snapshot_id": "dag-1"},
+        result = kernel.execute_graph(
+            [
+                {
+                    "node_id": "account",
+                    "type": "add_entity",
+                    "entity": {
+                        "id": "account:Dag.1234",
+                        "type": "account_snapshot",
+                        "properties": {"account_name": "Dag.1234", "snapshot_id": "dag-1"},
+                    },
                 },
-            },
-            {
-                "node_id": "asset",
-                "depends_on": ["account"],
-                "type": "add_entity",
-                "entity": {
-                    "id": "asset:dag",
-                    "type": "account_asset",
-                    "properties": {"item_id": 19721, "count": 1, "location": "bank"},
+                {
+                    "node_id": "asset",
+                    "depends_on": ["account"],
+                    "type": "add_entity",
+                    "entity": {
+                        "id": "asset:dag",
+                        "type": "account_asset",
+                        "properties": {"item_id": 19721, "count": 1, "location": "bank"},
+                    },
                 },
-            },
-            {
-                "node_id": "owns",
-                "depends_on": ["asset"],
-                "type": "add_relation",
-                "relation": {"source": "account:Dag.1234", "target": "asset:dag", "relation_type": "owns"},
-            },
-        ])
+                {
+                    "node_id": "owns",
+                    "depends_on": ["asset"],
+                    "type": "add_relation",
+                    "relation": {"source": "account:Dag.1234", "target": "asset:dag", "relation_type": "owns"},
+                },
+            ]
+        )
 
         assert result["status"] == "completed"
         assert [row["node_id"] for row in result["results"]] == ["account", "asset", "owns"]
@@ -1433,20 +1481,22 @@ class TestOntologyRuntimeKernel:
     def test_execution_graph_rejects_cycles(self):
         from gw2_progression.ontology import ExecutionGraph, OntologyViolation
 
-        graph = ExecutionGraph.from_actions([
-            {
-                "node_id": "a",
-                "depends_on": ["b"],
-                "type": "add_entity",
-                "entity": {"id": "asset:a", "type": "account_asset", "properties": {"item_id": 1, "count": 1, "location": "bank"}},
-            },
-            {
-                "node_id": "b",
-                "depends_on": ["a"],
-                "type": "add_entity",
-                "entity": {"id": "asset:b", "type": "account_asset", "properties": {"item_id": 2, "count": 1, "location": "bank"}},
-            },
-        ])
+        graph = ExecutionGraph.from_actions(
+            [
+                {
+                    "node_id": "a",
+                    "depends_on": ["b"],
+                    "type": "add_entity",
+                    "entity": {"id": "asset:a", "type": "account_asset", "properties": {"item_id": 1, "count": 1, "location": "bank"}},
+                },
+                {
+                    "node_id": "b",
+                    "depends_on": ["a"],
+                    "type": "add_entity",
+                    "entity": {"id": "asset:b", "type": "account_asset", "properties": {"item_id": 2, "count": 1, "location": "bank"}},
+                },
+            ]
+        )
 
         with pytest.raises(OntologyViolation):
             graph.topological_order()
@@ -1455,14 +1505,16 @@ class TestOntologyRuntimeKernel:
         from gw2_progression.ontology import OntologyRuntimeKernel
 
         kernel = OntologyRuntimeKernel()
-        kernel.execute({
-            "type": "add_entity",
-            "entity": {
-                "id": "asset:sim",
-                "type": "account_asset",
-                "properties": {"item_id": 3, "count": 1, "location": "bank"},
-            },
-        })
+        kernel.execute(
+            {
+                "type": "add_entity",
+                "entity": {
+                    "id": "asset:sim",
+                    "type": "account_asset",
+                    "properties": {"item_id": 3, "count": 1, "location": "bank"},
+                },
+            }
+        )
         result = kernel.simulate(
             [{"type": "update_entity", "entity_id": "asset:sim", "patch": {"count": 5}}],
             ticks=2,
@@ -1481,21 +1533,27 @@ class TestOntologyRuntimeKernel:
         assert fetched["url"].endswith("/account")
 
         kernel = OntologyRuntimeKernel()
-        normalized = GW2APINormalizer().normalize({
-            "account": {"name": "Hook.1234"},
-            "assets": [{"item_id": 19721, "count": 1, "category": "bank"}],
-        })
+        normalized = GW2APINormalizer().normalize(
+            {
+                "account": {"name": "Hook.1234"},
+                "assets": [{"item_id": 19721, "count": 1, "category": "bank"}],
+            }
+        )
         ingested = kernel.ingest_normalized(normalized)
-        valid = kernel.reasoning.execute({
-            "type": "update_entity",
-            "entity_id": "asset:Hook.1234:bank:19721:0",
-            "patch": {"count": 2},
-        })
-        invalid = kernel.reasoning.execute({
-            "type": "update_entity",
-            "entity_id": "missing",
-            "patch": {"count": 2},
-        })
+        valid = kernel.reasoning.execute(
+            {
+                "type": "update_entity",
+                "entity_id": "asset:Hook.1234:bank:19721:0",
+                "patch": {"count": 2},
+            }
+        )
+        invalid = kernel.reasoning.execute(
+            {
+                "type": "update_entity",
+                "entity_id": "missing",
+                "patch": {"count": 2},
+            }
+        )
 
         assert ingested["dgsk"]["edge_count"] == 1
         assert valid["status"] == "accepted"
@@ -1558,14 +1616,16 @@ class TestOntologyRuntimeKernel:
         from gw2_progression.ontology import OntologyRuntimeKernel
 
         kernel = OntologyRuntimeKernel()
-        kernel.execute({
-            "type": "add_entity",
-            "entity": {
-                "id": "asset:portfolio",
-                "type": "account_asset",
-                "properties": {"item_id": 19721, "count": 4, "location": "bank", "value": 4000},
-            },
-        })
+        kernel.execute(
+            {
+                "type": "add_entity",
+                "entity": {
+                    "id": "asset:portfolio",
+                    "type": "account_asset",
+                    "properties": {"item_id": 19721, "count": 4, "location": "bank", "value": 4000},
+                },
+            }
+        )
 
         decision = kernel.decide(objective="LIQUIDITY")
         policy = kernel.optimize_policy({"sell": 2.0, "hold": 1.0})
@@ -1583,14 +1643,16 @@ class TestOntologyRuntimeKernel:
         from gw2_progression.ontology import OntologyRuntimeKernel
 
         kernel = OntologyRuntimeKernel()
-        kernel.execute({
-            "type": "add_entity",
-            "entity": {
-                "id": "asset:replay",
-                "type": "account_asset",
-                "properties": {"item_id": 2, "count": 3, "location": "wallet", "value": 9},
-            },
-        })
+        kernel.execute(
+            {
+                "type": "add_entity",
+                "entity": {
+                    "id": "asset:replay",
+                    "type": "account_asset",
+                    "properties": {"item_id": 2, "count": 3, "location": "wallet", "value": 9},
+                },
+            }
+        )
         kernel.decide(objective="BALANCED", weights={"BUY": 0.2, "SELL": 0.1, "HOLD": 0.7})
         kernel.optimize_policy({"hold": 3.0})
         guarantees = kernel.guarantees()
@@ -1611,34 +1673,36 @@ class TestOntologyRuntimeKernel:
         from gw2_progression.ontology import OntologyRuntimeKernel
 
         kernel = OntologyRuntimeKernel()
-        result = kernel.execute_graph([
-            {
-                "node_id": "asset:a",
-                "type": "add_entity",
-                "entity": {
-                    "id": "asset:a",
-                    "type": "account_asset",
-                    "properties": {"item_id": 1, "count": 1, "location": "bank"},
+        result = kernel.execute_graph(
+            [
+                {
+                    "node_id": "asset:a",
+                    "type": "add_entity",
+                    "entity": {
+                        "id": "asset:a",
+                        "type": "account_asset",
+                        "properties": {"item_id": 1, "count": 1, "location": "bank"},
+                    },
                 },
-            },
-            {
-                "node_id": "asset:b",
-                "depends_on": [],
-                "type": "add_entity",
-                "entity": {
-                    "id": "asset:b",
-                    "type": "account_asset",
-                    "properties": {"item_id": 2, "count": 1, "location": "bank"},
+                {
+                    "node_id": "asset:b",
+                    "depends_on": [],
+                    "type": "add_entity",
+                    "entity": {
+                        "id": "asset:b",
+                        "type": "account_asset",
+                        "properties": {"item_id": 2, "count": 1, "location": "bank"},
+                    },
                 },
-            },
-            {
-                "node_id": "asset:b:update",
-                "depends_on": ["asset:b"],
-                "type": "update_entity",
-                "entity_id": "asset:b",
-                "patch": {"count": 3},
-            },
-        ])
+                {
+                    "node_id": "asset:b:update",
+                    "depends_on": ["asset:b"],
+                    "type": "update_entity",
+                    "entity_id": "asset:b",
+                    "patch": {"count": 3},
+                },
+            ]
+        )
         lineage = kernel.lineage_store.list()
 
         assert result["scheduler"]["tick_count"] == 2
@@ -1686,14 +1750,12 @@ class TestOntologyRuntimeKernel:
 
 # ── Phase D3: Performance Tests ───────────────────────────────────────
 
+
 class TestPerformance:
     def test_batch_register_objects(self):
         from gw2_progression.ontology.object_store import get_objects_by_class, register_objects
 
-        specs = [
-            {"class_name": "test_batch", "account_name": "Player.B", "properties": {"idx": i}}
-            for i in range(10)
-        ]
+        specs = [{"class_name": "test_batch", "account_name": "Player.B", "properties": {"idx": i}} for i in range(10)]
         objs = register_objects(specs)
         assert len(objs) == 10
         assert len(get_objects_by_class("test_batch")) == 10
@@ -1701,13 +1763,17 @@ class TestPerformance:
     def test_batch_register_relations(self):
         from gw2_progression.ontology.object_store import get_relations, register_objects, register_relations
 
-        objs = register_objects([
-            {"class_name": "batch_a", "account_name": "P"},
-            {"class_name": "batch_b", "account_name": "P"},
-        ])
-        rels = register_relations([
-            {"source_id": objs[0].object_id, "target_id": objs[1].object_id, "relation_type": "batch_rel", "confidence": 0.9},
-        ])
+        objs = register_objects(
+            [
+                {"class_name": "batch_a", "account_name": "P"},
+                {"class_name": "batch_b", "account_name": "P"},
+            ]
+        )
+        rels = register_relations(
+            [
+                {"source_id": objs[0].object_id, "target_id": objs[1].object_id, "relation_type": "batch_rel", "confidence": 0.9},
+            ]
+        )
         assert len(rels) == 1
         assert len(get_relations(relation_type="batch_rel")) == 1
 

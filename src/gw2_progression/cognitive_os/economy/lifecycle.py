@@ -64,21 +64,25 @@ class EconomicLifecycle:
         )
 
     def register_patch(self, name: str, t: int, impact: dict[str, float]) -> None:
-        self._patch_schedule.append({
-            "name": name,
-            "t": t,
-            "impact": impact,
-        })
+        self._patch_schedule.append(
+            {
+                "name": name,
+                "t": t,
+                "impact": impact,
+            }
+        )
 
     def step(self, dt: int = 1) -> EconomicState:
         for _ in range(dt):
-            self._history.append(EconomicState(
-                t=self._state.t,
-                items={k: MarketItem(**v.__dict__) for k, v in self._state.items.items()},
-                total_gold_supply=self._state.total_gold_supply,
-                inflation_rate=self._state.inflation_rate,
-                market_sentiment=self._state.market_sentiment,
-            ))
+            self._history.append(
+                EconomicState(
+                    t=self._state.t,
+                    items={k: MarketItem(**v.__dict__) for k, v in self._state.items.items()},
+                    total_gold_supply=self._state.total_gold_supply,
+                    inflation_rate=self._state.inflation_rate,
+                    market_sentiment=self._state.market_sentiment,
+                )
+            )
             self._state.t += 1
             self._apply_inflation()
             self._apply_patches()
@@ -147,11 +151,13 @@ class EconomicLifecycle:
             temp_demand *= 1.0 + d_cycle
             eq = temp_demand / max(temp_supply, 0.01)
             predicted_price = 100.0 * eq * temp_meta
-            forecast.append({
-                "t": self._state.t + offset,
-                "predicted_price": round(predicted_price, 2),
-                "confidence": max(0.1, 1.0 - offset * 0.08),
-            })
+            forecast.append(
+                {
+                    "t": self._state.t + offset,
+                    "predicted_price": round(predicted_price, 2),
+                    "confidence": max(0.1, 1.0 - offset * 0.08),
+                }
+            )
         return forecast
 
     def market_health(self) -> dict[str, Any]:
@@ -159,9 +165,7 @@ class EconomicLifecycle:
             return {"health": 0.5, "message": "No items registered"}
         total_volatility = sum(item.volatility for item in self._state.items.values())
         avg_price = sum(item.price for item in self._state.items.values()) / max(len(self._state.items), 1)
-        supply_demand_ratio = sum(item.supply for item in self._state.items.values()) / max(
-            sum(item.demand for item in self._state.items.values()), 0.01
-        )
+        supply_demand_ratio = sum(item.supply for item in self._state.items.values()) / max(sum(item.demand for item in self._state.items.values()), 0.01)
         health = max(0.0, min(1.0, 1.0 - total_volatility / max(len(self._state.items), 1) * 0.5))
         return {
             "health": round(health, 3),
@@ -176,13 +180,16 @@ class EconomicLifecycle:
     def to_dict(self) -> dict[str, Any]:
         return {
             "t": self._state.t,
-            "items": {k: {
-                "supply": round(v.supply, 1),
-                "demand": round(v.demand, 1),
-                "price": round(v.price, 2),
-                "volatility": round(v.volatility, 3),
-                "meta_factor": v.meta_factor,
-            } for k, v in self._state.items.items()},
+            "items": {
+                k: {
+                    "supply": round(v.supply, 1),
+                    "demand": round(v.demand, 1),
+                    "price": round(v.price, 2),
+                    "volatility": round(v.volatility, 3),
+                    "meta_factor": v.meta_factor,
+                }
+                for k, v in self._state.items.items()
+            },
             "market_health": self.market_health(),
             "forecast": {item_id: self.price_forecast(item_id, 5) for item_id in list(self._state.items.keys())[:5]},
         }

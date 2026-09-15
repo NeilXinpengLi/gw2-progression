@@ -284,13 +284,15 @@ class EconomySimulator:
             liquidity = "high" if demand >= supply * 0.7 and demand > 100 else "medium" if demand > 0 else "illiquid"
             pressure = (demand - supply) / max(supply + demand, 1)
             forecast = max(price * (1 + pressure * 0.08), 0)
-            rows.append({
-                "item_id": item_id,
-                "price_forecast": round(forecast, 2),
-                "volatility": round(abs(pressure), 3),
-                "liquidity_score": {"high": 1.0, "medium": 0.6, "illiquid": 0.0}[liquidity],
-                "liquidity": liquidity,
-            })
+            rows.append(
+                {
+                    "item_id": item_id,
+                    "price_forecast": round(forecast, 2),
+                    "volatility": round(abs(pressure), 3),
+                    "liquidity_score": {"high": 1.0, "medium": 0.6, "illiquid": 0.0}[liquidity],
+                    "liquidity": liquidity,
+                }
+            )
         return {"items": rows, "market_risk": "HIGH" if any(r["volatility"] > 0.6 for r in rows) else "LOW"}
 
 
@@ -321,15 +323,17 @@ class MultiAgentPlanner:
             priority = goal.get("priority", "normal")
             reward = float(goal.get("progress", 0)) + (0.2 if priority == "high" else 0)
             feasible = budget <= 0 or missing_cost <= budget
-            steps.append({
-                "step": i,
-                "agent": "Coordinator",
-                "action": f"Advance {goal.get('name', goal.get('template_id', 'goal'))}",
-                "cost_estimate": missing_cost,
-                "reward": round(reward, 3),
-                "decision": "APPROVE" if feasible else "REVIEW",
-                "dependencies": goal.get("dependencies", []),
-            })
+            steps.append(
+                {
+                    "step": i,
+                    "agent": "Coordinator",
+                    "action": f"Advance {goal.get('name', goal.get('template_id', 'goal'))}",
+                    "cost_estimate": missing_cost,
+                    "reward": round(reward, 3),
+                    "decision": "APPROVE" if feasible else "REVIEW",
+                    "dependencies": goal.get("dependencies", []),
+                }
+            )
         steps.sort(key=lambda s: (s["decision"] != "APPROVE", -s["reward"], s["cost_estimate"]))
         return {"plan": steps, "dependency_graph": [{"from": d, "to": s["action"]} for s in steps for d in s["dependencies"]]}
 
@@ -393,6 +397,7 @@ class ExpertAISystem:
         self.observability.record_flow("train.run", result.get("status", "unknown"), {"run_id": result.get("run_id")})
 
         from gw2_progression.trainer.publisher import publish_from_training_pipeline
+
         publish_from_training_pipeline(result, self)
 
         return result

@@ -40,15 +40,17 @@ class BehaviorRuleMiner:
         if action_sequences:
             common = Counter(action_sequences).most_common(3)
             for seq, count in common:
-                rules.append(Rule(
-                    id=f"farming_loop_{'_'.join(seq[:3])}",
-                    type=RuleType.BEHAVIOR_PATTERN,
-                    source="player_logs",
-                    condition={"sequence": list(seq), "frequency": count},
-                    action="predict_next_action",
-                    confidence=min(0.9, count / max(len(action_sequences), 1) * 2),
-                    metadata={"sequence": list(seq), "occurrences": count},
-                ))
+                rules.append(
+                    Rule(
+                        id=f"farming_loop_{'_'.join(seq[:3])}",
+                        type=RuleType.BEHAVIOR_PATTERN,
+                        source="player_logs",
+                        condition={"sequence": list(seq), "frequency": count},
+                        action="predict_next_action",
+                        confidence=min(0.9, count / max(len(action_sequences), 1) * 2),
+                        metadata={"sequence": list(seq), "occurrences": count},
+                    )
+                )
         return rules
 
     def detect_trading_behavior(self, logs: list[dict[str, Any]]) -> list[Rule]:
@@ -68,15 +70,17 @@ class BehaviorRuleMiner:
                 avg_price = sum(t["price"] for t in trades) / len(trades)
                 buy_count = sum(1 for t in trades if t["action"] == "trade")
                 flip_count = sum(1 for t in trades if t["action"] == "flip")
-                rules.append(Rule(
-                    id=f"trading_{style}",
-                    type=RuleType.BEHAVIOR_PATTERN,
-                    source="player_logs",
-                    condition={"style": style, "avg_price": round(avg_price, 2), "trade_ratio": round(buy_count / max(flip_count, 1), 2)},
-                    action=f"optimize_{style}_trades",
-                    confidence=min(0.85, len(trades) * 0.05),
-                    metadata={"style": style, "total_trades": len(trades), "buy_count": buy_count, "flip_count": flip_count},
-                ))
+                rules.append(
+                    Rule(
+                        id=f"trading_{style}",
+                        type=RuleType.BEHAVIOR_PATTERN,
+                        source="player_logs",
+                        condition={"style": style, "avg_price": round(avg_price, 2), "trade_ratio": round(buy_count / max(flip_count, 1), 2)},
+                        action=f"optimize_{style}_trades",
+                        confidence=min(0.85, len(trades) * 0.05),
+                        metadata={"style": style, "total_trades": len(trades), "buy_count": buy_count, "flip_count": flip_count},
+                    )
+                )
         return rules
 
     def detect_meta_adaptation(self, logs: list[dict[str, Any]]) -> list[Rule]:
@@ -88,15 +92,17 @@ class BehaviorRuleMiner:
                 farm_types.add(action.get("item_id", ""))
 
         if farm_types:
-            rules.append(Rule(
-                id="meta_adaptation",
-                type=RuleType.BEHAVIOR_PATTERN,
-                source="player_logs",
-                condition={"farmed_items": list(farm_types), "diversity": len(farm_types)},
-                action="recommend_farm_rotation" if len(farm_types) > 1 else "deepen_single_farm",
-                confidence=min(0.8, len(farm_types) * 0.15),
-                metadata={"farmed_count": len(farm_types), "items": list(farm_types)},
-            ))
+            rules.append(
+                Rule(
+                    id="meta_adaptation",
+                    type=RuleType.BEHAVIOR_PATTERN,
+                    source="player_logs",
+                    condition={"farmed_items": list(farm_types), "diversity": len(farm_types)},
+                    action="recommend_farm_rotation" if len(farm_types) > 1 else "deepen_single_farm",
+                    confidence=min(0.8, len(farm_types) * 0.15),
+                    metadata={"farmed_count": len(farm_types), "items": list(farm_types)},
+                )
+            )
         return rules
 
     def mine_as_rules(self, player_logs: list[dict[str, Any]]) -> list[Rule]:

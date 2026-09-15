@@ -33,13 +33,15 @@ class RuleTournament:
             for j in range(i + 1, len(agents)):
                 match = self._run_match(agents[i], agents[j], world)
                 self.matches.append(match)
-                results.append({
-                    "match_id": match.id,
-                    "agent_a": agents[i].id,
-                    "agent_b": agents[j].id,
-                    "scores": match.scores,
-                    "winner": match.winner,
-                })
+                results.append(
+                    {
+                        "match_id": match.id,
+                        "agent_a": agents[i].id,
+                        "agent_b": agents[j].id,
+                        "scores": match.scores,
+                        "winner": match.winner,
+                    }
+                )
                 agents[i].total_matches += 1
                 agents[j].total_matches += 1
                 if match.winner == agents[i].id:
@@ -86,7 +88,4 @@ class RuleTournament:
             for aid, score in r.get("scores", {}).items():
                 agent_scores[aid] = agent_scores.get(aid, 0) + score
         sorted_agents = sorted(agent_scores.items(), key=lambda x: x[1], reverse=True)
-        return [
-            {"rank": i + 1, "agent_id": aid, "total_score": round(score, 4)}
-            for i, (aid, score) in enumerate(sorted_agents)
-        ]
+        return [{"rank": i + 1, "agent_id": aid, "total_score": round(score, 4)} for i, (aid, score) in enumerate(sorted_agents)]

@@ -12,6 +12,7 @@ from gw2_progression.trainer.worker import TrainingWorker, _train_sklearn_model
 
 # ── Fixtures ──────────────────────────────────────────────────────────────
 
+
 @pytest.fixture
 def sample_event() -> dict:
     return {
@@ -43,6 +44,7 @@ def sample_events(sample_event) -> list[dict]:
 
 
 # ── DatasetCollator Tests ─────────────────────────────────────────────────
+
 
 class TestDatasetCollator:
     def test_empty_collator(self):
@@ -106,6 +108,7 @@ class TestDatasetCollator:
 
 # ── Model Trainer Tests ───────────────────────────────────────────────────
 
+
 class TestModelTrainer:
     def test_insufficient_data(self, tmp_path):
         X = np.empty((3, 13), dtype=np.float32)
@@ -136,6 +139,7 @@ class TestModelTrainer:
 
 
 # ── TrainingWorker Tests ──────────────────────────────────────────────────
+
 
 class TestTrainingWorker:
     def test_worker_initialization(self, tmp_path):
@@ -176,19 +180,24 @@ class TestTrainingWorker:
 
 # ── Publisher Tests ───────────────────────────────────────────────────────
 
+
 class TestPublisher:
     def test_publish_training_event_no_redis(self):
         from gw2_progression.trainer.publisher import publish_training_event
+
         result = publish_training_event({"test": True})
         assert result is False
 
     def test_publish_from_training_pipeline_result(self):
         from gw2_progression.trainer.publisher import publish_from_training_pipeline
-        result = publish_from_training_pipeline({
-            "run_id": "test-123",
-            "status": "completed",
-            "etl": {"node_count": 10, "edge_count": 5},
-            "metrics": {"estimated_quality": 0.75, "label_coverage": 1.0, "example_count": 5},
-            "label": {"decision": {"decision": "APPROVE"}},
-        })
+
+        result = publish_from_training_pipeline(
+            {
+                "run_id": "test-123",
+                "status": "completed",
+                "etl": {"node_count": 10, "edge_count": 5},
+                "metrics": {"estimated_quality": 0.75, "label_coverage": 1.0, "example_count": 5},
+                "label": {"decision": {"decision": "APPROVE"}},
+            }
+        )
         assert result is False  # no Redis available in test

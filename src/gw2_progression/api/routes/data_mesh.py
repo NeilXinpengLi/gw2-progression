@@ -44,6 +44,7 @@ async def mesh_status():
 @router.get("/health")
 async def mesh_health():
     from gw2_progression.data_mesh.integration import check_mesh_health
+
     return check_mesh_health()
 
 
@@ -87,6 +88,7 @@ async def list_sources(
     results = reg.list_sources()
     if source_type:
         from gw2_progression.data_mesh.sources.registry import SourceType
+
         try:
             st = SourceType(source_type)
             results = [s for s in results if s.source_type == st]
@@ -94,6 +96,7 @@ async def list_sources(
             raise HTTPException(400, f"unknown source_type: {source_type}")
     if domain:
         from gw2_progression.data_mesh.sources.registry import KBDomain
+
         try:
             d = KBDomain(domain)
             results = [s for s in results if s.recommended_kb_domain == d]
@@ -115,9 +118,14 @@ async def get_source(source_id: str):
 
 @router.get("/bridge")
 async def bridge_status():
-    return _bridge.multi_source_ingest([
-        {"type": "static", "params": {
-            "items": [{"id": 1, "name": "test"}],
-            "wallet": [{"id": 1, "value": 100}],
-        }},
-    ])
+    return _bridge.multi_source_ingest(
+        [
+            {
+                "type": "static",
+                "params": {
+                    "items": [{"id": 1, "name": "test"}],
+                    "wallet": [{"id": 1, "value": 100}],
+                },
+            },
+        ]
+    )

@@ -19,6 +19,7 @@ from gw2_progression.data_acquisition.ingestion.orchestrator import IngestionRes
 @dataclass
 class FlywheelIteration:
     """One iteration of the data flywheel."""
+
     iteration: int
     duration_ms: float
     sources_ingested: int
@@ -231,7 +232,9 @@ class DataFlywheel:
                 "status": self.last_iteration.status,
                 "sources_ingested": self.last_iteration.sources_ingested,
                 "dataset_samples": self.last_iteration.dataset_samples,
-            } if self.last_iteration else None,
+            }
+            if self.last_iteration
+            else None,
             "history": [
                 {
                     "iteration": h.iteration,

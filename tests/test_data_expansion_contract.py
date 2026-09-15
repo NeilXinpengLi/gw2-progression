@@ -43,14 +43,16 @@ def test_ingestion_persists_records_and_reports_coverage():
     from gw2_progression.data_acquisition.registry.source_registry import SourcePriority, SourceRegistry, SourceType
 
     registry = SourceRegistry(sources=[])
-    source = registry.register({
-        "id": "fixture_items",
-        "type": "api",
-        "priority": SourcePriority.CRITICAL,
-        "frequency": "realtime",
-        "freshness_sla_seconds": 60,
-        "confidence_default": 0.95,
-    })
+    source = registry.register(
+        {
+            "id": "fixture_items",
+            "type": "api",
+            "priority": SourcePriority.CRITICAL,
+            "frequency": "realtime",
+            "freshness_sla_seconds": 60,
+            "confidence_default": 0.95,
+        }
+    )
 
     class FixtureFetcher:
         def fetch(self, _source):
@@ -78,10 +80,12 @@ def test_coverage_analyzer_and_active_refresh_planner():
     from gw2_progression.data_acquisition.coverage import ActiveRefreshPlanner, CoverageAnalyzer
     from gw2_progression.data_acquisition.registry.source_registry import SourceRegistry
 
-    registry = SourceRegistry(sources=[
-        {"id": "market", "type": "market", "priority": 1, "frequency": "hourly", "freshness_sla_seconds": 10},
-        {"id": "wiki", "type": "wiki", "priority": 1, "frequency": "daily", "freshness_sla_seconds": 10},
-    ])
+    registry = SourceRegistry(
+        sources=[
+            {"id": "market", "type": "market", "priority": 1, "frequency": "hourly", "freshness_sla_seconds": 10},
+            {"id": "wiki", "type": "wiki", "priority": 1, "frequency": "daily", "freshness_sla_seconds": 10},
+        ]
+    )
     records = [
         DataExpansionRecord.from_entity(
             {"id": "market:mystic_coin", "type": "market_item", "source": "market"},
@@ -109,31 +113,41 @@ def test_horizontal_expander_builds_merged_asset_views():
 
     expander = HorizontalExpander()
     source = SourceConfig(id="items", type=SourceType.API, priority=SourcePriority.HIGH, frequency="daily")
-    item_result = expander.expand({
-        "source": "items",
-        "entities": [{
-            "id": "items:19721",
-            "type": "item",
-            "name": "Glob of Ectoplasm",
-            "properties": {"native_id": 19721, "rarity": "Rare"},
-            "confidence": 0.95,
-        }],
-        "relations": [],
-    }, source)
+    item_result = expander.expand(
+        {
+            "source": "items",
+            "entities": [
+                {
+                    "id": "items:19721",
+                    "type": "item",
+                    "name": "Glob of Ectoplasm",
+                    "properties": {"native_id": 19721, "rarity": "Rare"},
+                    "confidence": 0.95,
+                }
+            ],
+            "relations": [],
+        },
+        source,
+    )
     assert item_result["_horizontal_expanded"]
 
     market_source = SourceConfig(id="prices", type=SourceType.API, priority=SourcePriority.HIGH, frequency="hourly")
-    merged = expander.expand({
-        "source": "prices",
-        "entities": [{
-            "id": "prices:19721",
-            "type": "market_item",
-            "name": "19721",
-            "properties": {"native_id": 19721, "buys": {"unit_price": 10}, "sells": {"unit_price": 12}},
-            "confidence": 0.95,
-        }],
-        "relations": [],
-    }, market_source)
+    merged = expander.expand(
+        {
+            "source": "prices",
+            "entities": [
+                {
+                    "id": "prices:19721",
+                    "type": "market_item",
+                    "name": "19721",
+                    "properties": {"native_id": 19721, "buys": {"unit_price": 10}, "sells": {"unit_price": 12}},
+                    "confidence": 0.95,
+                }
+            ],
+            "relations": [],
+        },
+        market_source,
+    )
     asset = next(entity for entity in merged["entities"] if entity["type"] == "merged_asset")
     assert asset["id"] == "asset:19721"
     assert asset["properties"]["market"]["sells"]["unit_price"] == 12
@@ -164,37 +178,52 @@ def test_recipe_output_connects_to_merged_asset_and_ingredients():
     assert any(relation["relation"] == "requires_ingredient" for relation in vertical["relations"])
 
     horizontal = HorizontalExpander()
-    horizontal.expand({
-        "source": "items",
-        "entities": [{
-            "id": "items:19721",
-            "type": "item",
-            "name": "Glob of Ectoplasm",
-            "properties": {"native_id": 19721},
-            "confidence": 0.95,
-        }],
-        "relations": [],
-    }, source)
-    horizontal.expand({
-        "source": "prices",
-        "entities": [{
-            "id": "prices:19721",
-            "type": "market_item",
-            "properties": {"native_id": 19721, "sells": {"unit_price": 12}, "buys": {"unit_price": 10}},
-            "confidence": 0.95,
-        }],
-        "relations": [],
-    }, source)
-    horizontal.expand({
-        "source": "prices",
-        "entities": [{
-            "id": "prices:123",
-            "type": "market_item",
-            "properties": {"native_id": 123, "sells": {"unit_price": 3}, "buys": {"unit_price": 2}},
-            "confidence": 0.95,
-        }],
-        "relations": [],
-    }, source)
+    horizontal.expand(
+        {
+            "source": "items",
+            "entities": [
+                {
+                    "id": "items:19721",
+                    "type": "item",
+                    "name": "Glob of Ectoplasm",
+                    "properties": {"native_id": 19721},
+                    "confidence": 0.95,
+                }
+            ],
+            "relations": [],
+        },
+        source,
+    )
+    horizontal.expand(
+        {
+            "source": "prices",
+            "entities": [
+                {
+                    "id": "prices:19721",
+                    "type": "market_item",
+                    "properties": {"native_id": 19721, "sells": {"unit_price": 12}, "buys": {"unit_price": 10}},
+                    "confidence": 0.95,
+                }
+            ],
+            "relations": [],
+        },
+        source,
+    )
+    horizontal.expand(
+        {
+            "source": "prices",
+            "entities": [
+                {
+                    "id": "prices:123",
+                    "type": "market_item",
+                    "properties": {"native_id": 123, "sells": {"unit_price": 3}, "buys": {"unit_price": 2}},
+                    "confidence": 0.95,
+                }
+            ],
+            "relations": [],
+        },
+        source,
+    )
     merged = horizontal.expand({"source": "recipes", "entities": [recipe], "relations": []}, source)
     asset = next(entity for entity in merged["entities"] if entity["id"] == "asset:19721")
     assert asset["properties"]["has_recipe"] is True
@@ -222,51 +251,64 @@ def test_horizontal_expander_accepts_market_snapshots_for_craft_costs():
 
     source = SourceConfig(id="fixture", type=SourceType.API, priority=SourcePriority.HIGH, frequency="daily")
     horizontal = HorizontalExpander()
-    horizontal.expand({
-        "source": "items",
-        "entities": [{
-            "id": "items:19721",
-            "type": "item",
-            "name": "Output",
-            "properties": {"native_id": 19721},
-            "confidence": 0.95,
-        }],
-        "relations": [],
-    }, source)
-    horizontal.expand({
-        "source": "market_snapshots",
-        "entities": [
-            {
-                "id": "snapshot:19721",
-                "type": "market_price_snapshot",
-                "properties": {"native_id": 19721, "sells": {"unit_price": 100}, "buys": {"unit_price": 80}},
-                "confidence": 0.95,
-            },
-            {
-                "id": "snapshot:24272",
-                "type": "market_price_snapshot",
-                "properties": {"native_id": 24272, "sells": {"unit_price": 20}, "buys": {"unit_price": 18}},
-                "confidence": 0.95,
-            },
-        ],
-        "relations": [],
-    }, source)
-    merged = horizontal.expand({
-        "source": "recipes",
-        "entities": [{
-            "id": "recipe:1",
-            "type": "recipe",
-            "name": "Snapshot Recipe",
-            "properties": {
-                "native_id": 1,
-                "output_item_id": 19721,
-                "output_item_count": 1,
-                "ingredients": [{"item_id": 24272, "count": 3}],
-            },
-            "confidence": 0.95,
-        }],
-        "relations": [],
-    }, source)
+    horizontal.expand(
+        {
+            "source": "items",
+            "entities": [
+                {
+                    "id": "items:19721",
+                    "type": "item",
+                    "name": "Output",
+                    "properties": {"native_id": 19721},
+                    "confidence": 0.95,
+                }
+            ],
+            "relations": [],
+        },
+        source,
+    )
+    horizontal.expand(
+        {
+            "source": "market_snapshots",
+            "entities": [
+                {
+                    "id": "snapshot:19721",
+                    "type": "market_price_snapshot",
+                    "properties": {"native_id": 19721, "sells": {"unit_price": 100}, "buys": {"unit_price": 80}},
+                    "confidence": 0.95,
+                },
+                {
+                    "id": "snapshot:24272",
+                    "type": "market_price_snapshot",
+                    "properties": {"native_id": 24272, "sells": {"unit_price": 20}, "buys": {"unit_price": 18}},
+                    "confidence": 0.95,
+                },
+            ],
+            "relations": [],
+        },
+        source,
+    )
+    merged = horizontal.expand(
+        {
+            "source": "recipes",
+            "entities": [
+                {
+                    "id": "recipe:1",
+                    "type": "recipe",
+                    "name": "Snapshot Recipe",
+                    "properties": {
+                        "native_id": 1,
+                        "output_item_id": 19721,
+                        "output_item_count": 1,
+                        "ingredients": [{"item_id": 24272, "count": 3}],
+                    },
+                    "confidence": 0.95,
+                }
+            ],
+            "relations": [],
+        },
+        source,
+    )
     asset = next(entity for entity in merged["entities"] if entity["id"] == "asset:19721")
     assert asset["properties"]["craft_cost"] == 60
     assert asset["properties"]["tp_fee_adjusted_revenue"] == 85
@@ -281,10 +323,12 @@ def test_coverage_requires_craft_profit_opportunities():
     from gw2_progression.data_acquisition.coverage import ActiveRefreshPlanner, CoverageAnalyzer
     from gw2_progression.data_acquisition.registry.source_registry import SourceRegistry
 
-    registry = SourceRegistry(sources=[
-        {"id": "gw2_api_recipes", "type": "api", "priority": 0, "frequency": "daily"},
-        {"id": "gw2_market_price_snapshots", "type": "api", "priority": 1, "frequency": "hourly"},
-    ])
+    registry = SourceRegistry(
+        sources=[
+            {"id": "gw2_api_recipes", "type": "api", "priority": 0, "frequency": "daily"},
+            {"id": "gw2_market_price_snapshots", "type": "api", "priority": 1, "frequency": "hourly"},
+        ]
+    )
     records = [
         DataExpansionRecord.from_entity(
             {"id": "asset:1", "type": "merged_asset", "source": "fixture"},
@@ -389,9 +433,7 @@ def test_data_factory_generates_expansion_dataset_from_store():
     from gw2_progression.data_acquisition.registry.source_registry import SourceRegistry
 
     workdir = _test_dir()
-    registry = SourceRegistry(sources=[
-        {"id": "wallet", "type": "api", "priority": 0, "frequency": "realtime", "endpoint": "/v2/account/wallet"}
-    ])
+    registry = SourceRegistry(sources=[{"id": "wallet", "type": "api", "priority": 0, "frequency": "realtime", "endpoint": "/v2/account/wallet"}])
     factory = DataFactory(source_registry=registry, data_store=DataExpansionStore(workdir / "expansion.sqlite3"))
     factory.dataset_builder.output_dir = workdir / "datasets"
     factory.dataset_builder.output_dir.mkdir(parents=True, exist_ok=True)
@@ -502,11 +544,13 @@ def test_fetcher_mediawiki_adapter_and_normalizer_build_wiki_pages():
                             "pageid": 123,
                             "ns": 0,
                             "title": "Crafting",
-                            "revisions": [{
-                                "revid": 456,
-                                "timestamp": "2026-06-29T00:00:00Z",
-                                "slots": {"main": {"*": "Crafting page content"}},
-                            }],
+                            "revisions": [
+                                {
+                                    "revid": 456,
+                                    "timestamp": "2026-06-29T00:00:00Z",
+                                    "slots": {"main": {"*": "Crafting page content"}},
+                                }
+                            ],
                         }
                     }
                 }
@@ -591,14 +635,19 @@ def test_fetcher_replays_raw_account_snapshot_and_normalizer_keeps_sections():
 
     workdir = _test_dir()
     replay_path = workdir / "raw.json"
-    replay_path.write_text(json.dumps({
-        "collected_at": 123.0,
-        "account": {"name": "Netro.7195"},
-        "wallet": [{"id": 1, "value": 100}],
-        "bank": [{"id": 2, "count": 3}],
-        "materials": [{"id": 3, "count": 4}],
-        "characters": [{"name": "Netro Ignis"}],
-    }), encoding="utf-8")
+    replay_path.write_text(
+        json.dumps(
+            {
+                "collected_at": 123.0,
+                "account": {"name": "Netro.7195"},
+                "wallet": [{"id": 1, "value": 100}],
+                "bank": [{"id": 2, "count": 3}],
+                "materials": [{"id": 3, "count": 4}],
+                "characters": [{"name": "Netro Ignis"}],
+            }
+        ),
+        encoding="utf-8",
+    )
     source = SourceConfig(
         id="raw_account",
         type=SourceType.API,
@@ -707,9 +756,7 @@ def test_active_refresh_queue_runs_registered_handler():
     from gw2_progression.data_acquisition.registry.source_registry import SourceRegistry
     from gw2_progression.data_acquisition.scheduler.task_scheduler import TaskScheduler
 
-    registry = SourceRegistry(sources=[
-        {"id": "market", "type": "market", "priority": 1, "frequency": "hourly"}
-    ])
+    registry = SourceRegistry(sources=[{"id": "market", "type": "market", "priority": 1, "frequency": "hourly"}])
     scheduler = TaskScheduler(registry=registry)
     called = []
 

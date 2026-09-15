@@ -1,6 +1,5 @@
 """Tests for Goal-Driven Engine and Plan Iteration Engine."""
 
-
 import json
 from unittest.mock import AsyncMock, patch
 
@@ -24,7 +23,6 @@ class _FakeRow:
 
 
 class TestGoalDrivenEngine:
-
     def test_score_action_balanced(self):
         score = _score_action("SELL_ITEM", gold_gain=100000, time_cost_minutes=60, strategy="balanced")
         assert score != 0.0
@@ -40,6 +38,7 @@ class TestGoalDrivenEngine:
 
     def test_generate_insight_legendary(self):
         from gw2_progression.services.goal_driven_engine import _generate_insight
+
         parsed = ParsedGoal(raw_text="Finish Bolt", goal_type=GoalType.FINISH_LEGENDARY, target_item_name="Bolt")
         state = {"wallet_gold": 500000}
         insight = _generate_insight(state, parsed, [], 67.0)
@@ -48,6 +47,7 @@ class TestGoalDrivenEngine:
 
     def test_estimate_completion(self):
         from gw2_progression.services.goal_driven_engine import _estimate_completion
+
         parsed = ParsedGoal(raw_text="Finish Bolt", goal_type=GoalType.FINISH_LEGENDARY, target_item_id=46765)
         state = {"wallet_gold": 600000, "lvl80_count": 5}
         pct = _estimate_completion(state, parsed)
@@ -55,6 +55,7 @@ class TestGoalDrivenEngine:
 
     def test_estimate_completion_gold(self):
         from gw2_progression.services.goal_driven_engine import _estimate_completion
+
         parsed = ParsedGoal(raw_text="Make gold", goal_type=GoalType.MAKE_GOLD)
         state = {"wallet_gold": 50000}
         pct = _estimate_completion(state, parsed)
@@ -96,7 +97,6 @@ class TestGoalDrivenEngine:
 
 
 class TestPlanIterationEngine:
-
     def test_classify_revision_strategy(self):
         types = classify_revision("Make it cheaper")
         assert "change_strategy" in types
@@ -235,9 +235,9 @@ class TestPlanIterationEngine:
 
 @pytest.mark.asyncio
 class TestGoalInterpreterIntegration:
-
     async def test_full_flow(self):
         from gw2_progression.services.goal_interpreter import interpret_goal
+
         parsed = await interpret_goal("I want to finish Bolt in the cheapest way")
         assert parsed.goal_type == GoalType.FINISH_LEGENDARY
         assert parsed.target_item_id == 46765

@@ -197,9 +197,5 @@ def implementation_maturity_release_gate(signals: dict[str, Any] | None = None) 
         "blockers": blockers,
         "weights": dict(MATURITY_RELEASE_WEIGHTS),
         "governance_snapshot_hash": governance_report.get("snapshot_hash", ""),
-        "recommendation": (
-            "Release gate passes production threshold."
-            if status == "production_ready"
-            else "Continue hardening blockers before claiming 90% production maturity."
-        ),
+        "recommendation": ("Release gate passes production threshold." if status == "production_ready" else "Continue hardening blockers before claiming 90% production maturity."),
     }

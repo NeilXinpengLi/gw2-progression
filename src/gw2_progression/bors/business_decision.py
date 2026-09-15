@@ -26,16 +26,16 @@ class Decision(Enum):
 @dataclass
 class DecisionFactor:
     name: str
-    value: float       # 0..1
-    weight: float      # 0..1 (sum need not be 1; normalized internally)
-    impact: str = ""   # "positive" / "negative"
+    value: float  # 0..1
+    weight: float  # 0..1 (sum need not be 1; normalized internally)
+    impact: str = ""  # "positive" / "negative"
     detail: str = ""
 
 
 @dataclass
 class DecisionRecord:
     decision: Decision
-    score: float           # weighted total 0..1
+    score: float  # weighted total 0..1
     confidence: float = 1.0
     threshold: float = 0.6
     factors: list[DecisionFactor] = field(default_factory=list)
@@ -106,25 +106,29 @@ class DecisionEngine:
         for kpi in kpis:
             if hasattr(kpi, "value"):
                 normalized = max(0, min(kpi.value, 1))
-                factors.append(DecisionFactor(
-                    name=kpi.name if hasattr(kpi, "name") else "kpi",
-                    value=normalized,
-                    weight=0.3,
-                    impact="positive" if normalized >= 0.5 else "negative",
-                    detail=getattr(kpi, "detail", ""),
-                ))
+                factors.append(
+                    DecisionFactor(
+                        name=kpi.name if hasattr(kpi, "name") else "kpi",
+                        value=normalized,
+                        weight=0.3,
+                        impact="positive" if normalized >= 0.5 else "negative",
+                        detail=getattr(kpi, "detail", ""),
+                    )
+                )
         for risk in risks:
             if hasattr(risk, "level"):
                 level_str = risk.level if hasattr(risk, "level") else "MEDIUM"
                 levels = {"NONE": 0, "LOW": 0.2, "MEDIUM": 0.5, "HIGH": 0.8, "CRITICAL": 1.0}
                 risk_val = levels.get(str(level_str).upper(), 0.5)
-                factors.append(DecisionFactor(
-                    name=getattr(risk, "name", "risk"),
-                    value=risk_val,
-                    weight=0.3,
-                    impact="negative",
-                    detail=getattr(risk, "detail", ""),
-                ))
+                factors.append(
+                    DecisionFactor(
+                        name=getattr(risk, "name", "risk"),
+                        value=risk_val,
+                        weight=0.3,
+                        impact="negative",
+                        detail=getattr(risk, "detail", ""),
+                    )
+                )
         return self.decide(decision_type, factors)
 
     def score_action(
@@ -135,6 +139,7 @@ class DecisionEngine:
     ) -> float:
         """Legacy score_action wrapper."""
         from ..services.v4_economic_model import score_action as v4_score
+
         price = kwargs.get("price")
         strategy = kwargs.get("strategy", "hybrid")
         result = v4_score(action, price, strategy)

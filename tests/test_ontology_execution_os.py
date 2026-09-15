@@ -52,10 +52,12 @@ def test_rule_and_commerce_plugins_record_lineage_through_kernel(tmp_path, monke
     rule = RuleValidationPlugin()
     commerce = CommerceLineagePlugin()
 
-    result = os.execute_proposals([
-        *rule.propose({"valid": True, "warnings": []}),
-        *commerce.propose({"event_type": "ORDER_FULFILLED", "order_id": "42", "idempotency_key": "idem-1"}),
-    ])
+    result = os.execute_proposals(
+        [
+            *rule.propose({"valid": True, "warnings": []}),
+            *commerce.propose({"event_type": "ORDER_FULFILLED", "order_id": "42", "idempotency_key": "idem-1"}),
+        ]
+    )
 
     assert result["executed_count"] == 2
     assert result["lineage_count"] == 2

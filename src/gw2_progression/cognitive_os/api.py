@@ -64,12 +64,14 @@ class ClosedLoopRequest(BaseModel):
 @router.post("/initialize")
 async def initialize(req: InitializeRequest) -> dict[str, Any]:
     os = get_cognitive_os()
-    os.initialize({
-        "gold": req.gold,
-        "inventory": dict(req.inventory),
-        "achievements": list(req.achievements),
-        "market": dict(req.market),
-    })
+    os.initialize(
+        {
+            "gold": req.gold,
+            "inventory": dict(req.inventory),
+            "achievements": list(req.achievements),
+            "market": dict(req.market),
+        }
+    )
     return {"status": "ok", "t": os.temporal.t, "agents": {n: a.to_dict() for n, a in os.agents.items()}}
 
 

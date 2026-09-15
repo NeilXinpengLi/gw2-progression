@@ -46,6 +46,7 @@ def test_health_ok(client):
 
 # ── Redirect ──
 
+
 def test_root_serves_landing(client):
     resp = client.get("/")
     assert resp.status_code == 200
@@ -54,6 +55,7 @@ def test_root_serves_landing(client):
 
 
 # ── Static Pages ──
+
 
 def test_account_page_served(client):
     resp = client.get("/account")
@@ -78,6 +80,7 @@ def test_plan_page_served(client):
 
 # ── SVG Icons ──
 
+
 def test_svg_sprite_inlined_in_account(client):
     resp = client.get("/account")
     assert '<symbol id="sym-nav-account"' in resp.text
@@ -100,6 +103,7 @@ def test_svg_sprite_inlined_in_plan(client):
 
 
 # ── Static Files ──
+
 
 def test_static_css(client):
     resp = client.get("/static/style.css")
@@ -127,6 +131,7 @@ def test_static_css_account(client):
 
 # ── Health ──
 
+
 def test_health_returns_request_id(client):
     resp = client.get("/health")
     assert resp.status_code == 200
@@ -134,6 +139,7 @@ def test_health_returns_request_id(client):
 
 
 # ── Analyze endpoint ──
+
 
 def test_analyze_short_key_returns_422(client):
     resp = client.post("/analyze", json={"api_key": "short"})

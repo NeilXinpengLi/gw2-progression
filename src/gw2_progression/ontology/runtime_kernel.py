@@ -150,18 +150,22 @@ class GraphBuilder:
     def build(self, entities: list[dict[str, Any]], relations: list[dict[str, Any]]) -> Graph:
         graph = Graph()
         for entity in entities:
-            graph.add_node(Entity(
-                id=str(entity.get("id") or entity.get("object_id") or ""),
-                type=str(entity.get("type") or entity.get("class_name") or ""),
-                attributes=copy.deepcopy(entity.get("properties", entity.get("attributes", {}))),
-            ))
+            graph.add_node(
+                Entity(
+                    id=str(entity.get("id") or entity.get("object_id") or ""),
+                    type=str(entity.get("type") or entity.get("class_name") or ""),
+                    attributes=copy.deepcopy(entity.get("properties", entity.get("attributes", {}))),
+                )
+            )
         for relation in relations:
-            graph.add_edge(Relation(
-                src=str(relation.get("source") or relation.get("src") or relation.get("source_id") or ""),
-                dst=str(relation.get("target") or relation.get("dst") or relation.get("target_id") or ""),
-                rtype=str(relation.get("relation_type") or relation.get("rtype") or relation.get("type") or ""),
-                attributes=copy.deepcopy(relation.get("properties", relation.get("attributes", {}))),
-            ))
+            graph.add_edge(
+                Relation(
+                    src=str(relation.get("source") or relation.get("src") or relation.get("source_id") or ""),
+                    dst=str(relation.get("target") or relation.get("dst") or relation.get("target_id") or ""),
+                    rtype=str(relation.get("relation_type") or relation.get("rtype") or relation.get("type") or ""),
+                    attributes=copy.deepcopy(relation.get("properties", relation.get("attributes", {}))),
+                )
+            )
         return graph
 
 
@@ -173,11 +177,13 @@ class GW2APINormalizer:
         account_name = str(account.get("name") or raw.get("account_name") or "unknown")
         snapshot_id = str(raw.get("snapshot_id") or raw.get("run_id") or raw.get("exported_at") or "snapshot")
         account_id = f"account:{account_name}"
-        entities = [{
-            "id": account_id,
-            "type": "account_snapshot",
-            "properties": {"account_name": account_name, "snapshot_id": snapshot_id},
-        }]
+        entities = [
+            {
+                "id": account_id,
+                "type": "account_snapshot",
+                "properties": {"account_name": account_name, "snapshot_id": snapshot_id},
+            }
+        ]
         relations: list[dict[str, Any]] = []
         assets = raw.get("assets", [])
         if isinstance(assets, list):
@@ -185,16 +191,18 @@ class GW2APINormalizer:
                 item_id = int(asset.get("item_id", asset.get("id", index + 1)) or index + 1)
                 location = str(asset.get("location", asset.get("category", "unknown")))
                 asset_id = f"asset:{account_name}:{location}:{item_id}:{index}"
-                entities.append({
-                    "id": asset_id,
-                    "type": "account_asset",
-                    "properties": {
-                        "item_id": item_id,
-                        "count": int(asset.get("count", 1) or 0),
-                        "location": location,
-                        "value": int(asset.get("total_value", asset.get("value", 0)) or 0),
-                    },
-                })
+                entities.append(
+                    {
+                        "id": asset_id,
+                        "type": "account_asset",
+                        "properties": {
+                            "item_id": item_id,
+                            "count": int(asset.get("count", 1) or 0),
+                            "location": location,
+                            "value": int(asset.get("total_value", asset.get("value", 0)) or 0),
+                        },
+                    }
+                )
                 relations.append({"source": account_id, "target": asset_id, "relation_type": "owns"})
         return {"entities": entities, "relations": relations}
 
@@ -257,67 +265,89 @@ class OntologyRegistry:
     def from_project_config(cls) -> "OntologyRegistry":
         registry = cls()
         for name, definition in CLASS_DEFINITIONS.items():
-            registry.register_entity(EntitySchema(
-                name=name,
-                required_attributes=tuple(definition.get("required_properties", [])),
-                constraints=tuple(definition.get("qa_checks", [])),
-            ))
+            registry.register_entity(
+                EntitySchema(
+                    name=name,
+                    required_attributes=tuple(definition.get("required_properties", [])),
+                    constraints=tuple(definition.get("qa_checks", [])),
+                )
+            )
         for relation_type, definition in RELATION_DEFINITIONS.items():
-            registry.register_relation(RelationSchema(
-                relation_type=relation_type,
-                source_entity=definition.get("source_class"),
-                target_entity=definition.get("target_class"),
-                allow_multiple=bool(definition.get("allow_multiple", True)),
-                cardinality="many" if definition.get("allow_multiple", True) else "one",
-            ))
+            registry.register_relation(
+                RelationSchema(
+                    relation_type=relation_type,
+                    source_entity=definition.get("source_class"),
+                    target_entity=definition.get("target_class"),
+                    allow_multiple=bool(definition.get("allow_multiple", True)),
+                    cardinality="many" if definition.get("allow_multiple", True) else "one",
+                )
+            )
         for action_type, definition in ACTION_DEFINITIONS.items():
-            registry.register_action(ActionSchema(
-                action_type=action_type,
-                input_schema=dict(definition.get("input_schema", {})),
-                preconditions=tuple(definition.get("preconditions", [])),
-                effects=tuple(definition.get("effects", [])),
-            ))
-        registry.register_action(ActionSchema(
-            action_type="add_entity",
-            input_schema={"entity": "dict"},
-            effects=("creates entity",),
-        ))
-        registry.register_action(ActionSchema(
-            action_type="add_relation",
-            input_schema={"relation": "dict"},
-            effects=("creates relation",),
-        ))
-        registry.register_action(ActionSchema(
-            action_type="update_entity",
-            input_schema={"entity_id": "string", "patch": "dict"},
-            preconditions=("entity_exists",),
-            effects=("updates entity properties",),
-        ))
-        registry.register_entity(EntitySchema(
-            name="decision_record",
-            required_attributes=("decision", "score", "source"),
-            constraints=("deterministic_decision",),
-        ))
-        registry.register_entity(EntitySchema(
-            name="policy_weight",
-            required_attributes=("policy", "weight", "source"),
-            constraints=("bounded_weight",),
-        ))
-        registry.register_relation(RelationSchema(
-            relation_type="recommends",
-            source_entity="decision_record",
-            target_entity=None,
-        ))
-        registry.register_action(ActionSchema(
-            action_type="record_decision",
-            input_schema={"decision": "dict"},
-            effects=("creates decision_record entity",),
-        ))
-        registry.register_action(ActionSchema(
-            action_type="apply_policy_weight",
-            input_schema={"policy": "dict"},
-            effects=("creates policy_weight entity",),
-        ))
+            registry.register_action(
+                ActionSchema(
+                    action_type=action_type,
+                    input_schema=dict(definition.get("input_schema", {})),
+                    preconditions=tuple(definition.get("preconditions", [])),
+                    effects=tuple(definition.get("effects", [])),
+                )
+            )
+        registry.register_action(
+            ActionSchema(
+                action_type="add_entity",
+                input_schema={"entity": "dict"},
+                effects=("creates entity",),
+            )
+        )
+        registry.register_action(
+            ActionSchema(
+                action_type="add_relation",
+                input_schema={"relation": "dict"},
+                effects=("creates relation",),
+            )
+        )
+        registry.register_action(
+            ActionSchema(
+                action_type="update_entity",
+                input_schema={"entity_id": "string", "patch": "dict"},
+                preconditions=("entity_exists",),
+                effects=("updates entity properties",),
+            )
+        )
+        registry.register_entity(
+            EntitySchema(
+                name="decision_record",
+                required_attributes=("decision", "score", "source"),
+                constraints=("deterministic_decision",),
+            )
+        )
+        registry.register_entity(
+            EntitySchema(
+                name="policy_weight",
+                required_attributes=("policy", "weight", "source"),
+                constraints=("bounded_weight",),
+            )
+        )
+        registry.register_relation(
+            RelationSchema(
+                relation_type="recommends",
+                source_entity="decision_record",
+                target_entity=None,
+            )
+        )
+        registry.register_action(
+            ActionSchema(
+                action_type="record_decision",
+                input_schema={"decision": "dict"},
+                effects=("creates decision_record entity",),
+            )
+        )
+        registry.register_action(
+            ActionSchema(
+                action_type="apply_policy_weight",
+                input_schema={"policy": "dict"},
+                effects=("creates policy_weight entity",),
+            )
+        )
         return registry
 
     def register_entity(self, schema: EntitySchema) -> EntitySchema:
@@ -366,10 +396,7 @@ class OntologyRegistry:
             errors.append(f"Relation target must be {schema.target_entity}")
         if not schema.allow_multiple:
             for existing in state.relations:
-                if (
-                    existing.get("source") == source
-                    and existing.get("relation_type") == relation_type
-                ):
+                if existing.get("source") == source and existing.get("relation_type") == relation_type:
                     errors.append(f"Relation {relation_type} allows only one target per source")
                     break
         return errors
@@ -557,7 +584,7 @@ class LineageStore:
         return copy.deepcopy(record)
 
     def list(self, limit: int | None = None) -> list[dict[str, Any]]:
-        records = self._records if limit is None else self._records[-max(int(limit), 0):]
+        records = self._records if limit is None else self._records[-max(int(limit), 0) :]
         return copy.deepcopy(records)
 
     def clear(self) -> None:
@@ -584,9 +611,7 @@ class KernelPersistence:
         manifests = self.list_manifests()
         manifest_count = len(manifests)
         signed_manifest_count = sum(1 for manifest in manifests if manifest.get("signature_status") == "valid")
-        compatible_manifest_count = sum(
-            1 for manifest in manifests if manifest.get("compatibility_status") == "compatible"
-        )
+        compatible_manifest_count = sum(1 for manifest in manifests if manifest.get("compatibility_status") == "compatible")
         return {
             "enabled": True,
             "tenant_id": self.tenant_id,
@@ -792,19 +817,21 @@ class KernelPersistence:
                 signature=row["manifest_signature"],
             )
             compatibility_status = self._manifest_compatibility_status(str(row["schema_version"]))
-            manifests.append({
-                "tenant_id": self.tenant_id,
-                "graph_id": row["graph_id"],
-                "manifest_hash": row["manifest_hash"],
-                "schema_version": row["schema_version"],
-                "kernel_version": row["kernel_version"],
-                "manifest_signature": row["manifest_signature"],
-                "signature_algorithm": row["signature_algorithm"],
-                "signature_status": signature_status,
-                "compatibility_status": compatibility_status,
-                "supported_schema_versions": sorted(self.SUPPORTED_MANIFEST_SCHEMA_VERSIONS),
-                "created_at": row["created_at"],
-            })
+            manifests.append(
+                {
+                    "tenant_id": self.tenant_id,
+                    "graph_id": row["graph_id"],
+                    "manifest_hash": row["manifest_hash"],
+                    "schema_version": row["schema_version"],
+                    "kernel_version": row["kernel_version"],
+                    "manifest_signature": row["manifest_signature"],
+                    "signature_algorithm": row["signature_algorithm"],
+                    "signature_status": signature_status,
+                    "compatibility_status": compatibility_status,
+                    "supported_schema_versions": sorted(self.SUPPORTED_MANIFEST_SCHEMA_VERSIONS),
+                    "created_at": row["created_at"],
+                }
+            )
         return manifests
 
     def load_state(self) -> KernelState:
@@ -894,9 +921,7 @@ class KernelPersistence:
             )
             """
         )
-        conn.execute(
-            "CREATE INDEX IF NOT EXISTS idx_ontology_kernel_lineage_tenant ON ontology_kernel_lineage(tenant_id, step)"
-        )
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_ontology_kernel_lineage_tenant ON ontology_kernel_lineage(tenant_id, step)")
         conn.execute(
             """
             CREATE TABLE IF NOT EXISTS ontology_kernel_manifests (
@@ -914,19 +939,12 @@ class KernelPersistence:
             )
             """
         )
-        manifest_columns = {
-            str(row["name"])
-            for row in conn.execute("PRAGMA table_info(ontology_kernel_manifests)").fetchall()
-        }
+        manifest_columns = {str(row["name"]) for row in conn.execute("PRAGMA table_info(ontology_kernel_manifests)").fetchall()}
         if "manifest_signature" not in manifest_columns:
             conn.execute("ALTER TABLE ontology_kernel_manifests ADD COLUMN manifest_signature TEXT")
         if "signature_algorithm" not in manifest_columns:
-            conn.execute(
-                "ALTER TABLE ontology_kernel_manifests ADD COLUMN signature_algorithm TEXT NOT NULL DEFAULT ''"
-            )
-        conn.execute(
-            "CREATE INDEX IF NOT EXISTS idx_ontology_kernel_manifests_tenant ON ontology_kernel_manifests(tenant_id, graph_id)"
-        )
+            conn.execute("ALTER TABLE ontology_kernel_manifests ADD COLUMN signature_algorithm TEXT NOT NULL DEFAULT ''")
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_ontology_kernel_manifests_tenant ON ontology_kernel_manifests(tenant_id, graph_id)")
         conn.commit()
 
     def _manifest_signature_status(
@@ -1039,12 +1057,14 @@ class QueryEngine:
                 if relation_type and relation.get("relation_type") != relation_type:
                     continue
                 target = str(relation.get("target"))
-                steps.append({
-                    "from": current,
-                    "to": target,
-                    "relation": relation.get("relation_type"),
-                    "depth": level + 1,
-                })
+                steps.append(
+                    {
+                        "from": current,
+                        "to": target,
+                        "relation": relation.get("relation_type"),
+                        "depth": level + 1,
+                    }
+                )
                 if target not in seen:
                     seen.add(target)
                     frontier.append((target, level + 1))
@@ -1072,10 +1092,7 @@ class QueryEngine:
             "entity_id": entity_id,
             "count": count,
             "estimated_value": count * value,
-            "relation_count": sum(
-                1 for rel in self.state.relations
-                if rel.get("source") == entity_id or rel.get("target") == entity_id
-            ),
+            "relation_count": sum(1 for rel in self.state.relations if rel.get("source") == entity_id or rel.get("target") == entity_id),
         }
 
 
@@ -1395,12 +1412,14 @@ class OOSKSimulation:
             for step in steps:
                 result = self.kernel.execute(step)
                 executed.append(result)
-            timeline.append({
-                "tick": self.time,
-                "executed": len(executed),
-                "state_hash": self.kernel.snapshot()["state_hash"],
-                "results": executed,
-            })
+            timeline.append(
+                {
+                    "tick": self.time,
+                    "executed": len(executed),
+                    "state_hash": self.kernel.snapshot()["state_hash"],
+                    "results": executed,
+                }
+            )
         return {
             "status": "completed",
             "time": self.time,
@@ -1607,14 +1626,8 @@ class OntologyRuntimeKernel:
             "persistent_store": persistence_status["enabled"],
             "persistent_replay": persistence_status["enabled"],
             "persistent_manifests": persistence_status.get("manifest_count", 0) > 0,
-            "signed_manifests": (
-                persistence_status.get("manifest_count", 0) > 0
-                and persistence_status.get("manifest_count") == persistence_status.get("signed_manifest_count")
-            ),
-            "compatible_manifests": (
-                persistence_status.get("manifest_count", 0) > 0
-                and persistence_status.get("manifest_count") == persistence_status.get("compatible_manifest_count")
-            ),
+            "signed_manifests": (persistence_status.get("manifest_count", 0) > 0 and persistence_status.get("manifest_count") == persistence_status.get("signed_manifest_count")),
+            "compatible_manifests": (persistence_status.get("manifest_count", 0) > 0 and persistence_status.get("manifest_count") == persistence_status.get("compatible_manifest_count")),
             "mismatches": replay["mismatches"],
         }
 
@@ -1707,11 +1720,7 @@ def _compute_delta(before: dict[str, Any], after: dict[str, Any]) -> dict[str, A
     after_relations = after.get("relations", [])
     added_entities = sorted(set(after_entities) - set(before_entities))
     removed_entities = sorted(set(before_entities) - set(after_entities))
-    updated_entities = sorted(
-        entity_id
-        for entity_id in set(before_entities) & set(after_entities)
-        if before_entities[entity_id] != after_entities[entity_id]
-    )
+    updated_entities = sorted(entity_id for entity_id in set(before_entities) & set(after_entities) if before_entities[entity_id] != after_entities[entity_id])
     return {
         "added_entities": added_entities,
         "removed_entities": removed_entities,

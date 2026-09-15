@@ -42,24 +42,26 @@ class LLMRuleDistiller:
         for rtype, group in grouped.items():
             avg_conf = sum(r.confidence for r in group) / max(len(group), 1)
             sources = list({r.source for r in group})
-            distilled.append(Rule(
-                id=f"meta_{rtype}",
-                type=RuleType.LLM_DISTILLED,
-                source=f"distilled:{rtype}",
-                condition={
-                    "source_rules": len(group),
-                    "aggregated_from": sources[:20],
-                    "avg_confidence": round(avg_conf, 3),
-                },
-                action=f"apply_{rtype}_rules",
-                confidence=min(0.95, avg_conf + 0.1),
-                metadata={
-                    "rule_type": rtype,
-                    "rule_count": len(group),
-                    "sources": sources[:50],
-                    "distillation_method": "deterministic_aggregation",
-                },
-            ))
+            distilled.append(
+                Rule(
+                    id=f"meta_{rtype}",
+                    type=RuleType.LLM_DISTILLED,
+                    source=f"distilled:{rtype}",
+                    condition={
+                        "source_rules": len(group),
+                        "aggregated_from": sources[:20],
+                        "avg_confidence": round(avg_conf, 3),
+                    },
+                    action=f"apply_{rtype}_rules",
+                    confidence=min(0.95, avg_conf + 0.1),
+                    metadata={
+                        "rule_type": rtype,
+                        "rule_count": len(group),
+                        "sources": sources[:50],
+                        "distillation_method": "deterministic_aggregation",
+                    },
+                )
+            )
         return distilled
 
     def _distill_via_llm(self, rules: list[Rule]) -> list[Rule]:

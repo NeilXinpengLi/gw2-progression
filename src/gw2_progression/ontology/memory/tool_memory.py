@@ -7,12 +7,14 @@ _records: list[dict] = []
 
 
 def record(tool: str, success: bool, duration_ms: float = 0) -> None:
-    _records.append({
-        "tool": tool,
-        "success": success,
-        "duration_ms": duration_ms,
-        "timestamp": time.time(),
-    })
+    _records.append(
+        {
+            "tool": tool,
+            "success": success,
+            "duration_ms": duration_ms,
+            "timestamp": time.time(),
+        }
+    )
 
 
 def success_rate(tool: str, window_minutes: float = 0) -> float:

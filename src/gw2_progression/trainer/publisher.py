@@ -26,6 +26,7 @@ def _get_redis():
         if url:
             try:
                 import redis as r
+
                 _redis_client = r.Redis.from_url(url)
                 _redis_client.ping()
                 _HAS_REDIS = True

@@ -30,7 +30,7 @@ class RuleEvolutionSystem:
             child["id"] = f"evolved:gen{self.generation}:{self._rng.randint(10000, 99999)}"
             child["generation"] = self.generation
             offspring.append(child)
-        new_population = elite + offspring[:self.population_size - len(elite)]
+        new_population = elite + offspring[: self.population_size - len(elite)]
         self._record_generation(new_population)
         return new_population
 
@@ -65,11 +65,13 @@ class RuleEvolutionSystem:
 
     def _record_generation(self, population: list[dict[str, Any]]) -> None:
         fitnesses = [self.reward.fitness(r) for r in population]
-        self.history.append({
-            "generation": self.generation,
-            "population_size": len(population),
-            "avg_fitness": round(sum(fitnesses) / max(len(fitnesses), 1), 4),
-            "max_fitness": round(max(fitnesses), 4),
-            "min_fitness": round(min(fitnesses), 4),
-            "types": {t: sum(1 for r in population if r.get("type") == t) for t in ["crafting", "economy", "behavior", "meta"]},
-        })
+        self.history.append(
+            {
+                "generation": self.generation,
+                "population_size": len(population),
+                "avg_fitness": round(sum(fitnesses) / max(len(fitnesses), 1), 4),
+                "max_fitness": round(max(fitnesses), 4),
+                "min_fitness": round(min(fitnesses), 4),
+                "types": {t: sum(1 for r in population if r.get("type") == t) for t in ["crafting", "economy", "behavior", "meta"]},
+            }
+        )

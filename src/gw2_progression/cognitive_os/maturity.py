@@ -224,7 +224,4 @@ class GCOSMaturityEvaluator:
 
     def _recommendations(self, layers: list[MaturityLayer]) -> list[str]:
         ordered = sorted(layers, key=lambda layer: layer.score)
-        return [
-            f"Prioritize {layer.layer} {layer.name}: {layer.gaps[0] if layer.gaps else 'increase measured coverage'}"
-            for layer in ordered[:3]
-        ]
+        return [f"Prioritize {layer.layer} {layer.name}: {layer.gaps[0] if layer.gaps else 'increase measured coverage'}" for layer in ordered[:3]]

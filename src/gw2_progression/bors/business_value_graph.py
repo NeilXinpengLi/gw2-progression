@@ -92,13 +92,15 @@ class ValueGraph:
             if not node:
                 return
             limit[0] += 1
-            results.append({
-                "node_id": node.node_id,
-                "node_type": node.node_type,
-                "name": node.name,
-                "value": node.value,
-                "path_value": round(path_value, 4),
-            })
+            results.append(
+                {
+                    "node_id": node.node_id,
+                    "node_type": node.node_type,
+                    "name": node.name,
+                    "value": node.value,
+                    "path_value": round(path_value, 4),
+                }
+            )
             for edge in self.edges:
                 if edge.source_id == current_id:
                     target_node = self.nodes.get(edge.target_id)

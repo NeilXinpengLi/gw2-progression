@@ -16,11 +16,13 @@ class DGSKStructure:
     relations: list[dict] = field(default_factory=list)
     achievements: list[dict] = field(default_factory=list)
     recipes: list[dict] = field(default_factory=list)
-    metadata: dict[str, Any] = field(default_factory=lambda: {
-        "normalized_at": datetime.now(timezone.utc).isoformat(),
-        "source": "unknown",
-        "version": "1.0",
-    })
+    metadata: dict[str, Any] = field(
+        default_factory=lambda: {
+            "normalized_at": datetime.now(timezone.utc).isoformat(),
+            "source": "unknown",
+            "version": "1.0",
+        }
+    )
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -130,24 +132,15 @@ class SchemaNormalizer:
 
     @classmethod
     def _normalize_wallet_entry(cls, entry: dict) -> dict:
-        return {
-            cls.WALLET_NORMALIZER.get(k, k): v
-            for k, v in entry.items()
-        }
+        return {cls.WALLET_NORMALIZER.get(k, k): v for k, v in entry.items()}
 
     @classmethod
     def _normalize_item_entry(cls, entry: dict) -> dict:
-        return {
-            cls.ITEM_NORMALIZER.get(k, k): v
-            for k, v in entry.items()
-        }
+        return {cls.ITEM_NORMALIZER.get(k, k): v for k, v in entry.items()}
 
     @classmethod
     def _normalize_relation_entry(cls, entry: dict) -> dict:
-        return {
-            cls.RELATION_NORMALIZER.get(k, k): v
-            for k, v in entry.items()
-        }
+        return {cls.RELATION_NORMALIZER.get(k, k): v for k, v in entry.items()}
 
     @classmethod
     def merge(cls, structures: list[DGSKStructure]) -> DGSKStructure:

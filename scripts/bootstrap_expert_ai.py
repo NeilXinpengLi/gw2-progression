@@ -218,13 +218,18 @@ def _write_report(summary: dict[str, Any], args: argparse.Namespace) -> None:
     ts = time.strftime("%Y%m%d_%H%M%S")
     path = report_dir / f"bootstrap_{ts}.json"
     path.write_text(
-        json.dumps({
-            "timestamp": ts,
-            "mode": args.mode,
-            "rounds": args.rounds,
-            "account": args.account_name or "bootstrap_seed",
-            "summary": summary,
-        }, indent=2, ensure_ascii=False, sort_keys=True),
+        json.dumps(
+            {
+                "timestamp": ts,
+                "mode": args.mode,
+                "rounds": args.rounds,
+                "account": args.account_name or "bootstrap_seed",
+                "summary": summary,
+            },
+            indent=2,
+            ensure_ascii=False,
+            sort_keys=True,
+        ),
         encoding="utf-8",
     )
     print(f"\n  Report: {path}")
@@ -251,10 +256,13 @@ def main() -> None:
     if args.docker:
         print(color("\n  -> Starting Docker backend services...", "93"))
         import subprocess
+
         compose_file = Path(__file__).resolve().parent.parent / "docker-compose.expert-ai.yml"
         r = subprocess.run(
             ["docker", "compose", "-f", str(compose_file), "up", "-d", "--wait"],
-            capture_output=True, text=True, timeout=120,
+            capture_output=True,
+            text=True,
+            timeout=120,
         )
         if r.returncode == 0:
             print(color("  [ok] Docker services started", "92"))

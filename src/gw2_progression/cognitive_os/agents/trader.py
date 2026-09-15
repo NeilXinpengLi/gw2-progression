@@ -14,13 +14,15 @@ class TraderAgent(BaseAgent):
     """
 
     def __init__(self, name: str = "Trader", capital: float = 1000.0, risk_tolerance: float = 0.6) -> None:
-        super().__init__(AgentProfile(
-            name=name,
-            agent_type="trader",
-            capital=capital,
-            risk_tolerance=risk_tolerance,
-            specialization="trading_post",
-        ))
+        super().__init__(
+            AgentProfile(
+                name=name,
+                agent_type="trader",
+                capital=capital,
+                risk_tolerance=risk_tolerance,
+                specialization="trading_post",
+            )
+        )
         self._spread_threshold: float = 0.05
 
     def set_spread_threshold(self, threshold: float) -> None:

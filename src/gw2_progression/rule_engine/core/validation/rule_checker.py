@@ -28,12 +28,14 @@ class RuleChecker:
             grouped[key].append(r)
         for key, group in grouped.items():
             if len(group) > 1 and len({r.type.value for r in group}) > 1:
-                conflicts.append({
-                    "source": key[0],
-                    "action": key[1],
-                    "rule_ids": [r.id for r in group],
-                    "types": [r.type.value for r in group],
-                })
+                conflicts.append(
+                    {
+                        "source": key[0],
+                        "action": key[1],
+                        "rule_ids": [r.id for r in group],
+                        "types": [r.type.value for r in group],
+                    }
+                )
         return conflicts
 
     def _detect_duplicates(self, rules: list[Rule]) -> list[dict[str, Any]]:
@@ -41,10 +43,7 @@ class RuleChecker:
         for r in rules:
             key = f"{r.source}|{r.action}|{r.condition}"
             seen[key].append(r)
-        return [
-            {"key": k, "count": len(v), "rule_ids": [r.id for r in v]}
-            for k, v in seen.items() if len(v) > 1
-        ]
+        return [{"key": k, "count": len(v), "rule_ids": [r.id for r in v]} for k, v in seen.items() if len(v) > 1]
 
     def _count_by_type(self, rules: list[Rule]) -> dict[str, int]:
         counts: dict[str, int] = defaultdict(int)

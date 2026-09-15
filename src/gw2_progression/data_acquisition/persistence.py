@@ -275,9 +275,7 @@ class DataExpansionStore:
 
     def latest_observed_by_source(self) -> dict[str, float]:
         with self._connect() as conn:
-            rows = conn.execute(
-                "SELECT source_id, MAX(observed_at) FROM data_expansion_records GROUP BY source_id"
-            ).fetchall()
+            rows = conn.execute("SELECT source_id, MAX(observed_at) FROM data_expansion_records GROUP BY source_id").fetchall()
         return {str(source_id): float(observed_at or 0.0) for source_id, observed_at in rows}
 
     def count(self) -> int:

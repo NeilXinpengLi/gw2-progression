@@ -41,10 +41,7 @@ class RuleGNN:
         if self.graph is None:
             return {}
         node_ids = list(self.graph.nodes.keys())
-        return {
-            nid: embeddings[i].tolist() if i < len(embeddings) else []
-            for i, nid in enumerate(node_ids)
-        }
+        return {nid: embeddings[i].tolist() if i < len(embeddings) else [] for i, nid in enumerate(node_ids)}
 
     def predict_rule_quality(self, rule_embedding: np.ndarray) -> float:
         quality = float(np.mean(np.abs(rule_embedding)))

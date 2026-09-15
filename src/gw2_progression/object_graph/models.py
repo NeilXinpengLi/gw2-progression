@@ -44,13 +44,14 @@ class CurrencyGraph:
 @dataclass
 class ItemNode:
     """A single item stack at a specific location."""
+
     item_id: int = 0
     count: int = 0
-    location: str = ""       # bank / materials / character_equip / character_inv / shared / tp_buy / tp_sell
-    location_ref: str = ""   # e.g. "CharName/WeaponA1" or "bag0/slot3"
-    binding: str = ""        # AccountBound / Soulbound / ""
+    location: str = ""  # bank / materials / character_equip / character_inv / shared / tp_buy / tp_sell
+    location_ref: str = ""  # e.g. "CharName/WeaponA1" or "bag0/slot3"
+    binding: str = ""  # AccountBound / Soulbound / ""
     tradable: bool = True
-    rarity: str = ""         # Basic / Fine / Masterwork / Rare / Exotic / Ascended / Legendary
+    rarity: str = ""  # Basic / Fine / Masterwork / Rare / Exotic / Ascended / Legendary
     level: int = 0
     price_buy: int = 0
     price_sell: int = 0
@@ -65,7 +66,7 @@ class ItemNode:
 
 @dataclass
 class EquipmentSlot:
-    slot: str = ""           # Helm / Shoulders / WeaponA1 / etc.
+    slot: str = ""  # Helm / Shoulders / WeaponA1 / etc.
     item_id: int = 0
     binding: str = ""
     skin_id: int = 0
@@ -174,6 +175,7 @@ class ProgressionGraph:
 @dataclass
 class AccountObjectGraph:
     """Complete gw2efficiency-level object graph for an account."""
+
     account_name: str = ""
     world: int = 0
     created: str = ""

@@ -38,16 +38,18 @@ MOCK_WALLET = [{"id": 1, "value": 500000}]
 MOCK_MATERIALS = [{"id": 19976, "count": 100, "category": 5}]
 MOCK_BANK = [{"id": 19720, "count": 250, "binding": None}]
 MOCK_INVENTORY = [None]
-MOCK_CHARACTERS = [{
-    "name": "TestChar",
-    "race": "Human",
-    "profession": "Guardian",
-    "level": 80,
-    "age": 360000,
-    "equipment": [{"id": 30698, "slot": "WeaponA1"}],
-    "bags": [{"inventory": [{"id": 19976, "count": 5}]}],
-    "created": "2022-01-01T00:00:00Z",
-}]
+MOCK_CHARACTERS = [
+    {
+        "name": "TestChar",
+        "race": "Human",
+        "profession": "Guardian",
+        "level": 80,
+        "age": 360000,
+        "equipment": [{"id": 30698, "slot": "WeaponA1"}],
+        "bags": [{"inventory": [{"id": 19976, "count": 5}]}],
+        "created": "2022-01-01T00:00:00Z",
+    }
+]
 
 ANALYZER = "gw2_progression.analyzer"
 
@@ -99,6 +101,7 @@ def _make_session(client):
     import asyncio
 
     from gw2_progression.services.auth_service import create_session
+
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)
     try:
@@ -217,7 +220,7 @@ class TestNavigation:
         html = resp.text
         nav_start = html.find('id="os-nav"')
         assert nav_start >= 0, "Nav element not found"
-        nav_html = html[nav_start:nav_start + 800]
+        nav_html = html[nav_start : nav_start + 800]
         expected = ['data-nav="account"', 'data-nav="insight"', 'data-nav="plan"', 'data-nav="report"']
         last_pos = 0
         for attr in expected:
@@ -233,29 +236,72 @@ class TestNavigation:
 
 class TestSvgIcons:
     REQUIRED_ICONS = [
-        "nav-account", "nav-insight", "nav-plan",
-        "kpi-account-value", "kpi-liquid-sell", "kpi-liquid-buy",
-        "kpi-hidden-wealth", "kpi-legendary", "kpi-build-ready",
-        "insight-hidden-wealth", "insight-build-ready", "insight-legendary",
-        "strategy-balanced", "strategy-gold", "strategy-build", "strategy-legendary",
-        "asset-wallet", "asset-materials", "asset-bank",
-        "asset-equipment", "asset-inventory", "asset-shared", "asset-trading",
-        "action-key", "action-refresh", "action-export",
-        "status-active", "status-stale", "status-error",
-        "brand-mark", "brand-ai-sparkle",
-        "empty-account", "empty-insight", "empty-plan",
+        "nav-account",
+        "nav-insight",
+        "nav-plan",
+        "kpi-account-value",
+        "kpi-liquid-sell",
+        "kpi-liquid-buy",
+        "kpi-hidden-wealth",
+        "kpi-legendary",
+        "kpi-build-ready",
+        "insight-hidden-wealth",
+        "insight-build-ready",
+        "insight-legendary",
+        "strategy-balanced",
+        "strategy-gold",
+        "strategy-build",
+        "strategy-legendary",
+        "asset-wallet",
+        "asset-materials",
+        "asset-bank",
+        "asset-equipment",
+        "asset-inventory",
+        "asset-shared",
+        "asset-trading",
+        "action-key",
+        "action-refresh",
+        "action-export",
+        "status-active",
+        "status-stale",
+        "status-error",
+        "brand-mark",
+        "brand-ai-sparkle",
+        "empty-account",
+        "empty-insight",
+        "empty-plan",
     ]
 
     def test_all_icons_in_account_page(self, client):
         resp = client.get("/account")
         present_icons = [
-            "nav-account", "nav-insight", "nav-plan", "nav-report",
-            "kpi-account-value", "kpi-hidden-wealth", "kpi-legendary",
-            "action-export", "asset-wallet", "asset-materials", "asset-bank",
-            "asset-equipment", "tree-economy", "tree-progress", "tree-collection",
-            "tree-characters", "sub-wallet", "sub-achievements", "sub-skins",
-            "sub-mastery", "sub-pvp", "sub-wvw", "sub-dyes", "sub-minis",
-            "sub-trading", "sub-fractal", "status-active",
+            "nav-account",
+            "nav-insight",
+            "nav-plan",
+            "nav-report",
+            "kpi-account-value",
+            "kpi-hidden-wealth",
+            "kpi-legendary",
+            "action-export",
+            "asset-wallet",
+            "asset-materials",
+            "asset-bank",
+            "asset-equipment",
+            "tree-economy",
+            "tree-progress",
+            "tree-collection",
+            "tree-characters",
+            "sub-wallet",
+            "sub-achievements",
+            "sub-skins",
+            "sub-mastery",
+            "sub-pvp",
+            "sub-wvw",
+            "sub-dyes",
+            "sub-minis",
+            "sub-trading",
+            "sub-fractal",
+            "status-active",
         ]
         for icon_id in present_icons:
             assert f'symbol id="sym-{icon_id}"' in resp.text, f"Missing icon: {icon_id}"
@@ -308,6 +354,7 @@ class TestAccountOverviewAPI:
 
     def test_overview_401_with_bad_key(self, client):
         from gw2_progression.gw2_client import Gw2ApiError
+
         with patch(f"{ANALYZER}.fetch_tokeninfo", AsyncMock(side_effect=Gw2ApiError(401, "bad key"))):
             resp = client.get("/api/account/overview?api_key=BADKEY")
         assert resp.status_code == 401
@@ -479,7 +526,7 @@ class TestLandingPage:
 
     def test_landing_links_to_account(self, client):
         resp = client.get("/")
-        assert '/account' in resp.text
+        assert "/account" in resp.text
 
 
 # ═══════════════════════════════════════════════════════
@@ -642,12 +689,28 @@ class TestFrontendBackendInterface:
 
     ACCOUNT_IDS = {
         # JS references in app-account.js (static IDs present in account.html)
-        "analyze-btn", "key-input", "btn-refresh", "btn-export", "os-nav",
-        "key-section", "layer-overview", "layer-content", "layer-footer",
-        "header-account-name", "header-last-sync", "ov-total-value",
-        "ov-liquid-value", "ov-hidden-wealth", "overview-progress",
-        "explorer-tree", "graph-detail", "ai-overlay-body",
-        "loading-state", "error-state", "error-message", "api-status-badge",
+        "analyze-btn",
+        "key-input",
+        "btn-refresh",
+        "btn-export",
+        "os-nav",
+        "key-section",
+        "layer-overview",
+        "layer-content",
+        "layer-footer",
+        "header-account-name",
+        "header-last-sync",
+        "ov-total-value",
+        "ov-liquid-value",
+        "ov-hidden-wealth",
+        "overview-progress",
+        "explorer-tree",
+        "graph-detail",
+        "ai-overlay-body",
+        "loading-state",
+        "error-state",
+        "error-message",
+        "api-status-badge",
     }
     # IDs created dynamically by JS (verified self-consistent via renderTree/renderCharacters)
     DYNAMIC_IDS = {"tn-collapse-all", "tn-expand-all"}
@@ -700,12 +763,12 @@ class TestJSStaticAnalysis:
         depth = 1
         i = start
         while i < len(js) and depth > 0:
-            if js[i] == '{':
+            if js[i] == "{":
                 depth += 1
-            elif js[i] == '}':
+            elif js[i] == "}":
                 depth -= 1
             i += 1
-        return js[start:i-1]
+        return js[start : i - 1]
 
     def _local_vars(self, body: str) -> set:
         """Find all locally-declared variables (const/let/var) in a function body."""
@@ -727,7 +790,7 @@ class TestJSStaticAnalysis:
         """
         js = self._get_js("app-account.js")
         # Find all render*Detail function definitions
-        fn_names = sorted(set(re.findall(r'function (render[a-zA-Z]+Detail)', js)))
+        fn_names = sorted(set(re.findall(r"function (render[a-zA-Z]+Detail)", js)))
         fn_names = [n for n in fn_names if n != "renderDetail"]
 
         assert len(fn_names) >= 3, f"Expected >=3 render*Detail fns, got {fn_names}"
@@ -737,8 +800,7 @@ class TestJSStaticAnalysis:
             # Check for 'gd' as a variable reference (gd.innerHTML or gd = or gd)
             if re.search(r'(?<!["\w])gd\.|(?<!["\w])gd\s*=', body):
                 local_vars = self._local_vars(body)
-                assert "gd" in local_vars, \
-                    f"{fn_name} uses 'gd' but not defined locally (must use document.getElementById)"
+                assert "gd" in local_vars, f"{fn_name} uses 'gd' but not defined locally (must use document.getElementById)"
 
     def test_no_getelementById_before_definition(self):
         """Verify all getElementById('...') calls reference known static IDs."""
@@ -748,10 +810,7 @@ class TestJSStaticAnalysis:
         dynamic = TestFrontendBackendInterface.DYNAMIC_IDS | {"${cid}"}
         for cid in calls:
             if cid not in known and cid not in dynamic:
-                raise AssertionError(
-                    f"getElementById('{cid}') references unknown ID. "
-                    f"Add to ACCOUNT_IDS or DYNAMIC_IDS"
-                )
+                raise AssertionError(f"getElementById('{cid}') references unknown ID. Add to ACCOUNT_IDS or DYNAMIC_IDS")
 
     @pytest.mark.skip(reason="Run manually: npx eslint src/gw2_progression/static/*.js")
     def test_eslint_no_undef(self):
@@ -773,17 +832,13 @@ class TestJSStaticAnalysis:
             depth = 1
             i = start
             while i < len(js) and depth > 0:
-                if js[i] == '{':
+                if js[i] == "{":
                     depth += 1
-                elif js[i] == '}':
+                elif js[i] == "}":
                     depth -= 1
                 i += 1
-            dcl_body = js[start:i-1]
-            lines = [
-                line.strip()
-                for line in dcl_body.split("\n")
-                if line.strip() and not line.strip().startswith("//")
-            ]
+            dcl_body = js[start : i - 1]
+            lines = [line.strip() for line in dcl_body.split("\n") if line.strip() and not line.strip().startswith("//")]
             nav_stmts = [i for i, line in enumerate(lines) if "os-nav" in line]
             assert len(nav_stmts) > 0, f"{js_name}: No os-nav handler found in DOMContentLoaded"
             first_nav = nav_stmts[0]
@@ -791,9 +846,7 @@ class TestJSStaticAnalysis:
                 line = lines[i]
                 if "getElementById(" in line and "?." not in line:
                     raise AssertionError(
-                        f"{js_name}: '{line.strip()[:60]}...' at line index {i} "
-                        f"is BEFORE nav handler at index {first_nav} and lacks optional chaining. "
-                        f"If it throws, nav is never registered."
+                        f"{js_name}: '{line.strip()[:60]}...' at line index {i} is BEFORE nav handler at index {first_nav} and lacks optional chaining. If it throws, nav is never registered."
                     )
 
     def test_no_await_in_non_async_function(self):
@@ -804,14 +857,11 @@ class TestJSStaticAnalysis:
         """
         for js_name in ["app-account.js", "app-insight.js", "app-plan.js", "app-report.js"]:
             js = self._get_js(js_name)
-            fn_defs = re.findall(r'(?:async\s+)?function\s+(\w+)\s*\(', js)
+            fn_defs = re.findall(r"(?:async\s+)?function\s+(\w+)\s*\(", js)
             for fn_name in fn_defs:
                 body = self._function_body(js, fn_name)
                 has_await = "await " in body
-                fn_decl = re.search(rf'(async\s+)?function\s+{fn_name}', js).group(1) or ""
+                fn_decl = re.search(rf"(async\s+)?function\s+{fn_name}", js).group(1) or ""
                 is_async = "async" in fn_decl
                 if has_await and not is_async:
-                    raise AssertionError(
-                        f"{js_name}: {fn_name}() uses 'await' but is not declared 'async'. "
-                        f"This is a SyntaxError in ES modules that prevents the module from loading."
-                    )
+                    raise AssertionError(f"{js_name}: {fn_name}() uses 'await' but is not declared 'async'. This is a SyntaxError in ES modules that prevents the module from loading.")

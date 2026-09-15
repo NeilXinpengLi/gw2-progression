@@ -37,6 +37,7 @@ SAMPLE_ACTIONS = [
 
 # ── Backward Inference ────────────────────────────────────────────────────
 
+
 class TestInferredPath:
     def test_creation(self):
         p = InferredPath(steps=SAMPLE_ACTIONS, probability=0.8)
@@ -81,6 +82,7 @@ class TestBackwardInferenceEngine:
 
 
 # ── Dependency Solver ─────────────────────────────────────────────────────
+
 
 class TestDependency:
     def test_creation(self):
@@ -140,6 +142,7 @@ class TestDependencySolver:
 
 # ── Hypothesis Generator ──────────────────────────────────────────────────
 
+
 class TestHypothesis:
     def test_creation(self):
         h = Hypothesis(steps=SAMPLE_ACTIONS, probability=0.7)
@@ -166,6 +169,7 @@ class TestHypothesisGenerator:
 
 
 # ── State Evolver ─────────────────────────────────────────────────────────
+
 
 class TestStateEvolver:
     def test_evolve_farm(self):
@@ -208,6 +212,7 @@ class TestStateEvolver:
 
 # ── OOSK Simulator ────────────────────────────────────────────────────────
 
+
 class TestOOSKSimulator:
     def test_simulate(self):
         sim = OOSKSimulator()
@@ -235,6 +240,7 @@ class TestOOSKSimulator:
 
 
 # ── Crafting Rules ────────────────────────────────────────────────────────
+
 
 class TestCraftingRules:
     def test_can_craft(self):
@@ -289,6 +295,7 @@ class TestCraftingRules:
 
 # ── Economy Rules ─────────────────────────────────────────────────────────
 
+
 class TestEconomyRules:
     def test_validate_price_valid(self):
         rules = EconomyRules()
@@ -329,6 +336,7 @@ class TestEconomyRules:
 
 # ── DGSK Constraints ──────────────────────────────────────────────────────
 
+
 class TestDGSKConstraints:
     def test_validate_valid_state(self):
         c = DGSKConstraints()
@@ -361,6 +369,7 @@ class TestDGSKConstraints:
 
 # ── Trajectory Generator ──────────────────────────────────────────────────
 
+
 class TestTrajectoryGenerator:
     def test_generate(self):
         gen = TrajectoryGenerator()
@@ -374,6 +383,7 @@ class TestTrajectoryGenerator:
 
 
 # ── Path Ranker ──────────────────────────────────────────────────────────
+
 
 class TestPathRanker:
     def test_rank(self):
@@ -401,6 +411,7 @@ class TestPathRanker:
 
 
 # ── Consistency Checker ───────────────────────────────────────────────────
+
 
 class TestConsistencyChecker:
     def test_validate_exact_match(self):
@@ -431,6 +442,7 @@ class TestConsistencyChecker:
 
 # ── Simulation Validator ──────────────────────────────────────────────────
 
+
 class TestSimulationValidator:
     def test_validate_path(self):
         v = SimulationValidator()
@@ -453,6 +465,7 @@ class TestSimulationValidator:
 
 
 # ── Lifecycle Engine ──────────────────────────────────────────────────────
+
 
 class TestLifecycleEngine:
     def test_reconstruct(self):
@@ -518,6 +531,7 @@ class TestLifecycleEngine:
 
 
 # ── Lifecycle API ─────────────────────────────────────────────────────────
+
 
 class TestLifecycleAPI:
     def test_reconstruct_api(self):

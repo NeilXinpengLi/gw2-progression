@@ -8,7 +8,6 @@ from gw2_progression.services.goal_interpreter import generate_alternatives, int
 
 @pytest.mark.asyncio
 class TestGoalInterpreter:
-
     async def test_interpret_empty(self):
         result = await interpret_goal("")
         assert result.confidence == 0.0

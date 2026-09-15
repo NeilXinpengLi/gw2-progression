@@ -68,11 +68,13 @@ async def insight_data(api_key: str = Query(...)):
     hidden_wealth_count = len(unpriced)
     hidden_items_detail = []
     for h in sorted(unpriced, key=lambda x: x.count, reverse=True)[:10]:
-        hidden_items_detail.append({
-            "item_id": h.item_id,
-            "count": h.count,
-            "location": h.location_type,
-        })
+        hidden_items_detail.append(
+            {
+                "item_id": h.item_id,
+                "count": h.count,
+                "location": h.location_type,
+            }
+        )
 
     # 2. Build readiness: character equipment analysis
     equipment_holdings = [h for h in raw_holdings if h.location_type == "character_equipment"]
@@ -82,42 +84,36 @@ async def insight_data(api_key: str = Query(...)):
             char_name = h.location_ref.split("/")[0]
             char_equip_map[char_name] = char_equip_map.get(char_name, 0) + 1
 
-    build_ready_chars = len([
-        ch for ch in (contents.characters or [])
-        if ch.get("level", 0) == 80
-    ])
+    build_ready_chars = len([ch for ch in (contents.characters or []) if ch.get("level", 0) == 80])
     equipped_chars = len(char_equip_map)
     missing_gear_chars = build_ready_chars - equipped_chars
 
     # 3. Best value item
     priced_holdings = [h for h in raw_holdings if h.price_sell > 0 and h.location_type != "wallet"]
     best_items = sorted(priced_holdings, key=lambda h: h.value_sell, reverse=True)[:5]
-    best_items_detail = [
-        {"item_id": h.item_id, "count": h.count, "value_sell": h.value_sell, "location": h.location_type}
-        for h in best_items
-    ]
+    best_items_detail = [{"item_id": h.item_id, "count": h.count, "value_sell": h.value_sell, "location": h.location_type} for h in best_items]
 
     # 4. Material surplus analysis
     materials = [h for h in raw_holdings if h.location_type == "material_storage" and h.price_sell > 0]
     top_materials = sorted(materials, key=lambda h: h.value_sell, reverse=True)[:5]
-    material_detail = [
-        {"item_id": h.item_id, "count": h.count, "value_sell": h.value_sell}
-        for h in top_materials
-    ]
+    material_detail = [{"item_id": h.item_id, "count": h.count, "value_sell": h.value_sell} for h in top_materials]
 
     # 5. Legendary Progress — from tracked goals
     legendary_goals = []
     try:
         from gw2_progression.services.goal_service import get_goals
+
         tracked = await get_goals(account_name)
         for g in tracked:
-            legendary_goals.append({
-                "goal_id": g.goal_id,
-                "target_item_id": g.target_item_id,
-                "completion_percent": g.completion_percent,
-                "status": g.status,
-                "priority": g.priority,
-            })
+            legendary_goals.append(
+                {
+                    "goal_id": g.goal_id,
+                    "target_item_id": g.target_item_id,
+                    "completion_percent": g.completion_percent,
+                    "status": g.status,
+                    "priority": g.priority,
+                }
+            )
     except Exception as e:
         logger.warning("Goal fetch failed: %s", e)
 
@@ -126,6 +122,7 @@ async def insight_data(api_key: str = Query(...)):
     buy_opportunities = []
     try:
         from gw2_progression.services.listing_service import analyze_depth, fetch_listings
+
         sell_ids = [h.item_id for h in priced_holdings if h.tradable and h.location_type != "wallet"][:20]
         if sell_ids:
             listings = await fetch_listings(sell_ids)

@@ -148,9 +148,7 @@ def _risk_in_text(risk_level: str, text: str, lower: str) -> bool:
 
 
 def _actionable(text: str, lower: str) -> bool:
-    return any(token in lower for token in ("craft", "try", "check", "re-check", "review", "scale")) or any(
-        token in text for token in ("制作", "尝试", "复查", "执行", "建议")
-    )
+    return any(token in lower for token in ("craft", "try", "check", "re-check", "review", "scale")) or any(token in text for token in ("制作", "尝试", "复查", "执行", "建议"))
 
 
 def _language_ok(language: str, text: str) -> bool:

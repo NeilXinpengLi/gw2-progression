@@ -91,6 +91,7 @@ async def post_generate(body: dict = Body(...)):
         wallet_gold = 0
         try:
             from gw2_progression.analyzer import fetch_all
+
             contents = await fetch_all(api_key)
             for w in contents.wallet or []:
                 if w.get("id") == 1:
@@ -236,6 +237,7 @@ async def _save_plan(plan: ProgressionPlan):
     _plan_store[plan.plan_id] = plan
     # Also persist to DB
     from gw2_progression.database import get_db
+
     try:
         db = await get_db()
         await db.execute(
@@ -243,9 +245,7 @@ async def _save_plan(plan: ProgressionPlan):
             (plan_id, goal_id, account_name, strategy, total_cost_copper,
              estimated_days, completion_percent, status, insight, created_at)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
-            (plan.plan_id, plan.goal_id or "", plan.account_name, plan.strategy,
-             plan.total_cost_copper, plan.estimated_days, plan.completion_percent,
-             plan.status, plan.insight, plan.created_at),
+            (plan.plan_id, plan.goal_id or "", plan.account_name, plan.strategy, plan.total_cost_copper, plan.estimated_days, plan.completion_percent, plan.status, plan.insight, plan.created_at),
         )
         for a in plan.actions:
             await db.execute(
@@ -254,10 +254,25 @@ async def _save_plan(plan: ProgressionPlan):
                  cost_gold, time_cost_minutes, score, priority, status, tab,
                  item_id, day_index, confidence, data_sources, risk_reason)
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
-                (a.action_id, plan.plan_id, a.action_type, a.title, a.reason,
-                 a.reward_gold, a.cost_gold, a.time_cost_minutes, a.score,
-                 a.priority, a.status, a.tab, a.item_id, a.day_index,
-                 a.confidence, json.dumps(a.data_sources), a.risk_reason),
+                (
+                    a.action_id,
+                    plan.plan_id,
+                    a.action_type,
+                    a.title,
+                    a.reason,
+                    a.reward_gold,
+                    a.cost_gold,
+                    a.time_cost_minutes,
+                    a.score,
+                    a.priority,
+                    a.status,
+                    a.tab,
+                    a.item_id,
+                    a.day_index,
+                    a.confidence,
+                    json.dumps(a.data_sources),
+                    a.risk_reason,
+                ),
             )
         await db.commit()
     except Exception as e:
@@ -275,6 +290,7 @@ async def _load_plan(plan_id: str) -> ProgressionPlan | None:
         return _plan_store[plan_id]
 
     from gw2_progression.database import get_db
+
     try:
         db = await get_db()
         cursor = await db.execute("SELECT * FROM progression_plans WHERE plan_id = ?", (plan_id,))
@@ -342,15 +358,14 @@ async def _save_revision(plan: ProgressionPlan, revision):
     _revision_store[plan.plan_id].append(revision)
 
     from gw2_progression.database import get_db
+
     try:
         db = await get_db()
         await db.execute(
             """INSERT INTO plan_revisions
             (revision_id, plan_id, user_request, previous_strategy, new_strategy, delta_summary, created_at)
             VALUES (?, ?, ?, ?, ?, ?, ?)""",
-            (revision.revision_id, revision.plan_id, revision.user_request,
-             revision.previous_strategy, revision.new_strategy,
-             revision.delta_summary, revision.created_at),
+            (revision.revision_id, revision.plan_id, revision.user_request, revision.previous_strategy, revision.new_strategy, revision.delta_summary, revision.created_at),
         )
         await db.commit()
     except Exception as e:

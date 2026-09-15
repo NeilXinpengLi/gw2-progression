@@ -96,7 +96,7 @@ class RecipeResolver:
                     recipes_data = []
             self._last_fetch = time.monotonic()
 
-            for rd in (recipes_data if isinstance(recipes_data, list) else [recipes_data]):
+            for rd in recipes_data if isinstance(recipes_data, list) else [recipes_data]:
                 if not isinstance(rd, dict):
                     continue
                 output_id = rd.get("output_item_id")
@@ -106,10 +106,7 @@ class RecipeResolver:
                     recipe_id=rd["id"],
                     output_item_id=output_id,
                     output_count=rd.get("output_item_count", 1),
-                    ingredients=[
-                        RecipeIngredient(item_id=ing["item_id"], count=ing["count"])
-                        for ing in rd.get("ingredients", [])
-                    ],
+                    ingredients=[RecipeIngredient(item_id=ing["item_id"], count=ing["count"]) for ing in rd.get("ingredients", [])],
                     discipline=rd.get("disciplines", [""])[0] if rd.get("disciplines") else "",
                     min_rating=rd.get("min_rating", 0),
                 )
@@ -122,8 +119,7 @@ class RecipeResolver:
             fetched += len(recipes_data)
             pct = fetched / total * 100 if total else 100
 
-            print(f"  Recipe preheat: {fetched}/{total} ({pct:.0f}%) "
-                  f"- {len(output_items_seen)} unique output items", end="\r")
+            print(f"  Recipe preheat: {fetched}/{total} ({pct:.0f}%) - {len(output_items_seen)} unique output items", end="\r")
 
         elapsed = time.monotonic() - start
         print()
@@ -176,15 +172,12 @@ class RecipeResolver:
             self._last_fetch = time.monotonic()
 
             recipes = []
-            for rd in (recipes_data if isinstance(recipes_data, list) else [recipes_data]):
+            for rd in recipes_data if isinstance(recipes_data, list) else [recipes_data]:
                 recipe = RecipeInfo(
                     recipe_id=rd["id"],
                     output_item_id=rd["output_item_id"],
                     output_count=rd.get("output_item_count", 1),
-                    ingredients=[
-                        RecipeIngredient(item_id=ing["item_id"], count=ing["count"])
-                        for ing in rd.get("ingredients", [])
-                    ],
+                    ingredients=[RecipeIngredient(item_id=ing["item_id"], count=ing["count"]) for ing in rd.get("ingredients", [])],
                     discipline=rd.get("disciplines", [""])[0] if rd.get("disciplines") else "",
                     min_rating=rd.get("min_rating", 0),
                 )

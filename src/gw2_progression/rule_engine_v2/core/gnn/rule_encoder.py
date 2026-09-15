@@ -67,7 +67,7 @@ class RuleEncoder:
             "meta": [0, 0, 0, 1, rule.get("generality", 0.5), rule.get("transferability", 0), rule.get("robustness", 0.5), 0],
         }
         base = feature_map.get(rule_type, [0, 0, 0, 0, 0.5, 0, 0.5, 0])
-        features = np.array(base[:self.embedding_dim], dtype=np.float32)
+        features = np.array(base[: self.embedding_dim], dtype=np.float32)
         if len(features) < self.embedding_dim:
             features = np.pad(features, (0, self.embedding_dim - len(features)))
         return RuleNode(
@@ -92,12 +92,14 @@ class RuleEncoder:
                 for j in range(i + 1, len(nodes)):
                     sim = self._similarity(nodes[i].features, nodes[j].features)
                     if sim > 0.3:
-                        graph.edges.append(RuleEdge(
-                            source=nodes[i].id,
-                            target=nodes[j].id,
-                            edge_type="similar",
-                            weight=round(sim, 4),
-                        ))
+                        graph.edges.append(
+                            RuleEdge(
+                                source=nodes[i].id,
+                                target=nodes[j].id,
+                                edge_type="similar",
+                                weight=round(sim, 4),
+                            )
+                        )
         return graph
 
     def _similarity(self, a: np.ndarray, b: np.ndarray) -> float:

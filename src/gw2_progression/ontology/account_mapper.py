@@ -33,11 +33,14 @@ async def sync_account_to_ontology(api_key: str, account_name: str) -> list[Onto
     if existing_snapshots:
         latest = max(existing_snapshots, key=lambda o: o.created_at)
         now = datetime.now(timezone.utc).isoformat()
-        store.update_object(latest.object_id, properties={
-            **latest.properties,
-            "total_holdings": len(holdings),
-            "resync_at": now,
-        })
+        store.update_object(
+            latest.object_id,
+            properties={
+                **latest.properties,
+                "total_holdings": len(holdings),
+                "resync_at": now,
+            },
+        )
         snapshot = latest
         created.append(snapshot)
     else:
@@ -58,22 +61,21 @@ async def sync_account_to_ontology(api_key: str, account_name: str) -> list[Onto
         store.update_object(snapshot.object_id, properties=snapshot_props)
 
     for h in holdings:
-        existing_assets = [
-            a for a in store.get_objects_by_account("account_asset", account_name)
-            if a.properties.get("item_id") == h.item_id
-            and a.properties.get("location") == h.location_type
-        ]
+        existing_assets = [a for a in store.get_objects_by_account("account_asset", account_name) if a.properties.get("item_id") == h.item_id and a.properties.get("location") == h.location_type]
         if existing_assets:
             existing = existing_assets[0]
             old_count = existing.properties.get("count", 0)
             if old_count != h.count:
-                store.update_object(existing.object_id, properties={
-                    **existing.properties,
-                    "count": h.count,
-                    "value_buy": h.value_buy,
-                    "value_sell": h.value_sell,
-                    "delta": h.count - old_count,
-                })
+                store.update_object(
+                    existing.object_id,
+                    properties={
+                        **existing.properties,
+                        "count": h.count,
+                        "value_buy": h.value_buy,
+                        "value_sell": h.value_sell,
+                        "delta": h.count - old_count,
+                    },
+                )
                 logger.debug("Delta asset %d: %d → %d", h.item_id, old_count, h.count)
         else:
             asset_props = {
@@ -103,8 +105,15 @@ async def sync_account_to_ontology(api_key: str, account_name: str) -> list[Onto
                 confidence=0.95,
             )
 
-    logger.info("Synced %d assets (%d delta) to ontology for %s", len(holdings), len(holdings) - sum(1 for h in holdings if any(
-        a.properties.get("item_id") == h.item_id and a.properties.get("location") == h.location_type
-        for a in store.get_objects_by_account("account_asset", account_name)
-    )), account_name)
+    logger.info(
+        "Synced %d assets (%d delta) to ontology for %s",
+        len(holdings),
+        len(holdings)
+        - sum(
+            1
+            for h in holdings
+            if any(a.properties.get("item_id") == h.item_id and a.properties.get("location") == h.location_type for a in store.get_objects_by_account("account_asset", account_name))
+        ),
+        account_name,
+    )
     return created

@@ -91,29 +91,27 @@ class PlayerAdviceEngine:
         blocked = self._rank_blocked(report.get("blocked_profitable_lowest_missing", []))
 
         low_profit_executable = self._with_explanations(
-            [
-                row for row in self._as_rows(report.get("top_executable", []))
-                if self._craftable_now(row) > 0 and self._int(row.get("net_profit")) <= 0
-            ][:10],
+            [row for row in self._as_rows(report.get("top_executable", [])) if self._craftable_now(row) > 0 and self._int(row.get("net_profit")) <= 0][:10],
             category="avoid",
             context=player_context,
             llm_budget=llm_budget,
         )
         near_blocked = self._with_explanations(
-            [
-                row
-                for row in blocked
-                if self._missing_total(row) <= 3
-            ][:15],
+            [row for row in blocked if self._missing_total(row) <= 3][:15],
             category="almost_ready",
             context=player_context,
             llm_budget=llm_budget,
         )
-        high_profit_blocked = self._with_explanations(sorted(
-            [row for row in blocked if self._int(row.get("net_profit")) > 500],
-            key=lambda row: self._int(row.get("net_profit")),
-            reverse=True,
-        )[:10], category="high_profit_blocked", context=player_context, llm_budget=llm_budget)
+        high_profit_blocked = self._with_explanations(
+            sorted(
+                [row for row in blocked if self._int(row.get("net_profit")) > 500],
+                key=lambda row: self._int(row.get("net_profit")),
+                reverse=True,
+            )[:10],
+            category="high_profit_blocked",
+            context=player_context,
+            llm_budget=llm_budget,
+        )
         quality_checks = self.quality_checks(
             immediate=immediate,
             near_blocked=near_blocked,
@@ -288,9 +286,7 @@ class PlayerAdviceEngine:
             requirements = [req for req in requirements if int(req.get("missing", 0)) > 0]
         parts = []
         for req in requirements[:limit]:
-            parts.append(
-                f"item {req.get('item_id')}: have {req.get('owned')}, need {req.get('required')}, missing {req.get('missing')}"
-            )
+            parts.append(f"item {req.get('item_id')}: have {req.get('owned')}, need {req.get('required')}, missing {req.get('missing')}")
         if len(requirements) > limit:
             parts.append(f"... +{len(requirements) - limit} more")
         return parts
@@ -327,10 +323,7 @@ class PlayerAdviceEngine:
         return bool(data.get("player_context", {}).get("include_explanations"))
 
     def _rank_immediate(self, rows: Any) -> list[dict[str, Any]]:
-        candidates = [
-            row for row in self._as_rows(rows)
-            if self._craftable_now(row) > 0 and self._int(row.get("net_profit")) > 0
-        ]
+        candidates = [row for row in self._as_rows(rows) if self._craftable_now(row) > 0 and self._int(row.get("net_profit")) > 0]
         return sorted(candidates, key=self._immediate_key, reverse=True)
 
     def _rank_executable(self, rows: Any) -> list[dict[str, Any]]:
@@ -627,10 +620,7 @@ class PlayerAdviceEngine:
         risk_level = risk.get("level", "unknown")
         language = str(facts.get("report_language", "en")).lower()
         if language.startswith("zh"):
-            return (
-                f"{item} 适合先做小额尝试：当前材料可直接制作 {craftable} 次，"
-                f"样本净利润 {coin(profit)}、ROI {roi}，市场风险为 {risk_level}；批量制作前仍需复查交易所价格。"
-            )
+            return f"{item} 适合先做小额尝试：当前材料可直接制作 {craftable} 次，样本净利润 {coin(profit)}、ROI {roi}，市场风险为 {risk_level}；批量制作前仍需复查交易所价格。"
         return (
             f"{item} is suitable for a small first craft: your current materials can craft it {craftable} time(s), "
             f"sample net profit is {coin(profit)} with ROI {roi}, and market risk is {risk_level}. "
@@ -649,8 +639,7 @@ class PlayerAdviceEngine:
         )
         checks = dict(result.checks)
         checks["final_note_not_invalid_provider_text"] = (
-            bool(explanation.get("llm_provider", {}).get("validation", {}).get("passed", True))
-            or explanation.get("expert_note_source") == "codex_style_fallback"
+            bool(explanation.get("llm_provider", {}).get("validation", {}).get("passed", True)) or explanation.get("expert_note_source") == "codex_style_fallback"
         )
         failed = [name for name, passed in checks.items() if not passed]
         return {

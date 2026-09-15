@@ -60,16 +60,23 @@ def _try_persist(obj_or_rel: OntologyObject | OntologyRelation) -> None:
         loop = asyncio.get_running_loop()
         if loop.is_running():
             from ..database import _pool
+
             if _pool is None:
                 return  # DB pool not ready yet
             if isinstance(obj_or_rel, OntologyObject):
-                loop.create_task(asyncio.wait_for(
-                    _with_retry(lambda: persist_object(obj_or_rel)), timeout=5.0,
-                ))
+                loop.create_task(
+                    asyncio.wait_for(
+                        _with_retry(lambda: persist_object(obj_or_rel)),
+                        timeout=5.0,
+                    )
+                )
             elif isinstance(obj_or_rel, OntologyRelation):
-                loop.create_task(asyncio.wait_for(
-                    _with_retry(lambda: persist_relation(obj_or_rel)), timeout=5.0,
-                ))
+                loop.create_task(
+                    asyncio.wait_for(
+                        _with_retry(lambda: persist_relation(obj_or_rel)),
+                        timeout=5.0,
+                    )
+                )
     except (RuntimeError, asyncio.TimeoutError):
         pass
 
@@ -109,10 +116,7 @@ def get_objects_by_class(class_name: str) -> list[OntologyObject]:
 
 
 def get_objects_by_account(class_name: str, account_name: str) -> list[OntologyObject]:
-    return [
-        o for o in _objects_by_class.get(class_name, {}).values()
-        if o.account_name == account_name
-    ]
+    return [o for o in _objects_by_class.get(class_name, {}).values() if o.account_name == account_name]
 
 
 def update_object(object_id: str, **updates: Any) -> OntologyObject | None:
@@ -216,10 +220,7 @@ def get_objects_by_property(class_name: str, property_key: str, property_value: 
     cached = _prop_index.get(key)
     if cached is not None:
         return cached
-    result = [
-        o for o in _objects_by_class.get(class_name, {}).values()
-        if o.properties.get(property_key) == property_value
-    ]
+    result = [o for o in _objects_by_class.get(class_name, {}).values() if o.properties.get(property_key) == property_value]
     if len(_prop_index) < _PROP_INDEX_MAX:
         _prop_index[key] = result
     return result
@@ -315,13 +316,14 @@ def clear_prop_index() -> None:
 
 # ── Performance: Pagination ───────────────────────────────────────────
 
+
 def get_objects_paginated(class_name: str, offset: int = 0, limit: int = 50) -> list[OntologyObject]:
     all_objs = sorted(
         _objects_by_class.get(class_name, {}).values(),
         key=lambda o: o.created_at,
         reverse=True,
     )
-    return all_objs[offset:offset + limit]
+    return all_objs[offset : offset + limit]
 
 
 _MAX_RETRIES = 3
@@ -411,6 +413,7 @@ async def persist_object(obj: OntologyObject) -> None:
                     obj.updated_at,
                 ),
             )
+
     await _with_retry(_do)
 
 
@@ -431,6 +434,7 @@ async def persist_relation(rel: OntologyRelation) -> None:
                     rel.created_at,
                 ),
             )
+
     await _with_retry(_do)
 
 
@@ -460,6 +464,7 @@ async def persist_action(action: OntologyAction) -> None:
                     action.completed_at,
                 ),
             )
+
     await _with_retry(_do)
 
 

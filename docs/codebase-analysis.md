@@ -296,13 +296,13 @@ DecisionEngine
 
 ```python
 {
-    "inventory": {item_id: count},       # 物品库存
-    "market": {item_id: price_data},     # 交易行行情
-    "gold": float,                       # 金币
-    "achievements": [achievement_id],    # 已完成成就
-    "equipment": {slot: item_id},        # 装备
-    "wallet": {currency_id: count},      # 钱包货币
-    "_action_validations": [validation]  # 动作验证历史
+    "inventory": {item_id: count},  # 物品库存
+    "market": {item_id: price_data},  # 交易行行情
+    "gold": float,  # 金币
+    "achievements": [achievement_id],  # 已完成成就
+    "equipment": {slot: item_id},  # 装备
+    "wallet": {currency_id: count},  # 钱包货币
+    "_action_validations": [validation],  # 动作验证历史
 }
 ```
 

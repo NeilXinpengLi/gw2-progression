@@ -18,31 +18,46 @@ class CraftingRecipe:
 
 RECIPES: dict[str, CraftingRecipe] = {
     "legendary_component": CraftingRecipe(
-        id="legendary_component", name="Legendary Component",
-        output_item="legendary_component", ingredients={"mystic_coin": 1, "ectoplasm": 2},
-        required_rating=400, discipline="mystic_forge",
+        id="legendary_component",
+        name="Legendary Component",
+        output_item="legendary_component",
+        ingredients={"mystic_coin": 1, "ectoplasm": 2},
+        required_rating=400,
+        discipline="mystic_forge",
     ),
     "gift_of_mastery": CraftingRecipe(
-        id="gift_of_mastery", name="Gift of Mastery",
-        output_item="gift_of_mastery", ingredients={"gift_of_exploration": 1, "gift_of_battle": 1},
+        id="gift_of_mastery",
+        name="Gift of Mastery",
+        output_item="gift_of_mastery",
+        ingredients={"gift_of_exploration": 1, "gift_of_battle": 1},
     ),
     "gift_of_fortune": CraftingRecipe(
-        id="gift_of_fortune", name="Gift of Fortune",
-        output_item="gift_of_fortune", ingredients={"mystic_clover": 1, "mystic_coin": 10, "ectoplasm": 10},
+        id="gift_of_fortune",
+        name="Gift of Fortune",
+        output_item="gift_of_fortune",
+        ingredients={"mystic_clover": 1, "mystic_coin": 10, "ectoplasm": 10},
     ),
     "ascended_armor": CraftingRecipe(
-        id="ascended_armor", name="Ascended Armor",
-        output_item="ascended_armor", ingredients={"damask": 3, "spiritwood": 2, "vision_crystal": 1},
-        required_rating=500, discipline="armorsmith",
+        id="ascended_armor",
+        name="Ascended Armor",
+        output_item="ascended_armor",
+        ingredients={"damask": 3, "spiritwood": 2, "vision_crystal": 1},
+        required_rating=500,
+        discipline="armorsmith",
     ),
     "ascended_insignia": CraftingRecipe(
-        id="ascended_insignia", name="Ascended Insignia",
-        output_item="ascended_insignia", ingredients={"damask": 2, "spiritwood": 1},
-        required_rating=450, discipline="tailor",
+        id="ascended_insignia",
+        name="Ascended Insignia",
+        output_item="ascended_insignia",
+        ingredients={"damask": 2, "spiritwood": 1},
+        required_rating=450,
+        discipline="tailor",
     ),
     "vision_crystal": CraftingRecipe(
-        id="vision_crystal", name="Vision Crystal",
-        output_item="vision_crystal", ingredients={"mystic_coin": 5, "ectoplasm": 3},
+        id="vision_crystal",
+        name="Vision Crystal",
+        output_item="vision_crystal",
+        ingredients={"mystic_coin": 5, "ectoplasm": 3},
     ),
 }
 
@@ -109,12 +124,14 @@ class CraftingRules:
                     break
             if recipe:
                 rid, r = recipe
-                chain.append({
-                    "item": item,
-                    "recipe_id": rid,
-                    "ingredients": dict(r.ingredients),
-                    "can_craft": self.can_craft(inventory or {}, rid),
-                })
+                chain.append(
+                    {
+                        "item": item,
+                        "recipe_id": rid,
+                        "ingredients": dict(r.ingredients),
+                        "can_craft": self.can_craft(inventory or {}, rid),
+                    }
+                )
                 for ing_id in r.ingredients:
                     queue.append(ing_id)
         return chain

@@ -55,6 +55,7 @@ def test_dgsk_compilation():
     bridge = DataMeshBridge()
     import os
     import tempfile
+
     yaml_content = """
 domain: test
 version: "1.0"
@@ -79,10 +80,13 @@ edges: []
 def test_bors_decision():
     """BORS decision evaluation returns structured result."""
     bridge = DataMeshBridge()
-    result = bridge.evaluate_decision("test_decision", [
-        {"name": "factor_a", "value": 0.8, "weight": 0.7, "impact": "positive"},
-        {"name": "factor_b", "value": 0.2, "weight": 0.3, "impact": "negative"},
-    ])
+    result = bridge.evaluate_decision(
+        "test_decision",
+        [
+            {"name": "factor_a", "value": 0.8, "weight": 0.7, "impact": "positive"},
+            {"name": "factor_b", "value": 0.2, "weight": 0.3, "impact": "negative"},
+        ],
+    )
     assert "decision" in result
     assert "score" in result
     assert "confidence" in result
@@ -111,13 +115,15 @@ def test_training_rounds():
     bridge = DataMeshBridge()
     dataset = {
         "version": "test-v1",
-        "examples": [{
-            "id": "ex-1",
-            "state": {"graph": {"nodes": [{"id": "n1"}], "edges": []}},
-            "reasoning_chain": [{"from": "n1", "relation": "test", "to": "n2"}],
-            "decision": {"type": "training_label", "status": "test"},
-            "label": {"quality": "test_labeled"},
-        }],
+        "examples": [
+            {
+                "id": "ex-1",
+                "state": {"graph": {"nodes": [{"id": "n1"}], "edges": []}},
+                "reasoning_chain": [{"from": "n1", "relation": "test", "to": "n2"}],
+                "decision": {"type": "training_label", "status": "test"},
+                "label": {"quality": "test_labeled"},
+            }
+        ],
     }
     models = bridge.run_training(dataset, model_type="test_model", rounds=2)
     assert len(models) == 2
@@ -129,6 +135,7 @@ def test_training_rounds():
 def test_dgsk_compilation_real_yaml():
     """Compile the actual domain_graph.yaml from the project root."""
     from pathlib import Path
+
     bridge = DataMeshBridge()
     yaml_path = str(Path.cwd() / "domain_graph.yaml")
     if Path(yaml_path).exists():
@@ -137,6 +144,7 @@ def test_dgsk_compilation_real_yaml():
         assert len(result["dgsk"]["nodes"]) >= 10
     else:
         import pytest
+
         pytest.skip("domain_graph.yaml not found")
 
 

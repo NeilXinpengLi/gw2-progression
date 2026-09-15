@@ -17,12 +17,7 @@ class RuleReward:
         profit = self.economy_gain(rule)
         stability = self.system_stability(rule)
         complexity = self.rule_complexity(rule)
-        total = (
-            self.weights["accuracy"] * accuracy
-            + self.weights["profit"] * profit
-            + self.weights["stability"] * stability
-            - self.complexity_penalty * complexity
-        )
+        total = self.weights["accuracy"] * accuracy + self.weights["profit"] * profit + self.weights["stability"] * stability - self.complexity_penalty * complexity
         return {
             "accuracy": round(accuracy, 4),
             "profit": round(profit, 4),

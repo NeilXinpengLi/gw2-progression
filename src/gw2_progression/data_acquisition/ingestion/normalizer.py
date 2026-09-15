@@ -40,47 +40,53 @@ class Normalizer:
                     eid = f"{source.id}:{native_id}:{observed}"
                 else:
                     eid = f"{source.id}:{native_id}"
-                entities.append({
-                    "id": eid,
-                    "type": entity_type,
-                    "name": item.get("name", str(item.get("id", ""))),
-                    "properties": {"native_id": item.get("id"), **{k: v for k, v in item.items() if k not in ("id", "name", "type")}},
-                    "source": source.id,
-                    "timestamp": timestamp,
-                    "confidence": source.confidence_default,
-                    "lineage": [source.id],
-                })
+                entities.append(
+                    {
+                        "id": eid,
+                        "type": entity_type,
+                        "name": item.get("name", str(item.get("id", ""))),
+                        "properties": {"native_id": item.get("id"), **{k: v for k, v in item.items() if k not in ("id", "name", "type")}},
+                        "source": source.id,
+                        "timestamp": timestamp,
+                        "confidence": source.confidence_default,
+                        "lineage": [source.id],
+                    }
+                )
         elif isinstance(data, dict):
             if self._looks_like_account_snapshot(data):
                 account_name = str(data.get("account", {}).get("name") or data.get("name") or source.id)
                 snapshot_id = f"{source.id}:account_snapshot:{account_name}"
-                entities.append({
-                    "id": snapshot_id,
-                    "type": "account_snapshot",
-                    "name": account_name,
-                    "properties": {
-                        "sections": sorted(data.keys()),
-                        "wallet_count": len(data.get("wallet", []) or []),
-                        "bank_count": len(data.get("bank", []) or []),
-                        "material_count": len(data.get("materials", []) or []),
-                        "character_count": len(data.get("characters", []) or []),
-                    },
-                    "source": source.id,
-                    "timestamp": timestamp,
-                    "confidence": source.confidence_default,
-                    "lineage": [source.id],
-                })
+                entities.append(
+                    {
+                        "id": snapshot_id,
+                        "type": "account_snapshot",
+                        "name": account_name,
+                        "properties": {
+                            "sections": sorted(data.keys()),
+                            "wallet_count": len(data.get("wallet", []) or []),
+                            "bank_count": len(data.get("bank", []) or []),
+                            "material_count": len(data.get("materials", []) or []),
+                            "character_count": len(data.get("characters", []) or []),
+                        },
+                        "source": source.id,
+                        "timestamp": timestamp,
+                        "confidence": source.confidence_default,
+                        "lineage": [source.id],
+                    }
+                )
             for key, value in data.items():
-                entities.append({
-                    "id": f"{source.id}:{key}",
-                    "type": self._section_entity_type(key),
-                    "name": key,
-                    "properties": {"value": value} if not isinstance(value, dict) else value,
-                    "source": source.id,
-                    "timestamp": timestamp,
-                    "confidence": source.confidence_default,
-                    "lineage": [source.id],
-                })
+                entities.append(
+                    {
+                        "id": f"{source.id}:{key}",
+                        "type": self._section_entity_type(key),
+                        "name": key,
+                        "properties": {"value": value} if not isinstance(value, dict) else value,
+                        "source": source.id,
+                        "timestamp": timestamp,
+                        "confidence": source.confidence_default,
+                        "lineage": [source.id],
+                    }
+                )
 
         return {"entities": entities, "relations": relations, "source": source.id, "observed_at": timestamp}
 
@@ -106,36 +112,40 @@ class Normalizer:
                 if not isinstance(page, dict):
                     continue
                 revision = self._latest_wiki_revision(page)
-                entities.append({
-                    "id": f"{source.id}:page:{page_id}",
-                    "type": source.metadata.get("entity_type", "wiki_page"),
-                    "name": page.get("title", str(page_id)),
-                    "properties": {
-                        "page_id": page.get("pageid", page_id),
-                        "title": page.get("title", ""),
-                        "namespace": page.get("ns", 0),
-                        "revision_id": revision.get("revid"),
-                        "revision_timestamp": revision.get("timestamp"),
-                        "content_excerpt": self._wiki_revision_content(revision)[:2000],
-                    },
+                entities.append(
+                    {
+                        "id": f"{source.id}:page:{page_id}",
+                        "type": source.metadata.get("entity_type", "wiki_page"),
+                        "name": page.get("title", str(page_id)),
+                        "properties": {
+                            "page_id": page.get("pageid", page_id),
+                            "title": page.get("title", ""),
+                            "namespace": page.get("ns", 0),
+                            "revision_id": revision.get("revid"),
+                            "revision_timestamp": revision.get("timestamp"),
+                            "content_excerpt": self._wiki_revision_content(revision)[:2000],
+                        },
+                        "source": source.id,
+                        "timestamp": timestamp,
+                        "confidence": source.confidence_default,
+                        "lineage": [source.id],
+                    }
+                )
+            return {"entities": entities, "relations": [], "source": source.id, "observed_at": timestamp}
+
+        for recipe in data.get("recipes", []):
+            entities.append(
+                {
+                    "id": f"recipe:{recipe['id']}",
+                    "type": "recipe",
+                    "name": recipe.get("output", f"Recipe_{recipe['id']}"),
+                    "properties": {"disciplines": recipe.get("disciplines", [])},
                     "source": source.id,
                     "timestamp": timestamp,
                     "confidence": source.confidence_default,
                     "lineage": [source.id],
-                })
-            return {"entities": entities, "relations": [], "source": source.id, "observed_at": timestamp}
-
-        for recipe in data.get("recipes", []):
-            entities.append({
-                "id": f"recipe:{recipe['id']}",
-                "type": "recipe",
-                "name": recipe.get("output", f"Recipe_{recipe['id']}"),
-                "properties": {"disciplines": recipe.get("disciplines", [])},
-                "source": source.id,
-                "timestamp": timestamp,
-                "confidence": source.confidence_default,
-                "lineage": [source.id],
-            })
+                }
+            )
         return {"entities": entities, "relations": [], "source": source.id, "observed_at": timestamp}
 
     def _latest_wiki_revision(self, page: dict[str, Any]) -> dict[str, Any]:
@@ -158,16 +168,18 @@ class Normalizer:
         relations = []
         for item_name, prices in data.items():
             eid = f"market:{item_name.lower().replace(' ', '_')}"
-            entities.append({
-                "id": eid,
-                "type": "market_item",
-                "name": item_name,
-                "properties": prices,
-                "source": source.id,
-                "timestamp": timestamp,
-                "confidence": source.confidence_default,
-                "lineage": [source.id],
-            })
+            entities.append(
+                {
+                    "id": eid,
+                    "type": "market_item",
+                    "name": item_name,
+                    "properties": prices,
+                    "source": source.id,
+                    "timestamp": timestamp,
+                    "confidence": source.confidence_default,
+                    "lineage": [source.id],
+                }
+            )
         return {"entities": entities, "relations": relations, "source": source.id, "observed_at": timestamp}
 
     def _normalize_default(self, data: Any, source: SourceConfig, timestamp: float) -> dict[str, Any]:

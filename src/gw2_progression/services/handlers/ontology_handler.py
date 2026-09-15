@@ -27,6 +27,7 @@ async def handle_ontology_sync(event: Any) -> None:
 
     try:
         from gw2_progression.ontology.account_mapper import sync_account_to_ontology
+
         await sync_account_to_ontology(api_key, account_name)
         logger.debug("Ontology sync completed for %s", account_name)
     except Exception as e:

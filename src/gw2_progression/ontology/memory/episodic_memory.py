@@ -7,13 +7,15 @@ _episodes: list[dict] = []
 
 
 def record(agent: str, action: str, success: bool, detail: str = "") -> None:
-    _episodes.append({
-        "agent": agent,
-        "action": action,
-        "success": success,
-        "detail": detail,
-        "timestamp": time.time(),
-    })
+    _episodes.append(
+        {
+            "agent": agent,
+            "action": action,
+            "success": success,
+            "detail": detail,
+            "timestamp": time.time(),
+        }
+    )
 
 
 def get_history(agent: str, limit: int = 100) -> list[dict]:
@@ -41,12 +43,14 @@ def detect_patterns(agent: str, window: int = 10) -> list[dict]:
     for seq_key, outcomes in sequences.items():
         if len(outcomes) < 2:
             continue
-        patterns.append({
-            "pattern": seq_key,
-            "count": len(outcomes),
-            "success_rate": round(sum(outcomes) / len(outcomes), 3),
-            "example": seq_key,
-        })
+        patterns.append(
+            {
+                "pattern": seq_key,
+                "count": len(outcomes),
+                "success_rate": round(sum(outcomes) / len(outcomes), 3),
+                "example": seq_key,
+            }
+        )
 
     patterns.sort(key=lambda p: (-p["count"], -p["success_rate"]))
     return patterns[:10]

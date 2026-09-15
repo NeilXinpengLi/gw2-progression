@@ -110,10 +110,12 @@ from gw2_progression.data_mesh.integration import DataMeshBridge
 mesh = DataMeshBridge(use_radar=True)  # 自动检测 gw2radar 是否已安装
 
 # 1. 多源摄入
-results = mesh.multi_source_ingest([
-    {"type": "gw2_api", "params": {"api_key": api_key}},
-    # future: {"type": "gw2radar", "params": {"db_path": "gw2radar.db"}},
-])
+results = mesh.multi_source_ingest(
+    [
+        {"type": "gw2_api", "params": {"api_key": api_key}},
+        # future: {"type": "gw2radar", "params": {"db_path": "gw2radar.db"}},
+    ]
+)
 
 # 2. Schema 归一化
 normalized = mesh.normalize(results[0].get("payload", {}))
@@ -125,10 +127,13 @@ compiled = mesh.compile_domain_graph(yaml_path="domain_graph.yaml")
 snap = mesh.sync_oosk(normalized["items"], normalized["relations"])
 
 # 5. BORS 决策
-decision = mesh.evaluate_decision("progression_health", [
-    {"name": "liquid_wealth", "value": 0.7, "weight": 0.6, "impact": "positive"},
-    {"name": "asset_risk", "value": 0.3, "weight": 0.4, "impact": "negative"},
-])
+decision = mesh.evaluate_decision(
+    "progression_health",
+    [
+        {"name": "liquid_wealth", "value": 0.7, "weight": 0.6, "impact": "positive"},
+        {"name": "asset_risk", "value": 0.3, "weight": 0.4, "impact": "negative"},
+    ],
+)
 
 # 6. KB 锚定
 kb_grounded = mesh.ground_reasoning_with_kb(reasoning_chain)

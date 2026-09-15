@@ -31,6 +31,7 @@ async def record_experience(
 ) -> dict:
     try:
         from ..ontology.action_registry import execute_action
+
         await execute_action(
             "sync_account_snapshot",
             account_name=account_name,

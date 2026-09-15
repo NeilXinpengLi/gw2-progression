@@ -14,12 +14,14 @@ class RaiderAgent(BaseAgent):
     """
 
     def __init__(self, name: str = "Raider", skill_level: float = 0.8) -> None:
-        super().__init__(AgentProfile(
-            name=name,
-            agent_type="raider",
-            skill_level=skill_level,
-            specialization="pve_raids",
-        ))
+        super().__init__(
+            AgentProfile(
+                name=name,
+                agent_type="raider",
+                skill_level=skill_level,
+                specialization="pve_raids",
+            )
+        )
         self._raid_targets: list[str] = ["magnetite_shard", "gaeting_crystal", "legendary_insight"]
         self._daily_done: set[str] = set()
 

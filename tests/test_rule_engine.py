@@ -17,6 +17,7 @@ from gw2_progression.rule_engine.core.validation.simulation_runner import Simula
 
 # ── API Rule Extractor ───────────────────────────────────────────────────
 
+
 class TestAPIRuleExtractor:
     def test_extract_returns_rules(self):
         extractor = APIRuleExtractor()
@@ -39,6 +40,7 @@ class TestAPIRuleExtractor:
 
 
 # ── Economy Rule Learner ────────────────────────────────────────────────
+
 
 class TestEconomyRuleLearner:
     def test_learn_empty(self):
@@ -66,8 +68,12 @@ class TestEconomyRuleLearner:
         learner = EconomyRuleLearner()
         series = {
             "volatile_item": [
-                {"price": 100}, {"price": 105}, {"price": 80},
-                {"price": 110}, {"price": 115}, {"price": 112},
+                {"price": 100},
+                {"price": 105},
+                {"price": 80},
+                {"price": 110},
+                {"price": 115},
+                {"price": 112},
             ]
         }
         result = learner.learn(series)
@@ -80,6 +86,7 @@ class TestEconomyRuleLearner:
 
 
 # ── Behavior Rule Miner ───────────────────────────────────────────────────
+
 
 class TestBehaviorRuleMiner:
     def test_mine_empty(self):
@@ -138,6 +145,7 @@ class TestPlayerBehaviorProfile:
 
 # ── LLM Rule Distiller ───────────────────────────────────────────────────
 
+
 class TestLLMRuleDistiller:
     def test_distill_empty(self):
         distiller = LLMRuleDistiller()
@@ -175,6 +183,7 @@ class TestReasoningConverter:
 
 # ── Validation ────────────────────────────────────────────────────────────
 
+
 class TestSimulationValidator:
     def test_validate_empty(self):
         v = SimulationValidator()
@@ -210,6 +219,7 @@ class TestRuleChecker:
 
 # ── RuleGraph Builder ────────────────────────────────────────────────────
 
+
 class TestRuleGraphBuilder:
     def test_build_empty(self):
         gb = RuleGraphBuilder()
@@ -225,6 +235,7 @@ class TestRuleGraphBuilder:
 
 
 # ── Trend Inference ──────────────────────────────────────────────────────
+
 
 class TestTrendInference:
     def test_infer_empty(self):
@@ -247,6 +258,7 @@ class TestTrendInference:
 
 
 # ── GW2RuleEngine (Full Integration) ─────────────────────────────────────
+
 
 class TestGW2RuleEngine:
     def test_engine_initialization(self):
@@ -303,6 +315,7 @@ class TestGW2RuleEngine:
 
 
 # ── Rule Serialization ──────────────────────────────────────────────────
+
 
 class TestRuleSerialization:
     def test_rule_to_dict(self):

@@ -90,7 +90,7 @@ class EvolutionEngine:
             if self._rng.random() < self.config.mutation_rate:
                 child = self.mutate(child)
             new_population.append(child)
-        new_population = new_population[:self.config.population_size]
+        new_population = new_population[: self.config.population_size]
         record = {
             "generation": self.generation,
             "population_size": len(new_population),

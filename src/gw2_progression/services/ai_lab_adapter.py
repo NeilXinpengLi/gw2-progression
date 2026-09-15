@@ -247,18 +247,20 @@ class RuleValidationAdapter:
                 price_impact = 0.01
             elif action.action_type == "SELL_ITEM":
                 price_impact = -0.01
-            rules.append({
-                "id": f"plan:{plan.plan_id}:{action.action_id}",
-                "type": "plan_action",
-                "target": "market",
-                "active": True,
-                "action_type": action.action_type,
-                "goal_type": str(parsed.goal_type),
-                "priority": action.priority,
-                "price_impact": price_impact,
-                "cost_copper": max(int(action.cost_gold or 0), 0),
-                "time_cost_minutes": max(int(action.time_cost_minutes or 0), 0),
-            })
+            rules.append(
+                {
+                    "id": f"plan:{plan.plan_id}:{action.action_id}",
+                    "type": "plan_action",
+                    "target": "market",
+                    "active": True,
+                    "action_type": action.action_type,
+                    "goal_type": str(parsed.goal_type),
+                    "priority": action.priority,
+                    "price_impact": price_impact,
+                    "cost_copper": max(int(action.cost_gold or 0), 0),
+                    "time_cost_minutes": max(int(action.time_cost_minutes or 0), 0),
+                }
+            )
         return rules
 
     def _warnings_from_metrics(self, metrics: dict[str, Any], plan: ProgressionPlan, account_state: dict[str, Any]) -> list[str]:

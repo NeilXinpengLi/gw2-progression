@@ -18,6 +18,7 @@ from gw2_progression.data_mesh.sources.registry import (
 
 # ── KnowledgeSource / SourceRegistry ─────────────────────────────────────
 
+
 def test_knowledge_source_creation():
     ks = KnowledgeSource(
         source_id="source:test:foo",
@@ -116,10 +117,15 @@ def test_source_registry_article_crud():
 def test_source_registry_serialize():
     reg = SourceRegistry()
     ks = KnowledgeSource(
-        source_id="source:serialize:1", name="S", source_type=SourceType.OFFICIAL_API,
-        source_url="https://s.com", allowed_use=AllowedUse.API_JSON,
-        crawl_policy=CrawlPolicy.GATEWAY_MANAGED, default_confidence=1.0,
-        license_note="n", recommended_kb_domain=KBDomain.GAME_SYSTEM,
+        source_id="source:serialize:1",
+        name="S",
+        source_type=SourceType.OFFICIAL_API,
+        source_url="https://s.com",
+        allowed_use=AllowedUse.API_JSON,
+        crawl_policy=CrawlPolicy.GATEWAY_MANAGED,
+        default_confidence=1.0,
+        license_note="n",
+        recommended_kb_domain=KBDomain.GAME_SYSTEM,
     )
     reg.register(ks)
     d = reg.to_dict()
@@ -137,6 +143,7 @@ def test_source_registry_count():
 
 
 # ── SchemaNormalizer ────────────────────────────────────────────────────
+
 
 def test_normalize_empty():
     ds = SchemaNormalizer.normalize({})
@@ -177,9 +184,13 @@ def test_normalize_items():
 
 
 def test_normalize_relations():
-    ds = SchemaNormalizer.normalize({"relations": [
-        {"source": "a", "relation_type": "requires", "target": "b", "confidence": 0.9},
-    ]})
+    ds = SchemaNormalizer.normalize(
+        {
+            "relations": [
+                {"source": "a", "relation_type": "requires", "target": "b", "confidence": 0.9},
+            ]
+        }
+    )
     assert len(ds.relations) == 1
     assert ds.relations[0]["source"] == "a"
     assert ds.relations[0]["relation_type"] == "requires"
@@ -234,15 +245,20 @@ def test_normalize_merge_dedup():
 
 
 def test_normalize_relation_predicate_aliases():
-    ds = SchemaNormalizer.normalize({"relations": [
-        {"from": "a", "label": "contains", "to": "b"},
-    ]})
+    ds = SchemaNormalizer.normalize(
+        {
+            "relations": [
+                {"from": "a", "label": "contains", "to": "b"},
+            ]
+        }
+    )
     assert ds.relations[0]["source"] == "a"
     assert ds.relations[0]["relation_type"] == "contains"
     assert ds.relations[0]["target"] == "b"
 
 
 # ── ConfidenceSystem ────────────────────────────────────────────────────
+
 
 def test_confidence_base_types():
     cs = ConfidenceSystem()
@@ -308,6 +324,7 @@ def test_confidence_adjust_for_merge():
 
 # ── DataIngestion ───────────────────────────────────────────────────────
 
+
 def test_ingestion_unsupported():
     ing = DataIngestion()
     r = ing.ingest("unknown_source")
@@ -355,11 +372,13 @@ def test_ingestion_cache_clear():
 
 def test_ingestion_multi():
     ing = DataIngestion()
-    results = ing.ingest_multi([
-        {"type": "static", "params": {"items": [{"id": 1}]}},
-        {"type": "static", "params": {"items": [{"id": 2}]}},
-        {"type": "unknown_source", "params": {}},
-    ])
+    results = ing.ingest_multi(
+        [
+            {"type": "static", "params": {"items": [{"id": 1}]}},
+            {"type": "static", "params": {"items": [{"id": 2}]}},
+            {"type": "unknown_source", "params": {}},
+        ]
+    )
     assert len(results) == 3
     assert results[0].status == "ok"
     assert results[1].status in ("ok", "cached")
@@ -367,6 +386,7 @@ def test_ingestion_multi():
 
 
 # ── DataMeshPipeline ────────────────────────────────────────────────────
+
 
 def test_pipeline_empty():
     pipe = DataMeshPipeline()
@@ -378,10 +398,12 @@ def test_pipeline_empty():
 
 def test_pipeline_static_sources():
     pipe = DataMeshPipeline()
-    result = pipe.run([
-        {"type": "static", "params": {"items": [{"id": 1, "name": "Item A"}], "wallet": [{"id": 1, "value": 100}]}},
-        {"type": "static", "params": {"items": [{"id": 2, "name": "Item B"}], "relations": [{"source": "a", "relation_type": "connects", "target": "b"}]}},
-    ])
+    result = pipe.run(
+        [
+            {"type": "static", "params": {"items": [{"id": 1, "name": "Item A"}], "wallet": [{"id": 1, "value": 100}]}},
+            {"type": "static", "params": {"items": [{"id": 2, "name": "Item B"}], "relations": [{"source": "a", "relation_type": "connects", "target": "b"}]}},
+        ]
+    )
     assert result.status in ("ok", "partial")
     assert result.sources_ingested >= 1
     assert result.normalized is not None
@@ -391,9 +413,11 @@ def test_pipeline_static_sources():
 
 def test_pipeline_stages():
     pipe = DataMeshPipeline()
-    result = pipe.run([
-        {"type": "static", "params": {"items": [{"id": 1}]}},
-    ])
+    result = pipe.run(
+        [
+            {"type": "static", "params": {"items": [{"id": 1}]}},
+        ]
+    )
     stage_names = [s.name for s in result.stages]
     assert "resolve_sources" in stage_names
     assert "ingest" in stage_names
@@ -404,9 +428,11 @@ def test_pipeline_stages():
 
 def test_pipeline_to_dict():
     pipe = DataMeshPipeline()
-    result = pipe.run([
-        {"type": "static", "params": {"items": [{"id": 99}]}},
-    ])
+    result = pipe.run(
+        [
+            {"type": "static", "params": {"items": [{"id": 99}]}},
+        ]
+    )
     d = result.to_dict()
     assert "id" in d
     assert "status" in d
@@ -418,20 +444,25 @@ def test_pipeline_to_dict():
 
 def test_pipeline_error_handling():
     pipe = DataMeshPipeline()
-    result = pipe.run([
-        {"type": "local_file", "params": {"path": "/nonexistent/file.json"}},
-    ])
+    result = pipe.run(
+        [
+            {"type": "local_file", "params": {"path": "/nonexistent/file.json"}},
+        ]
+    )
     assert result.status in ("error", "partial")
     assert any(r.status == "error" for r in result.source_results)
 
 
 # ── DataMeshBridge (integration) ────────────────────────────────────────
 
+
 def test_bridge_multi_source_ingest_static():
     bridge = DataMeshBridge()
-    results = bridge.multi_source_ingest([
-        {"type": "static", "params": {"items": [{"id": 7, "name": "bridge test"}], "wallet": []}},
-    ])
+    results = bridge.multi_source_ingest(
+        [
+            {"type": "static", "params": {"items": [{"id": 7, "name": "bridge test"}], "wallet": []}},
+        ]
+    )
     assert len(results) == 1
     assert results[0]["status"] in ("ok",)
     assert "normalized" in results[0]
@@ -439,9 +470,11 @@ def test_bridge_multi_source_ingest_static():
 
 def test_bridge_run_pipeline():
     bridge = DataMeshBridge()
-    result = bridge.run_pipeline([
-        {"type": "static", "params": {"wallet": [{"id": 1, "value": 999}]}},
-    ])
+    result = bridge.run_pipeline(
+        [
+            {"type": "static", "params": {"wallet": [{"id": 1, "value": 999}]}},
+        ]
+    )
     assert result["status"] in ("ok", "partial")
     assert "normalized" in result
     assert "confidence" in result
@@ -461,5 +494,6 @@ def test_bridge_normalize_fallback():
 
 def test_bridge_health():
     from gw2_progression.data_mesh.integration import check_mesh_health
+
     health = check_mesh_health()
     assert health["mesh_version"] == "v1"

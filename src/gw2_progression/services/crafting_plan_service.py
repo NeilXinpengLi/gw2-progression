@@ -86,9 +86,11 @@ async def create_plan(
 
     try:
         from ..database import using_db
+
         db = await using_db().__aenter__()
         try:
             from ..analyzer import fetch_all
+
             contents = await fetch_all(api_key)
             acct = contents.account_name or "unknown"
             await db.close()
@@ -96,6 +98,7 @@ async def create_plan(
 
             from ..ontology.account_mapper import sync_account_to_ontology
             from ..ontology.goal_mapper import sync_goal_reservations
+
             await sync_account_to_ontology(api_key, acct)
             await sync_goal_reservations(acct)
         finally:

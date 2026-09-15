@@ -32,14 +32,16 @@ class HorizontalExpander:
 
         merged_entities = []
         for eid, mdata in self._merge_registry.items():
-            merged_entities.append({
-                "id": eid,
-                "type": "merged_entity",
-                "name": eid,
-                "sources": mdata["sources"],
-                "properties": mdata["properties"],
-                "source": source_id,
-            })
+            merged_entities.append(
+                {
+                    "id": eid,
+                    "type": "merged_entity",
+                    "name": eid,
+                    "sources": mdata["sources"],
+                    "properties": mdata["properties"],
+                    "source": source_id,
+                }
+            )
         asset_entities, asset_relations = self._build_asset_views(source_id)
 
         result = dict(data)
@@ -119,17 +121,21 @@ class HorizontalExpander:
             entities.append(asset)
             if recipes and asset["properties"]["craft_cost_complete"]:
                 entities.append(self._profit_opportunity(asset, best_recipe, source_id))
-            relations.extend([
-                {"source": asset_id, "target": item["id"], "relation": "describes_item", "confidence": 0.95},
-                {"source": asset_id, "target": market["id"], "relation": "priced_by", "confidence": 0.95},
-            ])
+            relations.extend(
+                [
+                    {"source": asset_id, "target": item["id"], "relation": "describes_item", "confidence": 0.95},
+                    {"source": asset_id, "target": market["id"], "relation": "priced_by", "confidence": 0.95},
+                ]
+            )
             if recipes and asset["properties"]["craft_cost_complete"]:
-                relations.append({
-                    "source": asset_id,
-                    "target": f"profit:{native_id}",
-                    "relation": "has_profit_opportunity",
-                    "confidence": 0.9,
-                })
+                relations.append(
+                    {
+                        "source": asset_id,
+                        "target": f"profit:{native_id}",
+                        "relation": "has_profit_opportunity",
+                        "confidence": 0.9,
+                    }
+                )
             for recipe in recipes:
                 relations.append({"source": asset_id, "target": recipe["id"], "relation": "crafted_by", "confidence": 0.9})
                 for ingredient in self._ingredient_ids(recipe):

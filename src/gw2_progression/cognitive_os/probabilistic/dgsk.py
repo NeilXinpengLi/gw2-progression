@@ -105,12 +105,14 @@ class ProbabilisticDGSK:
                 if rng.random() < edge.probability:
                     noise = rng.gauss(0, edge.uncertainty)
                     effective_strength = max(0.0, edge.strength + noise)
-                    sampled["edges"].append({
-                        "source": edge.source,
-                        "target": edge.target,
-                        "relation": edge.relation,
-                        "strength": round(effective_strength, 4),
-                    })
+                    sampled["edges"].append(
+                        {
+                            "source": edge.source,
+                            "target": edge.target,
+                            "relation": edge.relation,
+                            "strength": round(effective_strength, 4),
+                        }
+                    )
         return sampled
 
     def edge_entropy(self) -> float:
@@ -131,7 +133,7 @@ class ProbabilisticDGSK:
 
     def merge_with_cognition_graph(self, cognition_graph: Any) -> None:
         """Import edges from the deterministic CognitionGraph as probability=1 edges."""
-        data = cognition_graph.to_dict() if hasattr(cognition_graph, 'to_dict') else {}
+        data = cognition_graph.to_dict() if hasattr(cognition_graph, "to_dict") else {}
 
         for edge in data.get("edges", []):
             src = edge.get("source_id") or edge.get("source", "")

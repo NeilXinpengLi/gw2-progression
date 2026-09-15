@@ -188,9 +188,7 @@ class BehaviorProfile:
     ) -> None:
         if archetype_weights:
             total = sum(archetype_weights.values())
-            self.archetype_weights = {
-                k: v / total for k, v in archetype_weights.items()
-            }
+            self.archetype_weights = {k: v / total for k, v in archetype_weights.items()}
         else:
             n = len(Archetype)
             uniform = 1.0 / n
@@ -220,6 +218,7 @@ class BehaviorProfile:
 
     def sample_action(self, rng: random.Random | None = None) -> ActionType:
         import random as _random
+
         rng = rng or _random.Random()
         dist = self.action_distribution()
         actions = list(dist.keys())
@@ -308,10 +307,7 @@ class BehaviorProfile:
         total_w = sum(self.archetype_weights.values())
         if total_w <= 0:
             return 0.5
-        return sum(
-            self.archetype_weights.get(a, 0.0) * ARCHETYPE_SIGNATURES[a].risk_tolerance
-            for a in Archetype
-        ) / total_w
+        return sum(self.archetype_weights.get(a, 0.0) * ARCHETYPE_SIGNATURES[a].risk_tolerance for a in Archetype) / total_w
 
     def to_dict(self) -> dict[str, Any]:
         return {

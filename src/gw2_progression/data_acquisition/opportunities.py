@@ -65,10 +65,7 @@ class CraftProfitRanker:
             opportunities.append(candidate)
 
         opportunities.sort(key=lambda row: (row["score"], row["net_profit"], row["roi"]), reverse=True)
-        return [
-            RankedCraftOpportunity(rank=index + 1, **row)
-            for index, row in enumerate(opportunities[: max(0, limit)])
-        ]
+        return [RankedCraftOpportunity(rank=index + 1, **row) for index, row in enumerate(opportunities[: max(0, limit)])]
 
     def rank_from_store(
         self,

@@ -34,4 +34,3 @@ async def test_delivery_outbox_sends_once_and_recovers_pending_job(commerce_db, 
     assert outbox[0] == 1
     assert outbox[1] == "sent"
     assert sent == ["buyer@example.com"]
-

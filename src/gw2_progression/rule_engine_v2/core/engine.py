@@ -69,8 +69,8 @@ class RuleEngineV2:
     def compete_rules(self) -> dict[str, Any]:
         if not self.agents:
             self.agents = [
-                create_rule_agent("Alpha", rules=self.rules[:max(1, len(self.rules)//2)]),
-                create_rule_agent("Beta", rules=self.rules[max(1, len(self.rules)//2):] if len(self.rules) > 1 else self.rules),
+                create_rule_agent("Alpha", rules=self.rules[: max(1, len(self.rules) // 2)]),
+                create_rule_agent("Beta", rules=self.rules[max(1, len(self.rules) // 2) :] if len(self.rules) > 1 else self.rules),
             ]
             for i in range(2, 5):
                 if i < len(self.rules):

@@ -100,15 +100,17 @@ def test_account_contents_adapter_builds_runtime_payload():
         builds = []
         masteries = []
         account = {"guilds": []}
-        characters = [{
-            "name": "Adapter Char",
-            "profession": "Guardian",
-            "race": "Human",
-            "level": 80,
-            "age": 3600,
-            "bags": [{"inventory": [{"id": 19721, "count": 1}]}],
-            "equipment": [],
-        }]
+        characters = [
+            {
+                "name": "Adapter Char",
+                "profession": "Guardian",
+                "race": "Human",
+                "level": 80,
+                "age": 3600,
+                "bags": [{"inventory": [{"id": 19721, "count": 1}]}],
+                "equipment": [],
+            }
+        ]
 
     payload = account_contents_to_runtime_payload(Contents(), item_limit=10)
 
@@ -155,10 +157,12 @@ def test_account_contents_adapter_honors_item_limit_and_dedupes_locations():
 def test_decision_economy_meta_plan_memory_and_training():
     system = ExpertAISystem()
 
-    decision = system.evaluate_decision({
-        "decision_type": "approve_recommendation",
-        "factors": [{"name": "confidence", "value": 0.9, "weight": 1, "impact": "positive"}],
-    })
+    decision = system.evaluate_decision(
+        {
+            "decision_type": "approve_recommendation",
+            "factors": [{"name": "confidence", "value": 0.9, "weight": 1, "impact": "positive"}],
+        }
+    )
     economy = system.economy.simulate([{"item_id": 19721, "price": 100, "supply": 50, "demand": 120}])
     meta = system.meta.analyze_build({"gear_completion_percent": 90, "role": "dps", "review_status": "reviewed"})
     plan = system.planner.generate([{"name": "Legendary", "missing_cost": 100, "priority": "high", "progress": 0.4}], {"budget": 200})
@@ -180,12 +184,14 @@ def test_training_pipeline_runs_full_production_loop():
     system.runtime.add_entity({"id": "goal:train", "type": "legendary_goal"})
     system.runtime.add_relation({"source": "account:train", "target": "goal:train", "relation_type": "pursues"})
 
-    result = system.run_training_pipeline({
-        "dataset_type": "full_production",
-        "start": "account:train",
-        "goal": "goal:train",
-        "simulation_steps": [{"type": "noop"}],
-    })
+    result = system.run_training_pipeline(
+        {
+            "dataset_type": "full_production",
+            "start": "account:train",
+            "goal": "goal:train",
+            "simulation_steps": [{"type": "noop"}],
+        }
+    )
 
     assert result["status"] == "completed"
     assert result["dataset"]["version"].startswith("full_production-")
@@ -210,13 +216,15 @@ def test_data_sources_agents_trainer_and_scheduler():
     from gw2_progression.expert_ai.agents import AgentOrchestrator
 
     system.agents = AgentOrchestrator(system, economy_source, meta_source)
-    agent_result = system.run_agents({
-        "item_ids": [1],
-        "profession": "Guardian",
-        "build": {"gear_completion_percent": 95, "role": "dps", "review_status": "reviewed", "missing_items": []},
-        "goals": [{"name": "Legendary", "missing_cost": 10, "progress": 0.9}],
-        "constraints": {"budget": 100},
-    })
+    agent_result = system.run_agents(
+        {
+            "item_ids": [1],
+            "profession": "Guardian",
+            "build": {"gear_completion_percent": 95, "role": "dps", "review_status": "reviewed", "missing_items": []},
+            "goals": [{"name": "Legendary", "missing_cost": 10, "progress": 0.9}],
+            "constraints": {"budget": 100},
+        }
+    )
     dataset = build_dataset({"graph": {"nodes": [{"id": "n1"}], "edges": []}})
     trained = ModelTrainer().train(dataset)
     scheduled = system.scheduler.schedule({"kind": "model_train", "payload": {"dataset": dataset}, "next_run_at": 0})
@@ -324,13 +332,15 @@ def test_llm_provider_config_prefers_openai_base_url_when_multiple_are_present()
 def test_decision_economy_meta_and_memory_edge_cases():
     system = ExpertAISystem()
 
-    blocked = system.evaluate_decision({
-        "decision_type": "approve_recommendation",
-        "factors": [
-            {"name": "confidence", "value": 0.95, "weight": 1, "impact": "positive"},
-            {"name": "api_key_leak", "value": 0.95, "weight": 1, "impact": "negative"},
-        ],
-    })
+    blocked = system.evaluate_decision(
+        {
+            "decision_type": "approve_recommendation",
+            "factors": [
+                {"name": "confidence", "value": 0.95, "weight": 1, "impact": "positive"},
+                {"name": "api_key_leak", "value": 0.95, "weight": 1, "impact": "negative"},
+            ],
+        }
+    )
     economy = system.economy.simulate([{"item_id": 1, "price": 100, "supply": 1000, "demand": 0}])
     meta = system.meta.analyze_build({"gear_completion_percent": 20, "role": "unknown", "review_status": "stale"})
     first = system.memory.append({"type": "episodic", "action": "reject", "outcome": "blocked"})
@@ -499,12 +509,14 @@ def test_production_client_adapters_execute_write_read_paths():
 def test_expert_layer_is_read_only_and_generates_counterfactuals():
     system = ExpertAISystem()
     before_state = system.runtime.state()
-    decision = system.evaluate_decision({
-        "factors": [
-            {"name": "confidence", "value": 0.9, "weight": 1, "impact": "positive"},
-            {"name": "cost_risk", "value": 0.2, "weight": 1, "impact": "negative"},
-        ],
-    })
+    decision = system.evaluate_decision(
+        {
+            "factors": [
+                {"name": "confidence", "value": 0.9, "weight": 1, "impact": "positive"},
+                {"name": "cost_risk", "value": 0.2, "weight": 1, "impact": "negative"},
+            ],
+        }
+    )
 
     explanation = system.expert_layer.explain_decision(decision, context={"goal": "legendary"})
     counterfactuals = system.expert_layer.generate_counterfactuals(decision)
@@ -538,15 +550,21 @@ def test_expert_ai_routes_smoke():
     graph_id = graph.json()["id"]
     assert client.get(f"/graph/{graph_id}").status_code == 200
 
-    snapshot = client.post("/runtime/snapshot", json={
-        "entities": [{"id": "account:test", "type": "account_snapshot"}],
-        "relations": [],
-    })
+    snapshot = client.post(
+        "/runtime/snapshot",
+        json={
+            "entities": [{"id": "account:test", "type": "account_snapshot"}],
+            "relations": [],
+        },
+    )
     assert snapshot.status_code == 200
 
-    decision = client.post("/decision/evaluate", json={
-        "factors": [{"name": "quality", "value": 0.8, "weight": 1, "impact": "positive"}],
-    })
+    decision = client.post(
+        "/decision/evaluate",
+        json={
+            "factors": [{"name": "quality", "value": 0.8, "weight": 1, "impact": "positive"}],
+        },
+    )
     assert decision.status_code == 200
     assert decision.json()["decision"] == "APPROVE"
 
@@ -645,20 +663,28 @@ def test_expert_ai_routes_smoke():
     assert meta_data.status_code == 200
     assert "builds" in meta_data.json()
 
-    agents = client.post("/agents/run", json={
-        "items": [{"item_id": 1, "price": 100, "supply": 10, "demand": 20}],
-        "build": {"gear_completion_percent": 95, "role": "dps", "review_status": "reviewed", "missing_items": []},
-        "goals": [{"name": "Legendary", "missing_cost": 10, "progress": 0.9}],
-        "constraints": {"budget": 100},
-    })
+    agents = client.post(
+        "/agents/run",
+        json={
+            "items": [{"item_id": 1, "price": 100, "supply": 10, "demand": 20}],
+            "build": {"gear_completion_percent": 95, "role": "dps", "review_status": "reviewed", "missing_items": []},
+            "goals": [{"name": "Legendary", "missing_cost": 10, "progress": 0.9}],
+            "constraints": {"budget": 100},
+        },
+    )
     assert agents.status_code == 200
     assert "coordination" in agents.json()
 
-    raw_ingest = client.post("/etl/account_raw", json={"raw": {
-        "account": {"name": "Route.1234"},
-        "assets": [{"category": "Wallet", "total_value": 1, "liquid_sell": 1, "percentage": 1, "count": 1}],
-        "characters": [],
-    }})
+    raw_ingest = client.post(
+        "/etl/account_raw",
+        json={
+            "raw": {
+                "account": {"name": "Route.1234"},
+                "assets": [{"category": "Wallet", "total_value": 1, "liquid_sell": 1, "percentage": 1, "count": 1}],
+                "characters": [],
+            }
+        },
+    )
     assert raw_ingest.status_code == 200
     assert raw_ingest.json()["summary"]["account_id"] == "account:Route.1234"
 

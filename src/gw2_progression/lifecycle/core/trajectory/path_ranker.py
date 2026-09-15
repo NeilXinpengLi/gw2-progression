@@ -57,4 +57,4 @@ class PathRanker:
         ranked = self.rank(paths)
         if len(ranked) <= top_n:
             return ranked[1:]
-        return ranked[1:top_n + 1]
+        return ranked[1 : top_n + 1]

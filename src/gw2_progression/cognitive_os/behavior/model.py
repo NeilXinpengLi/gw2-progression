@@ -124,10 +124,7 @@ class BehaviorModel:
 
         total_items = sum(inventory.values()) if isinstance(inventory, dict) else 0
         num_achievements = len(achievements) if isinstance(achievements, (list, dict)) else 0
-        has_trade_items = any(
-            str(k) in ("mystic_coin", "ectoplasm") and v > 5
-            for k, v in inventory.items()
-        ) if isinstance(inventory, dict) else False
+        has_trade_items = any(str(k) in ("mystic_coin", "ectoplasm") and v > 5 for k, v in inventory.items()) if isinstance(inventory, dict) else False
 
         scores: dict[Archetype, float] = {}
         for archetype in Archetype:

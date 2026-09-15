@@ -61,13 +61,15 @@ class AgentOrchestrator:
             self.planner.run(task),
         ]
         risk = self._risk(outputs)
-        decision = self.system.evaluate_decision({
-            "decision_type": "approve_recommendation",
-            "factors": [
-                {"name": "agent_alignment", "value": self._alignment(outputs), "weight": 0.7, "impact": "positive"},
-                {"name": "orchestration_risk", "value": risk, "weight": 0.3, "impact": "negative" if risk >= 0.7 else "positive"},
-            ],
-        })
+        decision = self.system.evaluate_decision(
+            {
+                "decision_type": "approve_recommendation",
+                "factors": [
+                    {"name": "agent_alignment", "value": self._alignment(outputs), "weight": 0.7, "impact": "positive"},
+                    {"name": "orchestration_risk", "value": risk, "weight": 0.3, "impact": "negative" if risk >= 0.7 else "positive"},
+                ],
+            }
+        )
         return {"outputs": outputs, "coordination": {"risk": risk, "decision": decision}}
 
     def _alignment(self, outputs: list[dict[str, Any]]) -> float:

@@ -82,15 +82,17 @@ class RuleDistiller:
             conditions = self._extract_conditions(group)
             actions = self._extract_actions(group)
             confidence = min(0.5 + len(group) * 0.1, 0.95)
-            distilled.append(DistilledRule(
-                id=f"distilled:{rtype}:{self._rng.randint(1000, 9999)}",
-                name=f"Abstracted {rtype} Rule",
-                abstraction=abstraction,
-                conditions=conditions,
-                actions=actions,
-                confidence=round(confidence, 4),
-                source_rules=[r.get("id", "") for r in group if r.get("id")],
-            ))
+            distilled.append(
+                DistilledRule(
+                    id=f"distilled:{rtype}:{self._rng.randint(1000, 9999)}",
+                    name=f"Abstracted {rtype} Rule",
+                    abstraction=abstraction,
+                    conditions=conditions,
+                    actions=actions,
+                    confidence=round(confidence, 4),
+                    source_rules=[r.get("id", "") for r in group if r.get("id")],
+                )
+            )
         return distilled
 
     def _llm_distill(self, rules: list[dict[str, Any]]) -> list[DistilledRule]:
@@ -126,7 +128,4 @@ class RuleDistiller:
     def build_prompt(self, rule_graph: dict[str, Any]) -> str:
         rule_count = len(rule_graph.get("rules", rule_graph.get("nodes", [])))
         types = list(set(r.get("type", "unknown") for r in rule_graph.get("rules", [])))
-        return (
-            f"Distill {rule_count} GW2 rules (types: {types}) into abstract meta-rules. "
-            "Identify patterns, generalize conditions, and produce compact actionable rules."
-        )
+        return f"Distill {rule_count} GW2 rules (types: {types}) into abstract meta-rules. Identify patterns, generalize conditions, and produce compact actionable rules."

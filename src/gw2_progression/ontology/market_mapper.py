@@ -84,17 +84,11 @@ def _signal_class(signal_type: str) -> str:
 
 
 def get_active_sell_candidates(account_name: str) -> list[OntologyObject]:
-    return [
-        o for o in store.get_objects_by_account("sell_candidate", account_name)
-        if o.properties.get("signal_type") == "sell_candidate"
-    ]
+    return [o for o in store.get_objects_by_account("sell_candidate", account_name) if o.properties.get("signal_type") == "sell_candidate"]
 
 
 def get_active_buy_candidates(account_name: str) -> list[OntologyObject]:
-    return [
-        o for o in store.get_objects_by_account("buy_candidate", account_name)
-        if o.properties.get("signal_type") == "buy_candidate"
-    ]
+    return [o for o in store.get_objects_by_account("buy_candidate", account_name) if o.properties.get("signal_type") == "buy_candidate"]
 
 
 def get_protected_market_assets(account_name: str) -> list[OntologyObject]:

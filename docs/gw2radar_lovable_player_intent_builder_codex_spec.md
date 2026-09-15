@@ -339,15 +339,7 @@ class PlayerIntent(BaseModel):
     account_id: str | None
     raw_text: str | None
     template_id: str | None
-    intent_type: Literal[
-        "returner",
-        "legendary",
-        "build_fit",
-        "account_overview",
-        "what_should_i_do_now",
-        "market_watch",
-        "unknown"
-    ]
+    intent_type: Literal["returner", "legendary", "build_fit", "account_overview", "what_should_i_do_now", "market_watch", "unknown"]
     goal_id: str | None
     profession: str | None
     specialization: str | None
@@ -407,18 +399,7 @@ class WorkflowState(BaseModel):
     workflow_id: str
     intent_id: str
     workflow_type: str
-    status: Literal[
-        "created",
-        "checking_account",
-        "needs_api_key",
-        "needs_permission",
-        "syncing",
-        "analyzing",
-        "needs_user_choice",
-        "planning",
-        "ready",
-        "failed"
-    ]
+    status: Literal["created", "checking_account", "needs_api_key", "needs_permission", "syncing", "analyzing", "needs_user_choice", "planning", "ready", "failed"]
     current_step: str
     required_user_actions: list[str]
     warnings: list[str]

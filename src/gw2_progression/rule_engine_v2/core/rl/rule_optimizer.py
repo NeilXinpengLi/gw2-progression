@@ -27,11 +27,13 @@ class RuleOptimizer:
             rew = self.reward.fitness(modified)
             self.policy.update(rule.get("id", "unknown"), action, rew)
             optimized.append(modified)
-            self.optimization_history.append({
-                "rule_id": rule.get("id"),
-                "action": action,
-                "reward": rew,
-            })
+            self.optimization_history.append(
+                {
+                    "rule_id": rule.get("id"),
+                    "action": action,
+                    "reward": rew,
+                }
+            )
         return optimized
 
     def _apply_action(self, rule: dict[str, Any], action: str) -> dict[str, Any]:

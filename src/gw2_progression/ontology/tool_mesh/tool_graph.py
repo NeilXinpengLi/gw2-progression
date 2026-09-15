@@ -1,6 +1,5 @@
 """ToolGraph — track inter-tool dependencies and analyze tool change impact."""
 
-
 _dependencies: dict[str, list[str]] = {}  # caller -> [callee]
 
 

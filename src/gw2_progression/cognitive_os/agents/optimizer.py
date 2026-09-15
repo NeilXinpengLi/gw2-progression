@@ -9,13 +9,15 @@ class OptimizerAgent(BaseAgent):
     """Policy sampler that chooses the highest expected utility action."""
 
     def __init__(self, name: str = "Optimizer", skill_level: float = 0.9) -> None:
-        super().__init__(AgentProfile(
-            name=name,
-            agent_type="optimizer",
-            skill_level=skill_level,
-            risk_tolerance=0.45,
-            specialization="strategy_optimization",
-        ))
+        super().__init__(
+            AgentProfile(
+                name=name,
+                agent_type="optimizer",
+                skill_level=skill_level,
+                risk_tolerance=0.45,
+                specialization="strategy_optimization",
+            )
+        )
 
     def act(self, world_state: dict[str, Any]) -> AgentAction:
         inventory = world_state.get("inventory", {}) or {}

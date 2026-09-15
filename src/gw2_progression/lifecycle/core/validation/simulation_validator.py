@@ -44,11 +44,13 @@ class SimulationValidator:
         validation_steps: list[dict[str, Any]] = []
         for t, s in enumerate(trajectory):
             v = self.constraints.validate_detailed(s)
-            validation_steps.append({
-                "step": t,
-                "valid": v["valid"],
-                "details": v,
-            })
+            validation_steps.append(
+                {
+                    "step": t,
+                    "valid": v["valid"],
+                    "details": v,
+                }
+            )
         result = {
             "trajectory_length": len(trajectory),
             "steps": validation_steps,

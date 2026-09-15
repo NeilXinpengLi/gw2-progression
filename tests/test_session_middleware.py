@@ -27,6 +27,7 @@ def client():
 
 def _mock_get_api_key(resolved=None):
     """Patch get_api_key where it's imported (main.py) to resolve SESSION_TOKEN -> RESOLVED_KEY."""
+
     async def side_effect(key):
         if key == SESSION_TOKEN:
             return resolved or RESOLVED_KEY
@@ -52,10 +53,13 @@ def test_middleware_skips_delete_requests(client):
 # ── Token resolved on all key affected route groups ──
 
 
-@pytest.mark.parametrize("route", [
-    "/api/v1/decide",
-    "/api/v1/feedback",
-])
+@pytest.mark.parametrize(
+    "route",
+    [
+        "/api/v1/decide",
+        "/api/v1/feedback",
+    ],
+)
 def test_production_routes_resolve_token(client, route):
     with _mock_get_api_key() as mock:
         body = {"api_key": SESSION_TOKEN, "account_name": "test", "action_key": "a1"} if route == "/api/v1/feedback" else {"api_key": SESSION_TOKEN}
@@ -64,10 +68,13 @@ def test_production_routes_resolve_token(client, route):
     mock.assert_called_once_with(SESSION_TOKEN)
 
 
-@pytest.mark.parametrize("route", [
-    "/builds/recommendations",
-    "/builds/readiness/sc_dh",
-])
+@pytest.mark.parametrize(
+    "route",
+    [
+        "/builds/recommendations",
+        "/builds/readiness/sc_dh",
+    ],
+)
 def test_builds_routes_resolve_token(client, route):
     with _mock_get_api_key() as mock:
         resp = client.post(route, json={"api_key": SESSION_TOKEN})
@@ -75,12 +82,15 @@ def test_builds_routes_resolve_token(client, route):
     mock.assert_called_once_with(SESSION_TOKEN)
 
 
-@pytest.mark.parametrize("route", [
-    "/crafting/calculate",
-    "/crafting/calculate/cheapest",
-    "/crafting/plan",
-    "/crafting/optimize",
-])
+@pytest.mark.parametrize(
+    "route",
+    [
+        "/crafting/calculate",
+        "/crafting/calculate/cheapest",
+        "/crafting/plan",
+        "/crafting/optimize",
+    ],
+)
 def test_crafting_routes_resolve_token(client, route):
     with _mock_get_api_key() as mock:
         body = {"api_key": SESSION_TOKEN, "target_item_id": 19976}
@@ -91,10 +101,13 @@ def test_crafting_routes_resolve_token(client, route):
     mock.assert_called_once_with(SESSION_TOKEN)
 
 
-@pytest.mark.parametrize("route", [
-    "/goals",
-    "/goals/test-goal-id/refresh",
-])
+@pytest.mark.parametrize(
+    "route",
+    [
+        "/goals",
+        "/goals/test-goal-id/refresh",
+    ],
+)
 def test_goals_routes_resolve_token(client, route):
     with _mock_get_api_key() as mock:
         body = {"api_key": SESSION_TOKEN, "target_item_id": 19976} if route == "/goals" else {"api_key": SESSION_TOKEN}
@@ -103,9 +116,12 @@ def test_goals_routes_resolve_token(client, route):
     mock.assert_called_once_with(SESSION_TOKEN)
 
 
-@pytest.mark.parametrize("route", [
-    "/progression/plans",
-])
+@pytest.mark.parametrize(
+    "route",
+    [
+        "/progression/plans",
+    ],
+)
 def test_progression_route_resolve_token(client, route):
     with _mock_get_api_key() as mock:
         resp = client.post(route, json={"api_key": SESSION_TOKEN, "template_id": "test"})
@@ -113,11 +129,14 @@ def test_progression_route_resolve_token(client, route):
     mock.assert_called_once_with(SESSION_TOKEN)
 
 
-@pytest.mark.parametrize("route", [
-    "/agent/progression/advice",
-    "/agent/progression/weekly-plan",
-    "/agent/coach-plan",
-])
+@pytest.mark.parametrize(
+    "route",
+    [
+        "/agent/progression/advice",
+        "/agent/progression/weekly-plan",
+        "/agent/coach-plan",
+    ],
+)
 def test_agent_routes_resolve_token(client, route):
     with _mock_get_api_key() as mock:
         resp = client.post(route, json={"api_key": SESSION_TOKEN})
@@ -125,10 +144,13 @@ def test_agent_routes_resolve_token(client, route):
     mock.assert_called_once_with(SESSION_TOKEN)
 
 
-@pytest.mark.parametrize("route", [
-    "/engine/decide",
-    "/engine/plan",
-])
+@pytest.mark.parametrize(
+    "route",
+    [
+        "/engine/decide",
+        "/engine/plan",
+    ],
+)
 def test_engine_routes_resolve_token(client, route):
     with _mock_get_api_key() as mock:
         resp = client.post(route, json={"api_key": SESSION_TOKEN})
@@ -136,17 +158,24 @@ def test_engine_routes_resolve_token(client, route):
     mock.assert_called_once_with(SESSION_TOKEN)
 
 
-@pytest.mark.parametrize("route", [
-    "/goal-driven/generate",
-    "/goal-driven/revise",
-    "/goal-driven/progressive",
-    "/goal-driven/progressive/full",
-])
+@pytest.mark.parametrize(
+    "route",
+    [
+        "/goal-driven/generate",
+        "/goal-driven/revise",
+        "/goal-driven/progressive",
+        "/goal-driven/progressive/full",
+    ],
+)
 def test_goal_driven_routes_resolve_token(client, route):
     with _mock_get_api_key() as mock:
-        body = {"api_key": SESSION_TOKEN, "goal_text": "make gold"} if route == "/goal-driven/generate" \
-            else {"api_key": SESSION_TOKEN, "plan_id": "p1", "revision_text": "cheaper"} if route == "/goal-driven/revise" \
+        body = (
+            {"api_key": SESSION_TOKEN, "goal_text": "make gold"}
+            if route == "/goal-driven/generate"
+            else {"api_key": SESSION_TOKEN, "plan_id": "p1", "revision_text": "cheaper"}
+            if route == "/goal-driven/revise"
             else {"api_key": SESSION_TOKEN}
+        )
         resp = client.post(route, json=body)
     assert resp.status_code in (200, 401, 404, 422, 500)
     mock.assert_called_once_with(SESSION_TOKEN)

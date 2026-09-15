@@ -117,10 +117,7 @@ def has_failures(results: list[PolicyResult], min_severity: PolicySeverity = Pol
     """Check if any result has failed at or above the minimum severity."""
     severity_order = {PolicySeverity.INFO: 0, PolicySeverity.WARNING: 1, PolicySeverity.ERROR: 2}
     threshold = severity_order.get(min_severity, 0)
-    return any(
-        not r.passed and severity_order.get(r.severity, 0) >= threshold
-        for r in results
-    )
+    return any(not r.passed and severity_order.get(r.severity, 0) >= threshold for r in results)
 
 
 def summary(results: list[PolicyResult]) -> dict:

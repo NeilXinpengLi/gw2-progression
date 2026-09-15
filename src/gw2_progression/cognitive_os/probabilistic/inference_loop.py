@@ -14,6 +14,7 @@ from gw2_progression.cognitive_os.probabilistic.policy import PolicyDistribution
 @dataclass
 class WorldSample:
     """A single world trajectory sample from the probabilistic inference loop."""
+
     world_id: str
     dgsk_sample: dict[str, Any]
     gnn_embeddings: dict[str, Any]
@@ -82,12 +83,12 @@ class ProbabilisticWorldInferenceLoop:
         gnn_output = self.gnn.forward(dgsk_sample)
 
         behavioral_profile = {}
-        if hasattr(self, '_behavior_profile_fn') and self._behavior_profile_fn:
+        if hasattr(self, "_behavior_profile_fn") and self._behavior_profile_fn:
             behavioral_profile = self._behavior_profile_fn() or {}
 
         bors_dist = self.bors.compute_decision_distribution(state, behavioral_profile)
 
-        if hasattr(self, '_action_sampler') and self._action_sampler:
+        if hasattr(self, "_action_sampler") and self._action_sampler:
             available = self._action_sampler(state)
             state_key = f"s_{self._step_count}"
             policy_dist = self.policy.get_distribution(state_key, available)
@@ -101,7 +102,7 @@ class ProbabilisticWorldInferenceLoop:
         sampled_action_type = self.bors.sample_decision()
         causal_chains = self.causal.infer_causal_chain(dgsk_sample, "entity:character")
 
-        target_uncertainty = self.dgsk.graph_uncertainty() * (self.uncertainty_decay ** self._step_count)
+        target_uncertainty = self.dgsk.graph_uncertainty() * (self.uncertainty_decay**self._step_count)
 
         return {
             "step": self._step_count,
@@ -159,10 +160,10 @@ class ProbabilisticWorldInferenceLoop:
                 bors_dist = self.bors.compute_decision_distribution(state)
                 decisions.append(bors_dist)
 
-                behavioral_profile_fn = getattr(self, '_behavior_profile_fn', None)
+                behavioral_profile_fn = getattr(self, "_behavior_profile_fn", None)
                 behavioral_profile_fn() if behavioral_profile_fn else {}
 
-                if hasattr(self, '_action_sampler') and self._action_sampler:
+                if hasattr(self, "_action_sampler") and self._action_sampler:
                     available = self._action_sampler(state)
                     state_key = f"w{self._world_counter}_s{_step}"
                     pdist = self.policy.get_distribution(state_key, available)
@@ -171,7 +172,7 @@ class ProbabilisticWorldInferenceLoop:
                 decision_type = self.bors.sample_decision()
                 action = {"type": decision_type.lower(), "item_id": "gold", "quantity": 1}
 
-                if hasattr(self, '_simulator'):
+                if hasattr(self, "_simulator"):
                     state = self._simulator(state, action)
 
                 trajectory.append(dict(state))
@@ -217,7 +218,7 @@ class ProbabilisticWorldInferenceLoop:
         alternative_action: dict[str, Any],
     ) -> CounterfactualResult:
         """Query: what if alternative action instead of original?"""
-        sim_fn = getattr(self, '_simulator', None)
+        sim_fn = getattr(self, "_simulator", None)
         if not sim_fn:
             raise ValueError("Simulator not set. Call set_simulator() first.")
         return self.causal.counterfactual(state, original_action, alternative_action, sim_fn)

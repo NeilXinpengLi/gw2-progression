@@ -107,11 +107,18 @@ class DatasetCollator:
         path = Path(path)
         path.parent.mkdir(parents=True, exist_ok=True)
         X, y = self.collate()
-        np.savez(str(path), X=X, y=y, metadata=json.dumps({
-            "event_count": len(self.events),
-            "label_distribution": {str(k): int(v) for k, v in zip(*np.unique(y, return_counts=True))} if len(y) > 0 else {},
-            "created_at": time.time(),
-        }))
+        np.savez(
+            str(path),
+            X=X,
+            y=y,
+            metadata=json.dumps(
+                {
+                    "event_count": len(self.events),
+                    "label_distribution": {str(k): int(v) for k, v in zip(*np.unique(y, return_counts=True))} if len(y) > 0 else {},
+                    "created_at": time.time(),
+                }
+            ),
+        )
         return str(path)
 
     @classmethod

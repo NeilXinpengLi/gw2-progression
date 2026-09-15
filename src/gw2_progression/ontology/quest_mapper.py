@@ -79,6 +79,7 @@ async def sync_quests_to_ontology(account_name: str) -> list[OntologyObject]:
     created: list[OntologyObject] = []
 
     from ..services.quest_service import get_week_quests
+
     quests = await get_week_quests(account_name)
     for q in quests:
         obj = map_quest_to_ontology(
@@ -111,10 +112,7 @@ def get_quests_by_account(account_name: str) -> list[OntologyObject]:
 
 
 def get_completed_quests(account_name: str) -> list[OntologyObject]:
-    return [
-        o for o in get_quests_by_account(account_name)
-        if o.properties.get("completed")
-    ]
+    return [o for o in get_quests_by_account(account_name) if o.properties.get("completed")]
 
 
 def get_weekly_quest_progress(account_name: str) -> dict[str, Any]:

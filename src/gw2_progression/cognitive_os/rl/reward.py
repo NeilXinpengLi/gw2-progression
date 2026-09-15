@@ -13,12 +13,7 @@ class RewardComponents:
 
     @property
     def total(self) -> float:
-        return (
-            self.economic_gain
-            + self.progression_efficiency
-            + self.reasoning_accuracy
-            - self.instability
-        )
+        return self.economic_gain + self.progression_efficiency + self.reasoning_accuracy - self.instability
 
 
 class RewardFunction:

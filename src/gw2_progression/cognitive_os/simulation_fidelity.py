@@ -21,6 +21,7 @@ from typing import Any
 
 # ─── Item Rarity System ────────────────────────────────────────────
 
+
 class Rarity(str, Enum):
     JUNK = "junk"
     BASIC = "basic"
@@ -31,15 +32,16 @@ class Rarity(str, Enum):
     ASCENDED = "ascended"
     LEGENDARY = "legendary"
 
+
 RARITY_SINK_FACTOR: dict[Rarity, float] = {
-    Rarity.JUNK: 1.0,       # vendor trash
+    Rarity.JUNK: 1.0,  # vendor trash
     Rarity.BASIC: 0.8,
     Rarity.FINE: 0.6,
     Rarity.MASTERWORK: 0.4,
     Rarity.RARE: 0.2,
-    Rarity.EXOTIC: 0.1,     # harder to sink
+    Rarity.EXOTIC: 0.1,  # harder to sink
     Rarity.ASCENDED: 0.05,
-    Rarity.LEGENDARY: 0.01, # nearly permanent
+    Rarity.LEGENDARY: 0.01,  # nearly permanent
 }
 
 RARITY_PRICE_MULTIPLIER: dict[Rarity, float] = {
@@ -56,6 +58,7 @@ RARITY_PRICE_MULTIPLIER: dict[Rarity, float] = {
 
 # ─── Crafting Disciplines ───────────────────────────────────────────
 
+
 class Discipline(str, Enum):
     ARMORSMITH = "armorsmith"
     ARTIFICER = "artificer"
@@ -68,9 +71,8 @@ class Discipline(str, Enum):
     SCRIBE = "scribe"
     MYSTIC_FORGE = "mystic_forge"
 
-DISCIPLINE_RATING_CAP: dict[Discipline, int] = {
-    d: 500 for d in Discipline
-}
+
+DISCIPLINE_RATING_CAP: dict[Discipline, int] = {d: 500 for d in Discipline}
 
 # Craftable item tiers by rating range
 DISCIPLINE_TIERS: dict[str, tuple[int, int]] = {
@@ -90,9 +92,11 @@ TP_LISTING_FEE: float = 0.05  # 5% listing fee (non-refundable)
 TP_TRANSACTION_FEE: float = 0.10  # 10% transaction fee
 TP_TOTAL_TAX: float = 0.15  # 15% total tax
 
+
 def tp_sell_proceeds(sell_price: float, quantity: int = 1) -> float:
     """Net proceeds after TP taxes: seller gets 85% of sell price."""
     return sell_price * quantity * (1.0 - TP_TOTAL_TAX)
+
 
 def tp_buy_cost(buy_price: float, quantity: int = 1) -> float:
     """Total cost to buy: buy price + listing fee (5% non-refundable)."""
@@ -100,6 +104,7 @@ def tp_buy_cost(buy_price: float, quantity: int = 1) -> float:
 
 
 # ─── Price Elasticity Model ─────────────────────────────────────────
+
 
 def price_elasticity(
     supply: float,
@@ -116,6 +121,7 @@ def price_elasticity(
 
 # ─── Achievement Chain Model ────────────────────────────────────────
 
+
 @dataclass
 class AchievementChain:
     chain_id: str
@@ -129,15 +135,9 @@ class AchievementChain:
         if not sequential_done:
             return False
         if self.required_completions > 0:
-            branch_done = sum(
-                1 for branch in self.parallel_branches.values()
-                if all(a in completed for a in branch)
-            )
+            branch_done = sum(1 for branch in self.parallel_branches.values() if all(a in completed for a in branch))
             return branch_done >= self.required_completions
-        return all(
-            all(a in completed for a in branch)
-            for branch in self.parallel_branches.values()
-        )
+        return all(all(a in completed for a in branch) for branch in self.parallel_branches.values())
 
     def next_achievable(self, completed: set[str]) -> list[str]:
         candidates: list[str] = []
@@ -154,6 +154,7 @@ class AchievementChain:
 
 
 # ─── Partial Observability / Confidence Tracking ───────────────────
+
 
 @dataclass
 class StateConfidence:
@@ -238,10 +239,7 @@ class UncertaintyTracker:
         return sum(sc.confidence for sc in self._confidences.values()) / len(self._confidences)
 
     def low_confidence_vars(self, threshold: float = 0.5) -> list[str]:
-        return [
-            var for var, sc in self._confidences.items()
-            if sc.confidence < threshold
-        ]
+        return [var for var, sc in self._confidences.items() if sc.confidence < threshold]
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -260,6 +258,7 @@ class UncertaintyTracker:
 
 
 # ─── DGSK Enhanced Constraints ─────────────────────────────────────
+
 
 class DGSKEnhancedConstraints:
     """Extended DGSK constraints with discipline, rarity, and achievement rules."""
@@ -335,25 +334,24 @@ class DGSKEnhancedConstraints:
         }
         for chain_id in self.achievement_chains:
             results["achievement_chains"][chain_id] = self.validate_achievement_chain(chain_id, completed_achs)
-        all_valid = all(
-            v.get("valid", True) for v in results.values()
-            if isinstance(v, dict)
-        )
+        all_valid = all(v.get("valid", True) for v in results.values() if isinstance(v, dict))
         results["valid"] = all_valid
         return results
 
 
 # ─── Enhanced Economy with Category Dynamics ────────────────────────
 
+
 class ItemCategory(str, Enum):
-    RAW_MATERIAL = "raw_material"       # ore, wood, cloth
-    CRAFTED_MATERIAL = "crafted_material" # ingots, planks, bolts
-    CONSUMABLE = "consumable"           # food, utility
-    GEAR = "gear"                       # weapons, armor
-    UPGRADE = "upgrade"                 # runes, sigils
-    LUXURY = "luxury"                   # minis, skins
-    CURRENCY = "currency"              # coins, tokens
-    COLLECTIBLE = "collectible"         # achievement items
+    RAW_MATERIAL = "raw_material"  # ore, wood, cloth
+    CRAFTED_MATERIAL = "crafted_material"  # ingots, planks, bolts
+    CONSUMABLE = "consumable"  # food, utility
+    GEAR = "gear"  # weapons, armor
+    UPGRADE = "upgrade"  # runes, sigils
+    LUXURY = "luxury"  # minis, skins
+    CURRENCY = "currency"  # coins, tokens
+    COLLECTIBLE = "collectible"  # achievement items
+
 
 CATEGORY_VOLATILITY: dict[ItemCategory, float] = {
     ItemCategory.RAW_MATERIAL: 0.15,
@@ -414,9 +412,7 @@ class EnhancedEconomyRules:
             "sink_rate": sink_rate,
             "buy_price_after_tax": round(self.tp_buy_cost(eq_price), 2),
             "sell_proceeds_after_tax": round(self.tp_sell_proceeds(eq_price), 2),
-            "spread_after_tax": round(
-                tp_sell_proceeds(eq_price) - tp_buy_cost(eq_price), 2
-            ),
+            "spread_after_tax": round(tp_sell_proceeds(eq_price) - tp_buy_cost(eq_price), 2),
         }
 
     def compute_category_health(self, market: dict[str, Any]) -> dict[str, Any]:
@@ -458,6 +454,7 @@ class EnhancedEconomyRules:
 
 # ─── Full Simulation Fidelity Assessment ───────────────────────────
 
+
 class SimulationFidelity:
     """Top-level fidelity assessment and management.
 
@@ -482,9 +479,9 @@ class SimulationFidelity:
         emergent = 0.30
         hidden = 0.20
         covered = (
-            explicit * 1.0    # crafting tree, item dep, achievement chains
+            explicit * 1.0  # crafting tree, item dep, achievement chains
             + emergent * 0.7  # economy patterns, build meta
-            + hidden * 0.0    # combat formulas, drop rates (unobservable)
+            + hidden * 0.0  # combat formulas, drop rates (unobservable)
         )
         self._fidelity_scores["dgsk_structural"] = round(covered, 3)
         return {
@@ -560,9 +557,7 @@ class SimulationFidelity:
 
     def overall_fidelity(self) -> float:
         scores = list(self._fidelity_scores.values())
-        self._fidelity_scores["overall"] = round(
-            sum(scores) / max(len(scores), 1), 3
-        )
+        self._fidelity_scores["overall"] = round(sum(scores) / max(len(scores), 1), 3)
         return self._fidelity_scores["overall"]
 
     def full_report(self) -> dict[str, Any]:

@@ -9,6 +9,7 @@ from typing import Any
 @dataclass
 class PolicyDistribution:
     """A probability distribution over actions from the RL policy."""
+
     action_type: str
     item_id: str
     probability: float
@@ -63,20 +64,24 @@ class ProbabilisticPolicy:
         for action, q_val, prob in zip(available_actions, q_values, adjusted):
             mean_q = sum(q_values) / max(len(q_values), 1)
             advantage = q_val - mean_q
-            distributions.append(PolicyDistribution(
-                action_type=action.get("type", "unknown"),
-                item_id=action.get("item_id", ""),
-                probability=round(prob, 4),
-                q_value=round(q_val, 4),
-                advantage=round(advantage, 4),
-            ))
+            distributions.append(
+                PolicyDistribution(
+                    action_type=action.get("type", "unknown"),
+                    item_id=action.get("item_id", ""),
+                    probability=round(prob, 4),
+                    q_value=round(q_val, 4),
+                    advantage=round(advantage, 4),
+                )
+            )
 
-        self._distribution_history.append({
-            "state_key": state_key,
-            "action_count": len(distributions),
-            "max_prob": round(max(p.probability for p in distributions), 4) if distributions else 0.0,
-            "entropy": round(self._distribution_entropy(distributions), 4),
-        })
+        self._distribution_history.append(
+            {
+                "state_key": state_key,
+                "action_count": len(distributions),
+                "max_prob": round(max(p.probability for p in distributions), 4) if distributions else 0.0,
+                "entropy": round(self._distribution_entropy(distributions), 4),
+            }
+        )
 
         distributions.sort(key=lambda d: -d.probability)
         return distributions

@@ -46,6 +46,7 @@ class ConfidenceSystem:
 
     def __init__(self, source_registry: Any | None = None):
         from gw2_progression.data_mesh.sources.registry import SourceRegistry
+
         self._registry: SourceRegistry = source_registry or SourceRegistry()
 
     def evaluate(

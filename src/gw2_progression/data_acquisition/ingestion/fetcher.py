@@ -155,10 +155,7 @@ class Fetcher:
                 "source_id": source.id,
                 "type": "api",
                 "timestamp": time.time(),
-                "data": [
-                    {"id": a, "name": f"Achievement_{a}", "done": True, "reps": 1}
-                    for a in random.sample(range(1000, 9999), random.randint(5, 20))
-                ],
+                "data": [{"id": a, "name": f"Achievement_{a}", "done": True, "reps": 1} for a in random.sample(range(1000, 9999), random.randint(5, 20))],
             }
         if "items" in source.endpoint:
             return {

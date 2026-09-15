@@ -45,10 +45,7 @@ class PopulationIntelligence:
 
         counts = Counter(actions)
         total = sum(counts.values())
-        distribution = {
-            action: round(count / total, 4)
-            for action, count in sorted(counts.items())
-        } if total else {}
+        distribution = {action: round(count / total, 4) for action, count in sorted(counts.items())} if total else {}
 
         adoption_curve: list[dict[str, Any]] = []
         running = Counter()
@@ -59,11 +56,13 @@ class PopulationIntelligence:
                 continue
             running[str(action_type)] += 1
             running_total = sum(running.values())
-            adoption_curve.append({
-                "t": snapshot.t,
-                "dominant_strategy": running.most_common(1)[0][0],
-                "share": round(running.most_common(1)[0][1] / running_total, 4),
-            })
+            adoption_curve.append(
+                {
+                    "t": snapshot.t,
+                    "dominant_strategy": running.most_common(1)[0][0],
+                    "share": round(running.most_common(1)[0][1] / running_total, 4),
+                }
+            )
 
         return {
             "distribution": distribution,
@@ -89,8 +88,7 @@ class PopulationIntelligence:
                 {
                     "item_id": item_id,
                     "diffusion_score": round(
-                        float(item.get("demand", 0.0)) / max(float(item.get("supply", 1.0)), 0.01)
-                        * (1.0 + float(item.get("volatility", 0.0))),
+                        float(item.get("demand", 0.0)) / max(float(item.get("supply", 1.0)), 0.01) * (1.0 + float(item.get("volatility", 0.0))),
                         4,
                     ),
                 }
@@ -123,34 +121,42 @@ class PopulationIntelligence:
     ) -> list[dict[str, Any]]:
         clusters: list[dict[str, Any]] = []
         for archetype, share in sorted(behavior_distribution.items(), key=lambda item: item[1], reverse=True):
-            clusters.append({
-                "cluster_id": f"behavior:{archetype}",
-                "basis": "behavior",
-                "label": archetype,
-                "share": round(share, 4),
-            })
+            clusters.append(
+                {
+                    "cluster_id": f"behavior:{archetype}",
+                    "basis": "behavior",
+                    "label": archetype,
+                    "share": round(share, 4),
+                }
+            )
 
         dominant_strategy = strategy_adoption.get("dominant_strategy", "unknown")
         if dominant_strategy != "unknown":
-            clusters.append({
-                "cluster_id": f"strategy:{dominant_strategy}",
-                "basis": "strategy",
-                "label": dominant_strategy,
-                "share": strategy_adoption.get("distribution", {}).get(dominant_strategy, 0.0),
-            })
+            clusters.append(
+                {
+                    "cluster_id": f"strategy:{dominant_strategy}",
+                    "basis": "strategy",
+                    "label": dominant_strategy,
+                    "share": strategy_adoption.get("distribution", {}).get(dominant_strategy, 0.0),
+                }
+            )
 
         for role, share in sorted(role_mix.items(), key=lambda item: item[1], reverse=True)[:3]:
-            clusters.append({
-                "cluster_id": f"role:{role}",
-                "basis": "agent_role",
-                "label": role,
-                "share": share,
-            })
+            clusters.append(
+                {
+                    "cluster_id": f"role:{role}",
+                    "basis": "agent_role",
+                    "label": role,
+                    "share": share,
+                }
+            )
 
-        clusters.append({
-            "cluster_id": f"market:{economy_diffusion.get('market_phase', 'unobserved')}",
-            "basis": "economy",
-            "label": economy_diffusion.get("market_phase", "unobserved"),
-            "share": 1.0 if economy_diffusion.get("tracked_items", 0) else 0.0,
-        })
+        clusters.append(
+            {
+                "cluster_id": f"market:{economy_diffusion.get('market_phase', 'unobserved')}",
+                "basis": "economy",
+                "label": economy_diffusion.get("market_phase", "unobserved"),
+                "share": 1.0 if economy_diffusion.get("tracked_items", 0) else 0.0,
+            }
+        )
         return clusters

@@ -57,13 +57,15 @@ def get_reserved_details(account_name: str) -> list[dict]:
         source = store.get_object(rel.source_id)
         target = store.get_object(rel.target_id)
         if source and source.account_name == account_name and target:
-            details.append({
-                "item_id": source.properties.get("item_id", 0),
-                "reserved_count": source.properties.get("reserved_count", 0),
-                "goal_id": target.object_id,
-                "goal_name": target.properties.get("name", ""),
-                "goal_template_id": target.properties.get("template_id", ""),
-            })
+            details.append(
+                {
+                    "item_id": source.properties.get("item_id", 0),
+                    "reserved_count": source.properties.get("reserved_count", 0),
+                    "goal_id": target.object_id,
+                    "goal_name": target.properties.get("name", ""),
+                    "goal_template_id": target.properties.get("template_id", ""),
+                }
+            )
     return details
 
 
@@ -79,15 +81,17 @@ def find_goals_for_item(item_id: int, account_name: str) -> list[dict]:
         for req_rel in store.get_relations(source_id=obj.object_id, relation_type="requires"):
             req_obj = store.get_object(req_rel.target_id)
             if req_obj and req_obj.properties.get("item_id") == item_id:
-                goals.append({
-                    "goal_id": obj.object_id,
-                    "goal_name": obj.properties.get("name", ""),
-                    "template_id": obj.properties.get("template_id", ""),
-                    "priority": obj.properties.get("priority", "normal"),
-                    "required_count": req_obj.properties.get("required_count", 0),
-                    "owned_count": req_obj.properties.get("owned_count", 0),
-                    "status": obj.properties.get("status", "active"),
-                })
+                goals.append(
+                    {
+                        "goal_id": obj.object_id,
+                        "goal_name": obj.properties.get("name", ""),
+                        "template_id": obj.properties.get("template_id", ""),
+                        "priority": obj.properties.get("priority", "normal"),
+                        "required_count": req_obj.properties.get("required_count", 0),
+                        "owned_count": req_obj.properties.get("owned_count", 0),
+                        "status": obj.properties.get("status", "active"),
+                    }
+                )
     return goals
 
 
@@ -98,10 +102,7 @@ def compute_asset_safe_surplus(item_id: int, account_name: str) -> dict:
             owned += asset.properties.get("count", 0)
     reserved_count = get_reserved_quantities(account_name).get(item_id, 0)
     goals = find_goals_for_item(item_id, account_name)
-    active_goal_count = sum(
-        g.get("required_count", 0) for g in goals
-        if g.get("status") == "active"
-    )
+    active_goal_count = sum(g.get("required_count", 0) for g in goals if g.get("status") == "active")
     surplus = max(0, owned - max(reserved_count, active_goal_count))
     return {
         "item_id": item_id,

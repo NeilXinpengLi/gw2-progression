@@ -92,10 +92,7 @@ class ExecutionEngine:
 ```python
 class StateEngine:
     def transition(self, state, action):
-        return {
-            "new_state": self.apply_rules(state, action),
-            "delta": self.compute_delta(state, action)
-        }
+        return {"new_state": self.apply_rules(state, action), "delta": self.compute_delta(state, action)}
 ```
 
 ---
@@ -105,12 +102,7 @@ class StateEngine:
 ```python
 class LineageTracker:
     def record(self, before, action, after):
-        return {
-            "from": before,
-            "action": action,
-            "to": after,
-            "timestamp": self.now()
-        }
+        return {"from": before, "action": action, "to": after, "timestamp": self.now()}
 ```
 
 ---

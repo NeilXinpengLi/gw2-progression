@@ -112,15 +112,17 @@ def normalize_account(raw: dict[str, Any]) -> NormalizedAccountData:
                 login_days = (now - created_dt).days
             except (ValueError, TypeError):
                 pass
-        characters.append(CharacterEntity(
-            name=ch.get("name", "?"),
-            profession=ch.get("profession", ""),
-            level=ch.get("level", 0),
-            playtime_hours=round(ch.get("age", 0) / 3600, 1),
-            created=created_str,
-            deaths=ch.get("deaths", 0),
-            last_login_days=login_days,
-        ))
+        characters.append(
+            CharacterEntity(
+                name=ch.get("name", "?"),
+                profession=ch.get("profession", ""),
+                level=ch.get("level", 0),
+                playtime_hours=round(ch.get("age", 0) / 3600, 1),
+                created=created_str,
+                deaths=ch.get("deaths", 0),
+                last_login_days=login_days,
+            )
+        )
 
     snapshot.character_count = len(characters)
     snapshot.total_levels = sum(c.level for c in characters)
@@ -132,28 +134,30 @@ def normalize_account(raw: dict[str, Any]) -> NormalizedAccountData:
     raw_holdings.extend(extract_material_holdings(raw_materials))
     raw_holdings.extend(extract_bank_holdings(raw_bank))
     raw_holdings.extend(extract_character_equipment(raw_chars))  # gear slot
-    raw_holdings.extend(extract_character_holdings(raw_chars))   # bag items
+    raw_holdings.extend(extract_character_holdings(raw_chars))  # bag items
     raw_holdings.extend(extract_shared_inventory_holdings(raw_shared))
     raw_holdings.extend(extract_tradingpost_holdings(raw_tp_buys, raw_tp_sells))
 
     assets: list[AssetEntity] = []
     for h in raw_holdings:
-        assets.append(AssetEntity(
-            item_id=h.item_id,
-            count=h.count,
-            location=h.location_type,
-            location_ref=h.location_ref or "",
-            binding=h.binding_status or "",
-            tradable=h.tradable,
-            price_buy=h.price_buy,
-            price_sell=h.price_sell,
-            value_buy=h.value_buy,
-            value_sell=h.value_sell,
-            value_after_fee=int(h.value_sell * TP_SELL_FEE),
-            liquidity=h.liquidity_score or "unknown",
-            confidence=h.confidence,
-            data_source="gw2_api",
-        ))
+        assets.append(
+            AssetEntity(
+                item_id=h.item_id,
+                count=h.count,
+                location=h.location_type,
+                location_ref=h.location_ref or "",
+                binding=h.binding_status or "",
+                tradable=h.tradable,
+                price_buy=h.price_buy,
+                price_sell=h.price_sell,
+                value_buy=h.value_buy,
+                value_sell=h.value_sell,
+                value_after_fee=int(h.value_sell * TP_SELL_FEE),
+                liquidity=h.liquidity_score or "unknown",
+                confidence=h.confidence,
+                data_source="gw2_api",
+            )
+        )
 
     # Currencies
     currencies = CurrencyEntity()
@@ -255,14 +259,16 @@ def derive_breakdown(assets: list[AssetEntity]) -> list[AssetBreakdown]:
         items = cat_items.get(label, [])
         low_liquidity = sum(1 for i in items if i.liquidity in ("low", "illiquid"))
         risk = "high" if len(items) > 0 and low_liquidity / len(items) > 0.5 else "medium" if low_liquidity > 0 else "low"
-        breakdown.append(AssetBreakdown(
-            category=label,
-            total_value=val,
-            liquid_value=val,
-            percentage=round(val / max(total, 1) * 100, 1),
-            risk=risk,
-            item_count=len(items),
-        ))
+        breakdown.append(
+            AssetBreakdown(
+                category=label,
+                total_value=val,
+                liquid_value=val,
+                percentage=round(val / max(total, 1) * 100, 1),
+                risk=risk,
+                item_count=len(items),
+            )
+        )
     return breakdown
 
 
@@ -271,6 +277,7 @@ def derive_breakdown(assets: list[AssetEntity]) -> list[AssetBreakdown]:
 
 def _hash_key(api_key: str) -> str:
     import hashlib
+
     return hashlib.sha256(api_key.encode()).hexdigest()[:16]
 
 
@@ -301,12 +308,7 @@ async def run_full_analysis(api_key: str) -> Any:
     holdings.extend(extract_shared_inventory_holdings(contents.shared_inventory))
     holdings.extend(extract_tradingpost_holdings(contents.tradingpost_buys, contents.tradingpost_sells))
 
-    unpriced_ids = list(set(
-        h.item_id for h in holdings
-        if h.valuation_status == "pending"
-        and h.location_type not in ("wallet", "tradingpost")
-        and h.binding_status is None
-    ))
+    unpriced_ids = list(set(h.item_id for h in holdings if h.valuation_status == "pending" and h.location_type not in ("wallet", "tradingpost") and h.binding_status is None))
 
     prices = {}
     price_details = {}
@@ -325,10 +327,7 @@ async def run_full_analysis(api_key: str) -> Any:
 
     all_holdings, warnings = apply_prices(holdings, prices, price_details)
 
-    unpriced_ids = list(set(
-        h.item_id for h in all_holdings
-        if h.valuation_status in ("unpriced", "no_price") and h.binding_status is None
-    ))
+    unpriced_ids = list(set(h.item_id for h in all_holdings if h.valuation_status in ("unpriced", "no_price") and h.binding_status is None))
     if unpriced_ids:
         bound_flags = await is_account_bound(unpriced_ids)
         for h in all_holdings:
@@ -351,13 +350,23 @@ async def run_full_analysis(api_key: str) -> Any:
     breakdown = compute_breakdown(summary, all_holdings)
     top_item_models = [
         TopItem(
-            item_id=h.item_id, count=h.count, location_type=h.location_type,
-            location_ref=h.location_ref, price_buy=h.price_buy, price_sell=h.price_sell,
-            value_buy=h.value_buy, value_sell=h.value_sell, tradable=h.tradable,
-            valuation_status=h.valuation_status, quality_status=h.quality_status,
-            liquidity_score=h.liquidity_score, liquidity_reason=h.liquidity_reason,
-            confidence=h.confidence, data_sources=h.data_sources,
-            price_timestamp=h.price_timestamp, risk_reason=h.risk_reason,
+            item_id=h.item_id,
+            count=h.count,
+            location_type=h.location_type,
+            location_ref=h.location_ref,
+            price_buy=h.price_buy,
+            price_sell=h.price_sell,
+            value_buy=h.value_buy,
+            value_sell=h.value_sell,
+            tradable=h.tradable,
+            valuation_status=h.valuation_status,
+            quality_status=h.quality_status,
+            liquidity_score=h.liquidity_score,
+            liquidity_reason=h.liquidity_reason,
+            confidence=h.confidence,
+            data_sources=h.data_sources,
+            price_timestamp=h.price_timestamp,
+            risk_reason=h.risk_reason,
         )
         for h in sorted(all_holdings, key=lambda h: h.value_sell, reverse=True)[:20]
     ]

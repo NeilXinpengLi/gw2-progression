@@ -9,13 +9,15 @@ class FarmerAgent(BaseAgent):
     """Resource acquisition specialist over farming and gathering loops."""
 
     def __init__(self, name: str = "Farmer", efficiency: float = 0.75) -> None:
-        super().__init__(AgentProfile(
-            name=name,
-            agent_type="farmer",
-            skill_level=efficiency,
-            risk_tolerance=0.35,
-            specialization="resource_farming",
-        ))
+        super().__init__(
+            AgentProfile(
+                name=name,
+                agent_type="farmer",
+                skill_level=efficiency,
+                risk_tolerance=0.35,
+                specialization="resource_farming",
+            )
+        )
         self._preferred_targets = ["gold", "ore", "wood", "volatile_magic", "mystic_coin"]
 
     def act(self, world_state: dict[str, Any]) -> AgentAction:

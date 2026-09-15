@@ -564,6 +564,7 @@ class AccountReport(BaseModel):
 
 # ── Goal-Driven OS Models ──────────────────────────────────────────
 
+
 class GoalType(str, enum.Enum):
     MAKE_GOLD = "MAKE_GOLD"
     FINISH_LEGENDARY = "FINISH_LEGENDARY"

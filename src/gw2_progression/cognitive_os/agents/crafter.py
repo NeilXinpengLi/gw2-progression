@@ -14,13 +14,15 @@ class CrafterAgent(BaseAgent):
     """
 
     def __init__(self, name: str = "Crafter", skill_level: float = 0.7, capital: float = 500.0) -> None:
-        super().__init__(AgentProfile(
-            name=name,
-            agent_type="crafter",
-            capital=capital,
-            skill_level=skill_level,
-            specialization="crafting",
-        ))
+        super().__init__(
+            AgentProfile(
+                name=name,
+                agent_type="crafter",
+                capital=capital,
+                skill_level=skill_level,
+                specialization="crafting",
+            )
+        )
         self._known_recipes: dict[str, dict[str, int]] = {}
         self._recipe_values: dict[str, float] = {}
 

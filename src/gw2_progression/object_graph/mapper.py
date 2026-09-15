@@ -17,11 +17,22 @@ from .models import (
 logger = logging.getLogger("gw2.object_graph")
 
 CURRENCY_IDS = {
-    1: "Gold", 2: "Karma", 3: "Laurels", 4: "Spirit Shards",
-    5: "Fractal Relics", 6: "PvP Tournament Tickets", 7: "WvW Skirmish Tickets",
-    8: "Ascended Currency", 9: "Magnetite Shards", 10: "Gaeting Crystals",
-    11: "Provisioning Tokens", 12: "Testimony of Heroics", 13: "Gems",
-    14: "Volatile Magic", 15: "Unbound Magic", 16: "Research Notes",
+    1: "Gold",
+    2: "Karma",
+    3: "Laurels",
+    4: "Spirit Shards",
+    5: "Fractal Relics",
+    6: "PvP Tournament Tickets",
+    7: "WvW Skirmish Tickets",
+    8: "Ascended Currency",
+    9: "Magnetite Shards",
+    10: "Gaeting Crystals",
+    11: "Provisioning Tokens",
+    12: "Testimony of Heroics",
+    13: "Gems",
+    14: "Volatile Magic",
+    15: "Unbound Magic",
+    16: "Research Notes",
 }
 
 
@@ -106,10 +117,15 @@ def _map_bank(contents: AccountContents, graph: AccountObjectGraph) -> None:
         item_id = entry.get("id")
         count = entry.get("count", 0)
         if item_id:
-            graph.items.append(ItemNode(
-                item_id=item_id, count=count or 1, location="bank",
-                binding=entry.get("binding") or "", tradable=entry.get("binding") is None,
-            ))
+            graph.items.append(
+                ItemNode(
+                    item_id=item_id,
+                    count=count or 1,
+                    location="bank",
+                    binding=entry.get("binding") or "",
+                    tradable=entry.get("binding") is None,
+                )
+            )
 
 
 def _map_characters(contents: AccountContents, graph: AccountObjectGraph) -> None:
@@ -123,12 +139,15 @@ def _map_characters(contents: AccountContents, graph: AccountObjectGraph) -> Non
                 continue
             eq_item_id = eq.get("id")
             slot = eq.get("slot", "")
-            equipment_slots.append(EquipmentSlot(
-                slot=slot, item_id=eq_item_id or 0,
-                binding=eq.get("binding") or "",
-                skin_id=eq.get("skin") or 0,
-                dyes=eq.get("dyes") or [],
-            ))
+            equipment_slots.append(
+                EquipmentSlot(
+                    slot=slot,
+                    item_id=eq_item_id or 0,
+                    binding=eq.get("binding") or "",
+                    skin_id=eq.get("skin") or 0,
+                    dyes=eq.get("dyes") or [],
+                )
+            )
             graph.items.append(ItemNode(item_id=eq_item_id or 0, count=1, location="character_equip", location_ref=f"{char_name}/{slot}", binding="AccountBound", tradable=False))
 
         bag_items = []
@@ -160,21 +179,23 @@ def _map_characters(contents: AccountContents, graph: AccountObjectGraph) -> Non
             except (ValueError, TypeError):
                 pass
 
-        graph.characters.append(CharacterNode(
-            name=char_name,
-            profession=ch.get("profession", ""),
-            level=ch.get("level", 0),
-            race=ch.get("race", ""),
-            age=ch.get("age", 0),
-            playtime_hours=round(ch.get("age", 0) / 3600, 1),
-            created=created_str,
-            last_login_days=login_days,
-            deaths=ch.get("deaths", 0),
-            equipment=equipment_slots,
-            bag_count=len(ch.get("bags") or []),
-            bag_items=bag_items,
-            build_tabs=len(ch.get("build_tabs") or ch.get("equipment_tabs") or []),
-        ))
+        graph.characters.append(
+            CharacterNode(
+                name=char_name,
+                profession=ch.get("profession", ""),
+                level=ch.get("level", 0),
+                race=ch.get("race", ""),
+                age=ch.get("age", 0),
+                playtime_hours=round(ch.get("age", 0) / 3600, 1),
+                created=created_str,
+                last_login_days=login_days,
+                deaths=ch.get("deaths", 0),
+                equipment=equipment_slots,
+                bag_count=len(ch.get("bags") or []),
+                bag_items=bag_items,
+                build_tabs=len(ch.get("build_tabs") or ch.get("equipment_tabs") or []),
+            )
+        )
 
 
 def _map_shared_inventory(contents: AccountContents, graph: AccountObjectGraph) -> None:

@@ -124,11 +124,13 @@ class SyntheticSimulationEngine:
             action = player.act(self.world)
             result = self.world.apply(player, action)
             interactions.append(result)
-            self.system.runtime.simulate_step({
-                "type": "update_state",
-                "entity_id": player.id,
-                "patch": {"gold": player.gold, "inventory": dict(player.inventory), "last_action": action["type"], "world_time": self.world.time},
-            })
+            self.system.runtime.simulate_step(
+                {
+                    "type": "update_state",
+                    "entity_id": player.id,
+                    "patch": {"gold": player.gold, "inventory": dict(player.inventory), "last_action": action["type"], "world_time": self.world.time},
+                }
+            )
         return interactions
 
     def update_economy(self, updates: dict[str, dict[str, float]]) -> dict[str, Any]:
@@ -160,15 +162,17 @@ class SyntheticSimulationEngine:
     def build_reasoning(self) -> list[dict[str, Any]]:
         rows = []
         for item_id, label in self.generate_labels().items():
-            rows.append({
-                "item": item_id,
-                "chain": [
-                    {"node": item_id, "relation": "used_in", "target": "synthetic_progression"},
-                    {"node": "synthetic_progression", "relation": "affected_by", "target": "market_shift"},
-                    {"node": "market_shift", "relation": "leads_to", "target": label["decision"]},
-                ],
-                "decision": label,
-            })
+            rows.append(
+                {
+                    "item": item_id,
+                    "chain": [
+                        {"node": item_id, "relation": "used_in", "target": "synthetic_progression"},
+                        {"node": "synthetic_progression", "relation": "affected_by", "target": "market_shift"},
+                        {"node": "market_shift", "relation": "leads_to", "target": label["decision"]},
+                    ],
+                    "decision": label,
+                }
+            )
         return rows
 
     def export_dataset(self, trajectory: list[dict[str, Any]] | None = None, labels: dict[str, Any] | None = None, reasoning: list[dict[str, Any]] | None = None) -> dict[str, Any]:

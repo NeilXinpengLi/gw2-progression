@@ -100,6 +100,7 @@ class RawAccountData:
 @dataclass
 class AccountSnapshot:
     """Immutable point-in-time account snapshot. All AI reads from here."""
+
     snapshot_id: str = ""
     account_name: str = ""
     world: int = 0
@@ -129,7 +130,7 @@ class CharacterEntity:
 class AssetEntity:
     item_id: int = 0
     count: int = 0
-    location: str = ""       # wallet / bank / material / character / shared / tp_buy / tp_sell
+    location: str = ""  # wallet / bank / material / character / shared / tp_buy / tp_sell
     location_ref: str = ""
     binding: str = ""
     tradable: bool = True
@@ -176,9 +177,9 @@ class NormalizedAccountData:
 class AccountValue:
     snapshot_id: str = ""
     total_value: int = 0
-    liquid_value: int = 0          # sell value after TP fee
-    liquid_value_buy: int = 0      # buy value
-    hidden_value: int = 0          # value of unpriced items
+    liquid_value: int = 0  # sell value after TP fee
+    liquid_value_buy: int = 0  # buy value
+    hidden_value: int = 0  # value of unpriced items
     wallet_gold: int = 0
     material_value: int = 0
     bank_value: int = 0

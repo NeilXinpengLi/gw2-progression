@@ -80,6 +80,7 @@ async def call(
     # 4. Record to ToolMemory (fire-and-forget)
     try:
         from ..memory.tool_memory import record as mem_record
+
         mem_record(
             tool=tool_name,
             success=result.get("success", False),

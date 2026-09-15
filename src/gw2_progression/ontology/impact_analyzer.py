@@ -50,15 +50,17 @@ async def analyze_sell_impact(
 
         if shortfall > 0:
             blocked_goals.append(g.get("goal_name", g.get("template_id", "")))
-            affected_goals.append({
-                "goal_name": g.get("goal_name", ""),
-                "template_id": g.get("template_id", ""),
-                "required": required,
-                "owned_before": total_owned,
-                "owned_after": after_sell_total,
-                "shortfall": shortfall,
-                "impact": "blocked" if shortfall >= required / 2 else "delayed",
-            })
+            affected_goals.append(
+                {
+                    "goal_name": g.get("goal_name", ""),
+                    "template_id": g.get("template_id", ""),
+                    "required": required,
+                    "owned_before": total_owned,
+                    "owned_after": after_sell_total,
+                    "shortfall": shortfall,
+                    "impact": "blocked" if shortfall >= required / 2 else "delayed",
+                }
+            )
 
     if quantity > total_owned and total_owned > 0:
         warnings.append(f"Cannot sell {quantity}, only have {total_owned}.")
@@ -68,10 +70,7 @@ async def analyze_sell_impact(
         remaining = 0
 
     if quantity > surplus and surplus > 0:
-        warnings.append(
-            f"Selling {quantity} exceeds safe surplus of {surplus}. "
-            f"Active goals may be affected."
-        )
+        warnings.append(f"Selling {quantity} exceeds safe surplus of {surplus}. Active goals may be affected.")
 
     if surplus <= 0 and total_owned > 0:
         warnings.append("No safe surplus — all owned items are reserved for active goals.")
@@ -188,8 +187,7 @@ async def analyze_goal_priority_change(
     if new_priority == "high" and old_priority != "high":
         effects.append(f"Goal {goal_obj.properties.get('name', '')} moved to high priority.")
     elif old_priority == "high" and new_priority != "high":
-        effects.append(f"Goal {goal_obj.properties.get('name', '')} demoted. "
-                       f"Reserved items may be reallocated to other active goals.")
+        effects.append(f"Goal {goal_obj.properties.get('name', '')} demoted. Reserved items may be reallocated to other active goals.")
 
     return {
         "goal_id": goal_id,

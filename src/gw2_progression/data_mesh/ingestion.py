@@ -139,9 +139,7 @@ class DataIngestion:
             async with aiohttp.ClientSession() as session:
                 async with session.get("https://api.guildwars2.com/v2/recipes") as resp:
                     recipe_ids = await resp.json()
-                async with session.get(
-                    f"https://api.guildwars2.com/v2/recipes?ids={','.join(str(i) for i in recipe_ids[:200])}"
-                ) as resp:
+                async with session.get(f"https://api.guildwars2.com/v2/recipes?ids={','.join(str(i) for i in recipe_ids[:200])}") as resp:
                     return await resp.json()
 
         try:
@@ -163,14 +161,8 @@ class DataIngestion:
             if graph is None:
                 return {"entities": [], "relations": []}
             return {
-                "entities": [
-                    {"id": e.id, "type": str(e.type), "properties": dict(e.properties)}
-                    for e in (list(graph.entities.values()) if hasattr(graph.entities, "values") else graph.entities)
-                ],
-                "relations": [
-                    {"source": r.subject, "relation_type": r.predicate, "target": r.object}
-                    for r in (graph.relations if isinstance(graph.relations, list) else list(graph.relations))
-                ],
+                "entities": [{"id": e.id, "type": str(e.type), "properties": dict(e.properties)} for e in (list(graph.entities.values()) if hasattr(graph.entities, "values") else graph.entities)],
+                "relations": [{"source": r.subject, "relation_type": r.predicate, "target": r.object} for r in (graph.relations if isinstance(graph.relations, list) else list(graph.relations))],
             }
         except ImportError:
             raise ImportError("gw2radar not installed")

@@ -32,16 +32,17 @@ class BaseAgent(ABC):
         self._total_reward: float = 0.0
 
     @abstractmethod
-    def act(self, world_state: dict[str, Any]) -> AgentAction:
-        ...
+    def act(self, world_state: dict[str, Any]) -> AgentAction: ...
 
     def observe(self, world_state: dict[str, Any], action: AgentAction, reward: float) -> None:
-        self._memory.append({
-            "t": world_state.get("t", 0),
-            "action": action,
-            "reward": reward,
-            "state_snapshot": {k: v for k, v in world_state.items() if k != "inventory"},
-        })
+        self._memory.append(
+            {
+                "t": world_state.get("t", 0),
+                "action": action,
+                "reward": reward,
+                "state_snapshot": {k: v for k, v in world_state.items() if k != "inventory"},
+            }
+        )
         self._total_reward += reward
 
     def update_profile(self, **kwargs: Any) -> None:

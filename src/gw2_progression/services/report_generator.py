@@ -67,12 +67,14 @@ async def generate_commercial_report(api_key: str, account_name: str = "", plan_
                     goal_count += 1
                     if gp.total_completion_percent > goal_progress_pct:
                         goal_progress_pct = gp.total_completion_percent
-                    goal_details.append({
-                        "name": t.name,
-                        "progress": gp.total_completion_percent,
-                        "missing_cost": gp.total_missing_cost // 10000,
-                        "owned": gp.total_owned_material_value // 10000,
-                    })
+                    goal_details.append(
+                        {
+                            "name": t.name,
+                            "progress": gp.total_completion_percent,
+                            "missing_cost": gp.total_missing_cost // 10000,
+                            "owned": gp.total_owned_material_value // 10000,
+                        }
+                    )
             except Exception:
                 continue
     except Exception as e:
@@ -89,12 +91,14 @@ async def generate_commercial_report(api_key: str, account_name: str = "", plan_
             best = recs[0]
             build_readiness_pct = best.readiness_score
             for r in recs[:3]:
-                build_details.append({
-                    "name": r.build_name,
-                    "readiness": r.readiness_score * 100,
-                    "missing_items": r.missing_items_count,
-                    "missing_cost": r.missing_cost // 10000,
-                })
+                build_details.append(
+                    {
+                        "name": r.build_name,
+                        "readiness": r.readiness_score * 100,
+                        "missing_items": r.missing_items_count,
+                        "missing_cost": r.missing_cost // 10000,
+                    }
+                )
     except Exception as e:
         logger.warning("Build analysis in report failed: %s", e)
 
@@ -134,11 +138,13 @@ async def generate_commercial_report(api_key: str, account_name: str = "", plan_
         holdings = apply_prices(holdings, prices)
         top = compute_top_items(holdings, limit=5)
         for item in top:
-            top_items.append({
-                "item_id": item.item_id,
-                "count": item.count,
-                "value_buy": item.value_buy // 10000,
-            })
+            top_items.append(
+                {
+                    "item_id": item.item_id,
+                    "count": item.count,
+                    "value_buy": item.value_buy // 10000,
+                }
+            )
     except Exception:
         pass
 
@@ -203,32 +209,55 @@ async def generate_commercial_report(api_key: str, account_name: str = "", plan_
             "action_count": len(plan_data.get("plan", {}).get("actions", [])) if plan_data else 0,
             "estimated_days": plan_data.get("plan", {}).get("estimated_days", 0) if plan_data else 0,
             "strategy": plan_data.get("plan", {}).get("strategy", "") if plan_data else "",
-        } if plan_data else None,
+        }
+        if plan_data
+        else None,
         "report": report,
         "html": _report_to_html(
-            name, now, total_value_buy, wallet_gold, char_count, lvl80,
-            skin_count, goal_count, goal_progress_pct, build_readiness_pct,
-            top_items, goal_details, build_details, recommendations, plan_data,
+            name,
+            now,
+            total_value_buy,
+            wallet_gold,
+            char_count,
+            lvl80,
+            skin_count,
+            goal_count,
+            goal_progress_pct,
+            build_readiness_pct,
+            top_items,
+            goal_details,
+            build_details,
+            recommendations,
+            plan_data,
         ),
     }
 
 
 def _report_to_html(
-    name: str, now: str, total_value: int, wallet_gold: int,
-    char_count: int, lvl80: int, skin_count: int,
-    goal_count: int, goal_progress: float, build_readiness: float,
-    top_items: list, goal_details: list, build_details: list,
-    recommendations: list[str], plan_data: dict | None,
+    name: str,
+    now: str,
+    total_value: int,
+    wallet_gold: int,
+    char_count: int,
+    lvl80: int,
+    skin_count: int,
+    goal_count: int,
+    goal_progress: float,
+    build_readiness: float,
+    top_items: list,
+    goal_details: list,
+    build_details: list,
+    recommendations: list[str],
+    plan_data: dict | None,
 ) -> str:
     """Generate HTML report for PDF conversion."""
     date_str = now[:10] if now else "Unknown"
     total_g = total_value // 10000
     wallet_g = wallet_gold // 10000
 
-    items_html = "".join(
-        f"<tr><td>#{i['item_id']}</td><td>{i['count']}x</td><td class='gold'>{i['value_buy']}g</td></tr>"
-        for i in top_items[:5]
-    ) if top_items else "<tr><td colspan='3'>No data</td></tr>"
+    items_html = (
+        "".join(f"<tr><td>#{i['item_id']}</td><td>{i['count']}x</td><td class='gold'>{i['value_buy']}g</td></tr>" for i in top_items[:5]) if top_items else "<tr><td colspan='3'>No data</td></tr>"
+    )
 
     rec_html = "".join(f"<li>{r}</li>" for r in recommendations[:5])
 
@@ -273,19 +302,17 @@ td {{ padding: 8px; border-bottom: 1px solid #2A3A4A; }}
 <div class="section">
 <h2>Goal Progress</h2>
 <p>Active goals: {goal_count} | Best progress: <span class="gold">{goal_progress:.1f}%</span></p>
-{''.join(
-    f"<div class='dim'>{g['name']}: {g['progress']:.0f}% (missing: {g['missing_cost']}g)</div>"
-    for g in goal_details[:3]
-) if goal_details else '<div class="dim">No goals tracked</div>'}
+{"".join(f"<div class='dim'>{g['name']}: {g['progress']:.0f}% (missing: {g['missing_cost']}g)</div>" for g in goal_details[:3]) if goal_details else '<div class="dim">No goals tracked</div>'}
 </div>
 
 <div class="section">
 <h2>Build Readiness</h2>
 <p>Best build readiness: <span class="gold">{build_readiness * 100:.1f}%</span></p>
-{''.join(
-    f"<div class='dim'>{b['name']}: {b['readiness']:.0f}% (missing {b['missing_items']} items)</div>"
-    for b in build_details[:3]
-) if build_details else '<div class="dim">No builds analyzed</div>'}
+{
+        "".join(f"<div class='dim'>{b['name']}: {b['readiness']:.0f}% (missing {b['missing_items']} items)</div>" for b in build_details[:3])
+        if build_details
+        else '<div class="dim">No builds analyzed</div>'
+    }
 </div>
 
 <div class="section">
@@ -293,11 +320,20 @@ td {{ padding: 8px; border-bottom: 1px solid #2A3A4A; }}
 <ul>{rec_html}</ul>
 </div>
 
-{(('<div class="section"><h2>Action Plan</h2>'
-    + '<p>Strategy: <strong>' + plan_data.get('plan', {}).get('strategy', 'balanced')
-    + '</strong> | Estimated: ' + str(plan_data.get('plan', {}).get('estimated_days', 0))
-    + ' days | Actions: ' + str(len(plan_data.get('plan', {}).get('actions', [])))
-    + '</p></div>')) if plan_data else ''}
+{
+        (
+            '<div class="section"><h2>Action Plan</h2>'
+            + "<p>Strategy: <strong>"
+            + plan_data.get("plan", {}).get("strategy", "balanced")
+            + "</strong> | Estimated: "
+            + str(plan_data.get("plan", {}).get("estimated_days", 0))
+            + " days | Actions: "
+            + str(len(plan_data.get("plan", {}).get("actions", [])))
+            + "</p></div>"
+        )
+        if plan_data
+        else ""
+    }
 
 <div class="footer">
 <p>Generated by GW2 Progression OS — Goal-Driven Account Intelligence</p>

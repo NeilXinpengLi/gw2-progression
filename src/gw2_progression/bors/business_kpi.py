@@ -26,9 +26,9 @@ class BusinessKPIType(Enum):
 class BusinessKPI:
     kpi_type: BusinessKPIType
     name: str
-    value: float           # 0..1 normalized
+    value: float  # 0..1 normalized
     confidence: float = 1.0
-    unit: str = "score"    # score / pct / bool
+    unit: str = "score"  # score / pct / bool
     trend: str = "stable"  # rising / falling / stable
     detail: str = ""
 

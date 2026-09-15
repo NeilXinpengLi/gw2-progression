@@ -52,8 +52,7 @@ class KernelPlugin(Protocol):
     plugin_id: str
     role: KernelPluginRole
 
-    def propose(self, payload: dict[str, Any]) -> list[KernelActionProposal]:
-        ...
+    def propose(self, payload: dict[str, Any]) -> list[KernelActionProposal]: ...
 
 
 class KernelMutationGuard:

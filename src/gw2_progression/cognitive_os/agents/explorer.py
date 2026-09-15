@@ -9,13 +9,15 @@ class ExplorerAgent(BaseAgent):
     """Exploration and achievement sampler for horizontal progression."""
 
     def __init__(self, name: str = "Explorer", curiosity: float = 0.8) -> None:
-        super().__init__(AgentProfile(
-            name=name,
-            agent_type="explorer",
-            skill_level=curiosity,
-            risk_tolerance=0.7,
-            specialization="map_completion",
-        ))
+        super().__init__(
+            AgentProfile(
+                name=name,
+                agent_type="explorer",
+                skill_level=curiosity,
+                risk_tolerance=0.7,
+                specialization="map_completion",
+            )
+        )
         self._regions = ["core_tyria", "heart_of_thorns", "path_of_fire", "end_of_dragons", "janthir"]
 
     def act(self, world_state: dict[str, Any]) -> AgentAction:

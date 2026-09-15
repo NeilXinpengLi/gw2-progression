@@ -128,23 +128,23 @@ def generate_real_events(account_data: dict, count: int = 500) -> list[dict]:
             success = rng.random() > 0.4
             value_delta = int(rng.gauss(2000, 5000))
 
-        events.append({
-            "id": f"real-{i:04d}",
-            "state": {
-                "nodes": [{"id": f"n{j}"} for j in range(max(5, char_count * 3 + rng.randint(-5, 10)))],
-                "edges": [{"source": f"n{j}", "target": f"n{j+1}"} for j in range(max(3, char_count * 2 + rng.randint(-3, 5)))],
-            },
-            "decision": {"decision": decision, "score": round(score, 4), "confidence": round(confidence, 4)},
-            "outcome": {"success": success, "value_delta": value_delta, "time_saved_hours": rng.randint(0, 12)},
-            "factors": [
-                {"name": f.name, "value": f.value, "weight": f.weight} for f in factors
-            ],
-            "agent_type": "bors_real_data",
-            "account": contents.account_name,
-            "char_count": char_count,
-            "total_gold": gold,
-            "timestamp": time.time() + i,
-        })
+        events.append(
+            {
+                "id": f"real-{i:04d}",
+                "state": {
+                    "nodes": [{"id": f"n{j}"} for j in range(max(5, char_count * 3 + rng.randint(-5, 10)))],
+                    "edges": [{"source": f"n{j}", "target": f"n{j + 1}"} for j in range(max(3, char_count * 2 + rng.randint(-3, 5)))],
+                },
+                "decision": {"decision": decision, "score": round(score, 4), "confidence": round(confidence, 4)},
+                "outcome": {"success": success, "value_delta": value_delta, "time_saved_hours": rng.randint(0, 12)},
+                "factors": [{"name": f.name, "value": f.value, "weight": f.weight} for f in factors],
+                "agent_type": "bors_real_data",
+                "account": contents.account_name,
+                "char_count": char_count,
+                "total_gold": gold,
+                "timestamp": time.time() + i,
+            }
+        )
 
     return events
 
@@ -169,6 +169,7 @@ def main():
 
     print("\n[3/3] Training model on real account data...")
     from gw2_progression.trainer.worker import TrainingWorker
+
     worker = TrainingWorker(checkpoint_dir="data/trainer_models", min_batch=50)
     result = worker.run_once(events)
 
@@ -182,10 +183,9 @@ def main():
     models_dir = Path("data/trainer_models")
     for f in sorted(models_dir.glob("*.json"), key=lambda p: p.stat().st_mtime, reverse=True)[:3]:
         meta = json.loads(f.read_text(encoding="utf-8"))
-        print(f"  [{meta['status']}] {meta['model_id'][:12]} "
-              f"acc={meta.get('accuracy', 0):.4f} "
-              f"f1={meta.get('f1_weighted', 0):.4f} "
-              f"samples={meta.get('train_samples', 0) + meta.get('test_samples', 0)}")
+        print(
+            f"  [{meta['status']}] {meta['model_id'][:12]} acc={meta.get('accuracy', 0):.4f} f1={meta.get('f1_weighted', 0):.4f} samples={meta.get('train_samples', 0) + meta.get('test_samples', 0)}"
+        )
 
 
 if __name__ == "__main__":

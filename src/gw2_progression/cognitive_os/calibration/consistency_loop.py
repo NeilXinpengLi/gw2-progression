@@ -99,13 +99,15 @@ class CalibrationLoop:
         real_market = real.get("market", {}) or {}
         if sim_market and real_market:
             price_error = self._compare_market_prices(sim_market, real_market)
-            metrics.append(CalibrationMetric(
-                name="market_price_alignment",
-                simulated_value=price_error["sim_avg"],
-                real_value=price_error["real_avg"],
-                error=price_error["mape"],
-                weight=1.0,
-            ))
+            metrics.append(
+                CalibrationMetric(
+                    name="market_price_alignment",
+                    simulated_value=price_error["sim_avg"],
+                    real_value=price_error["real_avg"],
+                    error=price_error["mape"],
+                    weight=1.0,
+                )
+            )
 
         metrics.append(self._compare_key("validation_match_count", simulated, real, weight=0.5))
 

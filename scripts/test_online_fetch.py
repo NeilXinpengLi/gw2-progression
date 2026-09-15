@@ -1,4 +1,5 @@
 """Test the real GW2 API fetch and adapter pipeline."""
+
 import asyncio
 import os
 import sys
@@ -27,6 +28,7 @@ def main():
         return 0
     except Exception:
         import traceback
+
         traceback.print_exc()
         return 1
 

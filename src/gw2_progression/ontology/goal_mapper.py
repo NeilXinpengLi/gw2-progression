@@ -120,11 +120,7 @@ async def sync_goal_reservations(account_name: str) -> int:
                 source_id=goal_obj.object_id,
                 relation_type="reserved_for",
             )
-            already_reserved = any(
-                store.get_object(r.source_id)
-                and store.get_object(r.source_id).properties.get("item_id") == item_id
-                for r in existing
-            )
+            already_reserved = any(store.get_object(r.source_id) and store.get_object(r.source_id).properties.get("item_id") == item_id for r in existing)
             if already_reserved:
                 continue
 

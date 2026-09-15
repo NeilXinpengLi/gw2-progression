@@ -26,6 +26,7 @@ from gw2_progression.trainer.dataset_collator import DatasetCollator
 
 # ── Optional Redis subscriber ─────────────────────────────────────────────
 
+
 def _create_redis_reader(redis_url: str, stream_key: str = "training:events", consumer_group: str = "trainer", consumer_name: str | None = None):
     """Create a Redis stream reader for training events."""
     import redis as redis_lib
@@ -66,6 +67,7 @@ def _create_redis_reader(redis_url: str, stream_key: str = "training:events", co
 
 # ── Model Trainer (sklearn) ───────────────────────────────────────────────
 
+
 def _train_sklearn_model(X, y, artifacts_dir: Path) -> dict[str, Any]:
     """Train a sklearn Random Forest classifier and save artifacts."""
     from sklearn.ensemble import RandomForestClassifier
@@ -102,6 +104,7 @@ def _train_sklearn_model(X, y, artifacts_dir: Path) -> dict[str, Any]:
     }
 
     import joblib
+
     artifacts_dir.mkdir(parents=True, exist_ok=True)
     model_path = artifacts_dir / f"{model_id}.joblib"
     joblib.dump({"model": model, "artifact": artifact, "classes": model.classes_.tolist()}, model_path)
@@ -117,6 +120,7 @@ def _train_sklearn_model(X, y, artifacts_dir: Path) -> dict[str, Any]:
 
 
 # ── Main training loop ────────────────────────────────────────────────────
+
 
 class TrainingWorker:
     """Standalone training worker process."""
@@ -193,6 +197,7 @@ class TrainingWorker:
 
 
 # ── CLI ────────────────────────────────────────────────────────────────────
+
 
 def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     p = argparse.ArgumentParser(description="GW2 Progression Training Worker")

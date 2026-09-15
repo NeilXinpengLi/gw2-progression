@@ -66,10 +66,12 @@ class LLMExpertLayer:
         context = context or {}
         if use_provider and self.config.api_key and self.config.base_url:
             try:
-                response = self._chat([
-                    {"role": "system", "content": "You are a Guild Wars 2 progression expert. Explain decisions without mutating state."},
-                    {"role": "user", "content": f"Decision: {decision}\nContext: {context}\nReturn concise JSON-like guidance."},
-                ])
+                response = self._chat(
+                    [
+                        {"role": "system", "content": "You are a Guild Wars 2 progression expert. Explain decisions without mutating state."},
+                        {"role": "user", "content": f"Decision: {decision}\nContext: {context}\nReturn concise JSON-like guidance."},
+                    ]
+                )
                 return {"provider": "openai_compatible", "mode": "read_only", "explanation": response, "config": self.config.redacted()}
             except Exception as exc:
                 fallback = self._deterministic_explanation(decision, context)
@@ -98,11 +100,13 @@ class LLMExpertLayer:
         for factor in factors:
             impact = factor.get("impact", "")
             direction = "reduce" if impact == "negative" else "increase"
-            counterfactuals.append({
-                "factor": factor.get("name", "factor"),
-                "change": f"{direction} signal strength",
-                "expected_effect": "decision confidence improves",
-            })
+            counterfactuals.append(
+                {
+                    "factor": factor.get("name", "factor"),
+                    "change": f"{direction} signal strength",
+                    "expected_effect": "decision confidence improves",
+                }
+            )
         return {"counterfactuals": counterfactuals, "mutates_state": False}
 
     def interpret_graph(self, graph: dict[str, Any]) -> dict[str, Any]:

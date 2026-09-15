@@ -79,12 +79,14 @@ class HypothesisGenerator:
     def _lazy_categorizer(self) -> Any:
         if self._categorizer is None:
             from gw2_progression.lifecycle.core.utils.item_categorizer import get_categorizer
+
             self._categorizer = get_categorizer()
         return self._categorizer
 
     def _lazy_recipe_resolver(self) -> Any:
         if self._recipe_resolver is None:
             from gw2_progression.lifecycle.core.utils.recipe_resolver import get_recipe_resolver
+
             self._recipe_resolver = get_recipe_resolver()
         return self._recipe_resolver
 
@@ -146,6 +148,7 @@ class HypothesisGenerator:
             return []
         categorizer = self._lazy_categorizer()
         import asyncio
+
         try:
             asyncio.run(categorizer.fetch_batch(numeric_ids[:200]))
         except RuntimeError:
@@ -209,12 +212,14 @@ class HypothesisGenerator:
             if classified[cat]:
                 extra_id = self._weighted_choice(classified[cat], [float(inventory.get(str(iid), 1)) for iid in classified[cat]])
                 if extra_id is not None and extra_id not in used_ids:
-                    steps.append({
-                        "type": "collect",
-                        "item_id": str(extra_id),
-                        "quantity": 1,
-                        "id": f"step:{self._rng.randint(1000, 9999)}",
-                    })
+                    steps.append(
+                        {
+                            "type": "collect",
+                            "item_id": str(extra_id),
+                            "quantity": 1,
+                            "id": f"step:{self._rng.randint(1000, 9999)}",
+                        }
+                    )
         return steps
 
     def _generate_steps(self, state_items: set, state_inventory: dict, state_achievements: list, max_depth: int) -> list[dict[str, Any]]:

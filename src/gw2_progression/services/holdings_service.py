@@ -126,7 +126,7 @@ def extract_character_equipment(characters: list | None) -> list[ItemHolding]:
         if not isinstance(char, dict):
             continue
         char_name = char.get("name", "unknown")
-        for eq in (char.get("equipment") or []):
+        for eq in char.get("equipment") or []:
             if not isinstance(eq, dict):
                 continue
             item_id = eq.get("id")

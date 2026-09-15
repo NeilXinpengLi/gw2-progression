@@ -168,14 +168,16 @@ class CognitionGraph:
             visited.add(node_id)
             node = self._nodes.get(node_id)
             if node and (at_time is None or node.is_active_at(at_time)):
-                results.append({
-                    "node_id": node_id,
-                    "node_type": node.node_type.value,
-                    "label": node.label,
-                    "depth": depth,
-                    "path": list(path),
-                    "properties": node.properties,
-                })
+                results.append(
+                    {
+                        "node_id": node_id,
+                        "node_type": node.node_type.value,
+                        "label": node.label,
+                        "depth": depth,
+                        "path": list(path),
+                        "properties": node.properties,
+                    }
+                )
             for e in self._edges:
                 if e.source_id == node_id:
                     if edge_types and e.edge_type not in edge_types:
@@ -205,22 +207,28 @@ class CognitionGraph:
 
     def to_dict(self) -> dict[str, Any]:
         return {
-            "nodes": {nid: {
-                "node_id": n.node_id,
-                "node_type": n.node_type.value,
-                "label": n.label,
-                "properties": n.properties,
-                "t_created": n.t_created,
-                "t_expires": n.t_expires,
-            } for nid, n in self._nodes.items()},
-            "edges": [{
-                "edge_id": e.edge_id,
-                "source_id": e.source_id,
-                "target_id": e.target_id,
-                "edge_type": e.edge_type.value,
-                "weight": e.weight,
-                "t_created": e.t_created,
-            } for e in self._edges],
+            "nodes": {
+                nid: {
+                    "node_id": n.node_id,
+                    "node_type": n.node_type.value,
+                    "label": n.label,
+                    "properties": n.properties,
+                    "t_created": n.t_created,
+                    "t_expires": n.t_expires,
+                }
+                for nid, n in self._nodes.items()
+            },
+            "edges": [
+                {
+                    "edge_id": e.edge_id,
+                    "source_id": e.source_id,
+                    "target_id": e.target_id,
+                    "edge_type": e.edge_type.value,
+                    "weight": e.weight,
+                    "t_created": e.t_created,
+                }
+                for e in self._edges
+            ],
             "stats": {
                 "node_count": len(self._nodes),
                 "edge_count": len(self._edges),

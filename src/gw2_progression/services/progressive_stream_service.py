@@ -52,13 +52,14 @@ async def stage_2_value_estimate(api_key: str) -> dict:
     holdings.extend(extract_material_holdings(contents.materials or []))
     holdings.extend(extract_bank_holdings(contents.bank or []))
     holdings.extend(extract_character_holdings(contents.characters or []))
-    holdings.extend(extract_shared_inventory(contents.shared_inventory or [] if hasattr(contents, 'shared_inventory') else []))
-    tp_buys = contents.tradingpost_buys or [] if hasattr(contents, 'tradingpost_buys') else []
-    tp_sells = contents.tradingpost_sells or [] if hasattr(contents, 'tradingpost_sells') else []
+    holdings.extend(extract_shared_inventory(contents.shared_inventory or [] if hasattr(contents, "shared_inventory") else []))
+    tp_buys = contents.tradingpost_buys or [] if hasattr(contents, "tradingpost_buys") else []
+    tp_sells = contents.tradingpost_sells or [] if hasattr(contents, "tradingpost_sells") else []
     holdings.extend(extract_tradingpost_holdings(tp_buys, tp_sells))
 
     # Apply prices
     from ..services.price_service import fetch_prices
+
     item_ids = list(set(h.item_id for h in holdings))
     prices = await fetch_prices(item_ids)
     holdings = apply_prices(holdings, prices)
@@ -73,10 +74,7 @@ async def stage_2_value_estimate(api_key: str) -> dict:
 
     # Top assets
     sorted_holdings = sorted(priced, key=lambda h: h.value_buy, reverse=True)
-    top_assets = [
-        {"item_id": h.item_id, "count": h.count, "value_buy": h.value_buy, "location": h.location_type}
-        for h in sorted_holdings[:10]
-    ]
+    top_assets = [{"item_id": h.item_id, "count": h.count, "value_buy": h.value_buy, "location": h.location_type} for h in sorted_holdings[:10]]
 
     return {
         "stage": 2,

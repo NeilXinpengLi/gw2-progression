@@ -57,25 +57,27 @@ def generate_events(count: int = 500) -> list[dict]:
         node_count = rng.randint(5, 50)
         edge_count = rng.randint(3, node_count * 2)
 
-        events.append({
-            "id": f"train-{i:04d}",
-            "state": {
-                "nodes": [{"id": f"n{j}"} for j in range(node_count)],
-                "edges": [{"source": f"n{j}", "target": f"n{(j+1)%node_count}"} for j in range(edge_count)],
-            },
-            "decision": {"decision": decision, "score": score, "confidence": confidence},
-            "outcome": {"success": success, "value_delta": value_delta, "time_saved_hours": rng.randint(0, 8)},
-            "factors": [
-                {"name": "liquid_wealth", "value": liquid, "weight": 0.25},
-                {"name": "asset_risk", "value": risk, "weight": 0.20},
-                {"name": "market_volatility", "value": volatility, "weight": 0.15},
-                {"name": "goal_progress", "value": goal_progress, "weight": 0.20},
-                {"name": "crafting_complexity", "value": crafting, "weight": 0.10},
-                {"name": "seasonal_velocity", "value": seasonal, "weight": 0.10},
-            ],
-            "agent_type": "expert_reasoner",
-            "timestamp": time.time() + i,
-        })
+        events.append(
+            {
+                "id": f"train-{i:04d}",
+                "state": {
+                    "nodes": [{"id": f"n{j}"} for j in range(node_count)],
+                    "edges": [{"source": f"n{j}", "target": f"n{(j + 1) % node_count}"} for j in range(edge_count)],
+                },
+                "decision": {"decision": decision, "score": score, "confidence": confidence},
+                "outcome": {"success": success, "value_delta": value_delta, "time_saved_hours": rng.randint(0, 8)},
+                "factors": [
+                    {"name": "liquid_wealth", "value": liquid, "weight": 0.25},
+                    {"name": "asset_risk", "value": risk, "weight": 0.20},
+                    {"name": "market_volatility", "value": volatility, "weight": 0.15},
+                    {"name": "goal_progress", "value": goal_progress, "weight": 0.20},
+                    {"name": "crafting_complexity", "value": crafting, "weight": 0.10},
+                    {"name": "seasonal_velocity", "value": seasonal, "weight": 0.10},
+                ],
+                "agent_type": "expert_reasoner",
+                "timestamp": time.time() + i,
+            }
+        )
     return events
 
 
@@ -117,25 +119,27 @@ def generate_multi_strategy_events(base_count: int = 200) -> list[dict]:
                 decision = "REVIEW"
                 success = rng.random() > 0.5
 
-            events.append({
-                "id": f"multi-{strategy['name']}-{i:03d}",
-                "state": {
-                    "nodes": [{"id": f"n{j}"} for j in range(rng.randint(5, 40))],
-                    "edges": [{"source": f"n{j}", "target": f"n{j+1}"} for j in range(rng.randint(3, 30))],
-                },
-                "decision": {"decision": decision, "score": score, "confidence": round(0.5 + liquid * 0.3 - risk * 0.15, 3)},
-                "outcome": {"success": success, "value_delta": int(rng.gauss(5000, 5000)), "time_saved_hours": rng.randint(0, 12)},
-                "factors": [
-                    {"name": "liquid_wealth", "value": liquid, "weight": 0.25},
-                    {"name": "asset_risk", "value": risk, "weight": 0.20},
-                    {"name": "goal_progress", "value": goal_progress, "weight": 0.25},
-                    {"name": "strategy_align", "value": round(rng.uniform(0.3, 0.95), 3), "weight": 0.15},
-                    {"name": "market_timing", "value": round(rng.uniform(0.1, 0.9), 3), "weight": 0.15},
-                ],
-                "agent_type": f"strategy_{strategy['name']}",
-                "strategy": strategy["name"],
-                "timestamp": time.time() + i,
-            })
+            events.append(
+                {
+                    "id": f"multi-{strategy['name']}-{i:03d}",
+                    "state": {
+                        "nodes": [{"id": f"n{j}"} for j in range(rng.randint(5, 40))],
+                        "edges": [{"source": f"n{j}", "target": f"n{j + 1}"} for j in range(rng.randint(3, 30))],
+                    },
+                    "decision": {"decision": decision, "score": score, "confidence": round(0.5 + liquid * 0.3 - risk * 0.15, 3)},
+                    "outcome": {"success": success, "value_delta": int(rng.gauss(5000, 5000)), "time_saved_hours": rng.randint(0, 12)},
+                    "factors": [
+                        {"name": "liquid_wealth", "value": liquid, "weight": 0.25},
+                        {"name": "asset_risk", "value": risk, "weight": 0.20},
+                        {"name": "goal_progress", "value": goal_progress, "weight": 0.25},
+                        {"name": "strategy_align", "value": round(rng.uniform(0.3, 0.95), 3), "weight": 0.15},
+                        {"name": "market_timing", "value": round(rng.uniform(0.1, 0.9), 3), "weight": 0.15},
+                    ],
+                    "agent_type": f"strategy_{strategy['name']}",
+                    "strategy": strategy["name"],
+                    "timestamp": time.time() + i,
+                }
+            )
     return events
 
 
@@ -172,7 +176,12 @@ def main():
     models_dir = Path("data/trainer_models")
     for f in sorted(models_dir.glob("*.json")):
         meta = json.loads(f.read_text(encoding="utf-8"))
-        print(f"  [{meta['status']}] {meta['model_id'][:12]} acc={meta.get('accuracy','?'):.4f} f1={meta.get('f1_weighted','?'):.4f} samples={meta.get('train_samples',0)+meta.get('test_samples',0)}")
+        status = meta["status"]
+        model_id = meta["model_id"][:12]
+        accuracy = meta.get("accuracy", "?")
+        f1_weighted = meta.get("f1_weighted", "?")
+        sample_count = meta.get("train_samples", 0) + meta.get("test_samples", 0)
+        print(f"  [{status}] {model_id} acc={accuracy:.4f} f1={f1_weighted:.4f} samples={sample_count}")
 
 
 if __name__ == "__main__":

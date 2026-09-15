@@ -81,14 +81,16 @@ class Arena:
                 score = self.economy.competitive_score(agent.id, [action])
                 reward = {"score": round(score, 4), "action": action, "item_id": item_id}
                 agent.observe(reward)
-                simulation_history.append({
-                    "agent": agent.id,
-                    "agent_name": agent.name,
-                    "action": action,
-                    "reward": reward,
-                    "result": result,
-                    "t": t,
-                })
+                simulation_history.append(
+                    {
+                        "agent": agent.id,
+                        "agent_name": agent.name,
+                        "action": action,
+                        "reward": reward,
+                        "result": result,
+                        "t": t,
+                    }
+                )
         report = self.benchmark.generate(agents, simulation_history)
         return {
             "arena_id": self.arena_id,
@@ -110,11 +112,13 @@ class Arena:
             current_population = self.evolution.evolve(current_population)
             for agent in current_population:
                 self.register_agent(agent)
-            evolution_history.append({
-                "generation": gen + 1,
-                "population_size": len(current_population),
-                "avg_rating": round(sum(a.rating.overall for a in current_population) / len(current_population), 1) if current_population else 0,
-            })
+            evolution_history.append(
+                {
+                    "generation": gen + 1,
+                    "population_size": len(current_population),
+                    "avg_rating": round(sum(a.rating.overall for a in current_population) / len(current_population), 1) if current_population else 0,
+                }
+            )
         self.leaderboard.sync_ratings(current_population)
         return {
             "arena_id": self.arena_id,

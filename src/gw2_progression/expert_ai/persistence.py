@@ -123,25 +123,29 @@ class Neo4jGraphAdapter:
     def export_cypher(self, graph: dict[str, Any]) -> list[dict[str, Any]]:
         statements: list[dict[str, Any]] = []
         for node in graph.get("nodes", []):
-            statements.append({
-                "statement": "MERGE (n:ExpertNode {id: $id}) SET n.type = $type, n.properties = $properties",
-                "parameters": {"id": node["id"], "type": node["type"], "properties": node.get("properties", {})},
-            })
+            statements.append(
+                {
+                    "statement": "MERGE (n:ExpertNode {id: $id}) SET n.type = $type, n.properties = $properties",
+                    "parameters": {"id": node["id"], "type": node["type"], "properties": node.get("properties", {})},
+                }
+            )
         for edge in graph.get("edges", []):
-            statements.append({
-                "statement": (
-                    "MATCH (a:ExpertNode {id: $source}), (b:ExpertNode {id: $target}) "
-                    "MERGE (a)-[r:EXPERT_RELATION {relation_type: $relation_type}]->(b) "
-                    "SET r.weight = $weight, r.properties = $properties"
-                ),
-                "parameters": {
-                    "source": edge["source"],
-                    "target": edge["target"],
-                    "relation_type": edge["relation_type"],
-                    "weight": edge.get("weight", 1.0),
-                    "properties": edge.get("properties", {}),
-                },
-            })
+            statements.append(
+                {
+                    "statement": (
+                        "MATCH (a:ExpertNode {id: $source}), (b:ExpertNode {id: $target}) "
+                        "MERGE (a)-[r:EXPERT_RELATION {relation_type: $relation_type}]->(b) "
+                        "SET r.weight = $weight, r.properties = $properties"
+                    ),
+                    "parameters": {
+                        "source": edge["source"],
+                        "target": edge["target"],
+                        "relation_type": edge["relation_type"],
+                        "weight": edge.get("weight", 1.0),
+                        "properties": edge.get("properties", {}),
+                    },
+                }
+            )
         return statements
 
     def write_graph(self, graph: dict[str, Any], retry_attempts: int = 3, retry_backoff_seconds: float = 0.2) -> dict[str, Any]:
@@ -289,25 +293,27 @@ class PostgresStateAdapter:
         return bool(self.url)
 
     def schema_sql(self) -> str:
-        return "\n".join([
-            "CREATE TABLE IF NOT EXISTS expert_ai_snapshots (",
-            "  id TEXT PRIMARY KEY,",
-            "  created_at DOUBLE PRECISION NOT NULL,",
-            "  payload JSONB NOT NULL",
-            ");",
-            "CREATE TABLE IF NOT EXISTS expert_ai_memory (",
-            "  id TEXT PRIMARY KEY,",
-            "  created_at DOUBLE PRECISION NOT NULL,",
-            "  memory_type TEXT NOT NULL,",
-            "  payload JSONB NOT NULL",
-            ");",
-            "CREATE TABLE IF NOT EXISTS expert_ai_schema_migrations (",
-            "  version TEXT PRIMARY KEY,",
-            "  applied_at DOUBLE PRECISION NOT NULL",
-            ");",
-            "CREATE INDEX IF NOT EXISTS idx_expert_ai_memory_type ON expert_ai_memory(memory_type);",
-            "CREATE INDEX IF NOT EXISTS idx_expert_ai_memory_created_at ON expert_ai_memory(created_at);",
-        ])
+        return "\n".join(
+            [
+                "CREATE TABLE IF NOT EXISTS expert_ai_snapshots (",
+                "  id TEXT PRIMARY KEY,",
+                "  created_at DOUBLE PRECISION NOT NULL,",
+                "  payload JSONB NOT NULL",
+                ");",
+                "CREATE TABLE IF NOT EXISTS expert_ai_memory (",
+                "  id TEXT PRIMARY KEY,",
+                "  created_at DOUBLE PRECISION NOT NULL,",
+                "  memory_type TEXT NOT NULL,",
+                "  payload JSONB NOT NULL",
+                ");",
+                "CREATE TABLE IF NOT EXISTS expert_ai_schema_migrations (",
+                "  version TEXT PRIMARY KEY,",
+                "  applied_at DOUBLE PRECISION NOT NULL",
+                ");",
+                "CREATE INDEX IF NOT EXISTS idx_expert_ai_memory_type ON expert_ai_memory(memory_type);",
+                "CREATE INDEX IF NOT EXISTS idx_expert_ai_memory_created_at ON expert_ai_memory(created_at);",
+            ]
+        )
 
     def snapshot_row(self, snapshot: RuntimeSnapshot) -> dict[str, Any]:
         return {

@@ -21,6 +21,7 @@ class DecisionType(str, Enum):
 @dataclass
 class DecisionDistribution:
     """A probability distribution over decisions."""
+
     decision_type: str
     probabilities: dict[str, float]
     expected_value: float = 0.0
@@ -70,7 +71,7 @@ class ProbabilisticBORS:
 
         for action_type_str, weight in arch_dist.items():
             if action_type_str.upper() in raw_scores:
-                raw_scores[action_type_str.upper()] *= (1.0 + float(weight))
+                raw_scores[action_type_str.upper()] *= 1.0 + float(weight)
 
         total = sum(raw_scores.values())
         if total > 0:
@@ -159,11 +160,7 @@ class ProbabilisticBORS:
     def decision_entropy_trend(self) -> list[float]:
         """Return entropy over last 20 decisions."""
         recent = self._decision_history[-20:]
-        return [
-            round(-sum(p * math.log2(p) if p > 0 else 0 for p in d.probabilities.values())
-                  / math.log2(len(d.probabilities)), 4)
-            for d in recent
-        ]
+        return [round(-sum(p * math.log2(p) if p > 0 else 0 for p in d.probabilities.values()) / math.log2(len(d.probabilities)), 4) for d in recent]
 
     def to_dict(self) -> dict[str, Any]:
         latest = self._decision_history[-1] if self._decision_history else None

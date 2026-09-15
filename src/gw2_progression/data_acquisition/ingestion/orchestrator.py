@@ -77,21 +77,30 @@ class IngestionOrchestrator:
 
         try:
             raw = self.fetcher.fetch(source)
-            events.append(IngestionEvent(
-                source_id=source.id, source_type=source.type.value,
-                status="fetched", entities_count=0, relations_count=0,
-                duration_ms=(time.time() - start) * 1000,
-            ))
+            events.append(
+                IngestionEvent(
+                    source_id=source.id,
+                    source_type=source.type.value,
+                    status="fetched",
+                    entities_count=0,
+                    relations_count=0,
+                    duration_ms=(time.time() - start) * 1000,
+                )
+            )
 
             normalized = self.normalizer.normalize(raw, source)
             entities = normalized.get("entities", [])
             relations = normalized.get("relations", [])
-            events.append(IngestionEvent(
-                source_id=source.id, source_type=source.type.value,
-                status="normalized", entities_count=len(entities),
-                relations_count=len(relations),
-                duration_ms=(time.time() - start) * 1000,
-            ))
+            events.append(
+                IngestionEvent(
+                    source_id=source.id,
+                    source_type=source.type.value,
+                    status="normalized",
+                    entities_count=len(entities),
+                    relations_count=len(relations),
+                    duration_ms=(time.time() - start) * 1000,
+                )
+            )
 
             expanded = self._run_expansion(normalized, source)
 
@@ -117,15 +126,21 @@ class IngestionOrchestrator:
 
         except Exception as e:
             error_event = IngestionEvent(
-                source_id=source.id, source_type=source.type.value,
-                status="failed", entities_count=0, relations_count=0,
+                source_id=source.id,
+                source_type=source.type.value,
+                status="failed",
+                entities_count=0,
+                relations_count=0,
                 duration_ms=(time.time() - start) * 1000,
-                error=str(e), timestamp=time.time(),
+                error=str(e),
+                timestamp=time.time(),
             )
             self._event_history.append(error_event)
             return IngestionResult(
-                source_id=source.id, success=False,
-                events=[error_event], duration_ms=round((time.time() - start) * 1000, 2),
+                source_id=source.id,
+                success=False,
+                events=[error_event],
+                duration_ms=round((time.time() - start) * 1000, 2),
             )
 
     def ingest_all(self) -> list[IngestionResult]:

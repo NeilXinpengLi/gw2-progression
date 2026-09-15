@@ -58,6 +58,7 @@ class LifecycleEngine:
 
     def reconstruct_item(self, item_id: str, current_state: dict[str, Any]) -> dict[str, Any]:
         from gw2_progression.lifecycle.core.backward.hypothesis_generator import HypothesisGenerator
+
         hg = HypothesisGenerator()
         hypotheses = hg.generate_for_item(item_id, current_state)
         paths = self.path_generator.generate_from_hypotheses(current_state, [h.__dict__ for h in hypotheses])

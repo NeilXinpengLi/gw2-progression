@@ -38,12 +38,14 @@ class TemporalExpander:
         result["entities"] = entities + historical_entities
         result["_temporal_expanded"] = True
 
-        self._snapshot_history.append({
-            "source": source.id,
-            "timestamp": current_time,
-            "entity_count": len(entities),
-            "historical_count": len(historical_entities),
-        })
+        self._snapshot_history.append(
+            {
+                "source": source.id,
+                "timestamp": current_time,
+                "entity_count": len(entities),
+                "historical_count": len(historical_entities),
+            }
+        )
         return result
 
     def to_dict(self) -> dict[str, Any]:
