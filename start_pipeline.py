@@ -1,6 +1,8 @@
 """Start the full Cognitive OS pipeline for 10-hour continuous operation."""
-import time, os, sys
+import os
+import time
 from datetime import datetime
+
 from gw2_progression.cognitive_os.engine import get_cognitive_os
 
 LOG = "pipeline_output.log"
