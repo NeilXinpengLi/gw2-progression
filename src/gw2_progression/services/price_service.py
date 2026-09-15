@@ -30,8 +30,12 @@ async def _get_client() -> httpx.AsyncClient:
 async def close_client():
     global _client
     if _client is not None:
-        await _client.aclose()
+        client = _client
         _client = None
+        try:
+            await client.aclose()
+        except RuntimeError as exc:
+            logger.debug("Ignoring price client close failure during shutdown: %s", exc)
 
 
 def _get_cached_price(item_id: int) -> PriceData | None:
