@@ -20,6 +20,10 @@ def _fresh_ts() -> str:
     return datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%S")
 
 
+def _fresh_patch_version() -> str:
+    return datetime.datetime.now(datetime.timezone.utc).strftime("%Y.%m")
+
+
 # ── Fixtures ──────────────────────────────────────────────────────────
 
 
@@ -730,7 +734,7 @@ class TestBuildTrust:
             source="snowcrows",
             name="Dragonhunter",
             profession="Guardian",
-            patch_version="2026.06",
+            patch_version=_fresh_patch_version(),
             review_status="reviewed",
         )
         result = evaluate_build_source_freshness(build)
@@ -767,7 +771,7 @@ class TestBuildTrust:
             source="user",
             name="Custom Build",
             profession="Guardian",
-            patch_version="2026.06",
+            patch_version=_fresh_patch_version(),
             review_status="unreviewed",
         )
         result = evaluate_build_source_freshness(build)
@@ -779,8 +783,8 @@ class TestBuildTrust:
         from gw2_progression.ontology.build_trust import filter_recommendations_by_freshness
 
         builds = [
-            BuildTemplate(build_id="b1", source="sc", name="Fresh", profession="Guardian", patch_version="2026.06", review_status="reviewed"),
-            BuildTemplate(build_id="b2", source="mb", name="Unreviewed", profession="Guardian", patch_version="2026.06", review_status="unreviewed"),
+            BuildTemplate(build_id="b1", source="sc", name="Fresh", profession="Guardian", patch_version=_fresh_patch_version(), review_status="reviewed"),
+            BuildTemplate(build_id="b2", source="mb", name="Unreviewed", profession="Guardian", patch_version=_fresh_patch_version(), review_status="unreviewed"),
         ]
         result = filter_recommendations_by_freshness(builds, max_results=2)
         assert len(result) == 2
@@ -792,14 +796,14 @@ class TestBuildTrust:
         from gw2_progression.models import BuildTemplate
         from gw2_progression.ontology.build_trust import get_build_recommendation_confidence
 
-        fresh = BuildTemplate(build_id="b1", source="sc", name="Fresh", profession="Guardian", patch_version="2026.06", review_status="reviewed")
+        fresh = BuildTemplate(build_id="b1", source="sc", name="Fresh", profession="Guardian", patch_version=_fresh_patch_version(), review_status="reviewed")
         assert get_build_recommendation_confidence(fresh) == 0.85
 
         weak = BuildTemplate(build_id="b2", source="mb", name="Weak", profession="Guardian", patch_version="2025.01", review_status="reviewed")
         conf = get_build_recommendation_confidence(weak)
         assert conf <= 0.85
 
-        unreviewed = BuildTemplate(build_id="b3", source="user", name="Custom", profession="Guardian", patch_version="2026.06", review_status="unreviewed")
+        unreviewed = BuildTemplate(build_id="b3", source="user", name="Custom", profession="Guardian", patch_version=_fresh_patch_version(), review_status="unreviewed")
         assert get_build_recommendation_confidence(unreviewed) == 0.0
 
 

@@ -73,7 +73,11 @@ def test_include_governed_routers_skips_disabled_routes(monkeypatch):
 
     snapshot = include_governed_routers(app, [("valuation", stable), ("expert_ai", lab)])
 
-    paths = {route.path for route in app.routes}
+    paths = {getattr(route, "path", None) for route in app.routes}
+    for route in app.routes:
+        original_router = getattr(route, "original_router", None)
+        if original_router is not None:
+            paths.update(getattr(child, "path", None) for child in original_router.routes)
     assert "/stable" in paths
     assert "/lab" not in paths
     assert snapshot[0]["enabled"] == "true"
