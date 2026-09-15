@@ -12,7 +12,7 @@ from .models import ItemHolding, ValueHistoryEntry, ValueSummary
 
 logger = logging.getLogger("gw2.db")
 
-DB_DIR = Path(__file__).resolve().parent.parent.parent / "data"
+DB_DIR = Path(os.environ.get("GW2_PROGRESSION_DATA_DIR", "data")).expanduser()
 DB_PATH = DB_DIR / "gw2_progression.db"
 DB_POOL_SIZE = 20
 _TEST_DB_URL = os.environ.get("TEST_DATABASE_URL", "")  # e.g. "file::memory:?cache=shared"

@@ -1,9 +1,11 @@
 """Tests for core database functions."""
 
+from pathlib import Path
 from unittest.mock import AsyncMock, patch
 
 import pytest
 
+import gw2_progression.database as database
 from gw2_progression.database import (
     CREATE_TABLES,
     close_pool,
@@ -38,6 +40,10 @@ class _FakeRow:
 
 
 class TestDbInit:
+    def test_default_db_dir_is_runtime_data_dir(self):
+        assert database.DB_DIR == Path("data")
+        assert database.DB_PATH == Path("data") / "gw2_progression.db"
+
     @pytest.mark.asyncio
     async def test_init_db_creates_tables(self):
         mock_db = AsyncMock()
