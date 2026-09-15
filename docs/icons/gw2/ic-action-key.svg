@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" aria-hidden="true" role="img">
+  <title>action-key</title>
+  <g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <circle cx="7" cy="12" r="3"/>
+    <path d="M10 12h10"/>
+    <path d="M16 12v3M19 12v-3"/>
+    <path d="M5 10l2-2 2 2"/>
+  </g>
+</svg>

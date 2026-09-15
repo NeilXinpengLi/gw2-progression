@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" aria-hidden="true" role="img">
+  <title>asset-shared</title>
+  <g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M5 8h14v10H5z"/>
+    <path d="M7 8V6h10v2"/>
+    <path d="M9 13h6"/>
+    <path d="M9 13l2-2M9 13l2 2"/>
+    <path d="M15 13l-2-2M15 13l-2 2"/>
+  </g>
+</svg>

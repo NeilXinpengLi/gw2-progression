@@ -11,10 +11,5 @@ htmlcov
 .env
 data/
 tests/
-*.md
-AGENTS.md
-CLAUDE.md
-SUMMARY.md
 docker-compose.yml
 Dockerfile
-README.md

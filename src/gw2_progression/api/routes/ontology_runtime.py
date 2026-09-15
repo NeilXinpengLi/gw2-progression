@@ -1,0 +1,190 @@
+"""Ontology Runtime vFinal convergence API endpoints."""
+
+from __future__ import annotations
+
+from fastapi import APIRouter, Body, Header, HTTPException
+
+from gw2_progression.ontology import OntologyKernel, OntologyRuntimeKernel, OntologyViolation
+
+router = APIRouter(prefix="/ontology/runtime", tags=["ontology-runtime"])
+
+_kernel = OntologyKernel(tenant_id="default", load_persisted=True)
+_kernels: dict[str, OntologyRuntimeKernel] = {"default": _kernel}
+
+
+def _tenant_key(tenant_id: str) -> str:
+    return tenant_id.strip() or "default"
+
+
+def _kernel_for(tenant_id: str) -> OntologyRuntimeKernel:
+    key = _tenant_key(tenant_id)
+    if key not in _kernels:
+        _kernels[key] = OntologyKernel(tenant_id=key, load_persisted=True)
+    return _kernels[key]
+
+
+def _actions_from_body(body: dict) -> list[dict]:
+    actions = body.get("actions", [])
+    if not isinstance(actions, list) or not actions:
+        raise HTTPException(status_code=422, detail="actions must be a non-empty list")
+    return actions
+
+
+def _run_action_graph(kernel: OntologyRuntimeKernel, actions: list[dict], graph_id: str, include_graph: bool = False) -> dict:
+    compiled = kernel.compile(actions, graph_id=graph_id)
+    execution = kernel.execute_compiled(compiled)
+    if not include_graph:
+        return execution
+    return {
+        "graph": compiled.to_dict(),
+        "execution": execution,
+        "scheduler": execution.get("scheduler", {}),
+    }
+
+
+@router.get("/state")
+async def ontology_runtime_state(tenant_id: str = Header("default", alias="X-Ontology-Tenant")):
+    return _kernel_for(tenant_id).snapshot()
+
+
+@router.get("/guarantees")
+async def ontology_runtime_guarantees(tenant_id: str = Header("default", alias="X-Ontology-Tenant")):
+    return _kernel_for(tenant_id).guarantees()
+
+
+@router.get("/convergence")
+async def ontology_runtime_convergence(tenant_id: str = Header("default", alias="X-Ontology-Tenant")):
+    return _kernel_for(tenant_id).convergence_report()
+
+
+@router.post("/reset")
+async def ontology_runtime_reset(tenant_id: str = Header("default", alias="X-Ontology-Tenant")):
+    global _kernel
+    key = _tenant_key(tenant_id)
+    old_kernel = _kernels.get(key) or OntologyKernel(tenant_id=key)
+    old_kernel.clear_persisted()
+    _kernels[key] = OntologyKernel(tenant_id=key)
+    if key == "default":
+        _kernel = _kernels[key]
+    return {"status": "reset", "tenant_id": key, "state_hash": _kernels[key].snapshot()["state_hash"]}
+
+
+@router.post("/kernel/action")
+async def ontology_runtime_kernel_action(body: dict = Body(...), tenant_id: str = Header("default", alias="X-Ontology-Tenant")):
+    try:
+        source = str(body.get("source", "ontology_kernel"))
+        action = body.get("action", body)
+        if not isinstance(action, dict):
+            raise HTTPException(status_code=422, detail="action must be an object")
+        return _kernel_for(tenant_id).execute_kernel_action(action, source=source)
+    except OntologyViolation as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+
+@router.post("/compile")
+async def ontology_runtime_compile(body: dict = Body(default_factory=dict), tenant_id: str = Header("default", alias="X-Ontology-Tenant")):
+    actions = body.get("actions", [])
+    if not isinstance(actions, list):
+        raise HTTPException(status_code=422, detail="actions must be a list")
+    try:
+        return _kernel_for(tenant_id).compile(actions, graph_id=str(body.get("graph_id", "runtime"))).to_dict()
+    except OntologyViolation as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+
+@router.post("/scheduler/execute")
+async def ontology_runtime_scheduler_execute(body: dict = Body(default_factory=dict), tenant_id: str = Header("default", alias="X-Ontology-Tenant")):
+    try:
+        return _run_action_graph(
+            _kernel_for(tenant_id),
+            _actions_from_body(body),
+            graph_id=str(body.get("graph_id", "scheduler")),
+            include_graph=True,
+        )
+    except OntologyViolation as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+
+@router.post("/simulate")
+async def ontology_runtime_simulate(body: dict = Body(default_factory=dict), tenant_id: str = Header("default", alias="X-Ontology-Tenant")):
+    steps = body.get("steps", [])
+    if not isinstance(steps, list):
+        raise HTTPException(status_code=422, detail="steps must be a list")
+    try:
+        return _kernel_for(tenant_id).simulate(steps, ticks=int(body.get("ticks", 1)))
+    except OntologyViolation as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+
+@router.post("/llm/action")
+async def ontology_runtime_llm_action(body: dict = Body(...), tenant_id: str = Header("default", alias="X-Ontology-Tenant")):
+    return _kernel_for(tenant_id).execute_llm_action(body)
+
+
+@router.post("/reasoning/action")
+async def ontology_runtime_reasoning_action(body: dict = Body(...), tenant_id: str = Header("default", alias="X-Ontology-Tenant")):
+    return _kernel_for(tenant_id).reasoning.execute(body)
+
+
+@router.post("/ingest")
+async def ontology_runtime_ingest(body: dict = Body(default_factory=dict), tenant_id: str = Header("default", alias="X-Ontology-Tenant")):
+    try:
+        kernel = _kernel_for(tenant_id)
+        if "raw" in body:
+            return kernel.ingest_raw_gw2(body["raw"])
+        return kernel.ingest_normalized(body)
+    except OntologyViolation as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+
+@router.get("/trace/{entity_id}")
+async def ontology_runtime_trace(entity_id: str, depth: int = 2, tenant_id: str = Header("default", alias="X-Ontology-Tenant")):
+    return _kernel_for(tenant_id).query().traverse(entity_id, depth=depth)
+
+
+@router.get("/dependencies/{entity_id}")
+async def ontology_runtime_dependencies(entity_id: str, tenant_id: str = Header("default", alias="X-Ontology-Tenant")):
+    return {"dependencies": _kernel_for(tenant_id).query().dependencies(entity_id)}
+
+
+@router.get("/lineage")
+async def ontology_runtime_lineage(limit: int = 50, tenant_id: str = Header("default", alias="X-Ontology-Tenant")):
+    return {"lineage": _kernel_for(tenant_id).lineage_store.list(limit=limit)}
+
+
+@router.post("/replay")
+async def ontology_runtime_replay(body: dict = Body(default_factory=dict), tenant_id: str = Header("default", alias="X-Ontology-Tenant")):
+    kernel = _kernel_for(tenant_id)
+    lineage = body.get("lineage") or kernel.snapshot()["lineage"]
+    replay = kernel.replay(lineage)
+    return {
+        "deterministic": replay["deterministic"],
+        "mismatches": replay["mismatches"],
+        "state": replay["state"].to_dict(),
+        "lineage": replay["lineage"],
+    }
+
+
+@router.get("/persistence")
+async def ontology_runtime_persistence(tenant_id: str = Header("default", alias="X-Ontology-Tenant")):
+    kernel = _kernel_for(tenant_id)
+    return {
+        "tenant_id": _tenant_key(tenant_id),
+        "persistence": kernel.persistence.status(),
+        "state_hash": kernel.snapshot()["state_hash"],
+    }
+
+
+@router.post("/persistence/save")
+async def ontology_runtime_persistence_save(tenant_id: str = Header("default", alias="X-Ontology-Tenant")):
+    return _kernel_for(tenant_id).persist()
+
+
+@router.post("/persistence/load")
+async def ontology_runtime_persistence_load(tenant_id: str = Header("default", alias="X-Ontology-Tenant")):
+    return _kernel_for(tenant_id).load_persisted()
+
+
+@router.post("/persistence/replay")
+async def ontology_runtime_persistence_replay(tenant_id: str = Header("default", alias="X-Ontology-Tenant")):
+    return _kernel_for(tenant_id).replay_persisted()

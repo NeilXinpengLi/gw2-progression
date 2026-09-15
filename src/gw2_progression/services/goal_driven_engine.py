@@ -25,6 +25,71 @@ ACTION_WEIGHTS = {
     "risk": -0.1,
 }
 
+ACTION_CONFIDENCE_METADATA = {
+    "SELL_ITEM": (
+        0.72,
+        ["gw2_account_materials", "gw2_account_bank", "gw2_commerce_prices", "curated_strategy_rules"],
+        "Sell value depends on live TP demand, spread, and whether stored materials are actually tradable.",
+    ),
+    "BUY_ITEM": (
+        0.66,
+        ["gw2_commerce_prices", "curated_strategy_rules"],
+        "Purchase cost can drift quickly when TP liquidity or buy/sell spread changes.",
+    ),
+    "CRAFT_ITEM": (
+        0.78,
+        ["gw2_account_materials", "gw2_recipe_tree", "gw2_commerce_prices"],
+        "Crafting estimate depends on recipe coverage, owned materials, and live material prices.",
+    ),
+    "FARM_ACTIVITY": (
+        0.68,
+        ["gw2_account_characters", "curated_activity_baseline"],
+        "Gold and progress yield vary by daily rotation, player skill, group quality, and market conversion.",
+    ),
+    "COMPLETE_ACHIEVEMENT": (
+        0.74,
+        ["gw2_account_progression", "curated_goal_templates"],
+        "Completion effort can vary when collection steps are time-gated or account progress data is partial.",
+    ),
+    "IMPROVE_BUILD": (
+        0.82,
+        ["gw2_account_builds", "curated_build_templates", "gw2_commerce_prices"],
+        "Build readiness is strongest when current equipment and missing gear prices are available.",
+    ),
+    "CLEAN_INVENTORY": (
+        0.76,
+        ["gw2_account_inventory", "gw2_account_materials", "curated_strategy_rules"],
+        "Cleanup value depends on item binding, salvage choice, and whether TP valuation exists.",
+    ),
+}
+
+
+def _confidence_from_goal(base_confidence: float, parsed: ParsedGoal) -> float:
+    """Blend action rule confidence with goal parser confidence."""
+    if parsed.confidence <= 0:
+        return base_confidence
+    return round(min(0.95, max(0.1, base_confidence * 0.75 + parsed.confidence * 0.25)), 2)
+
+
+def _with_action_confidence(actions: list[PlanAction], parsed: ParsedGoal) -> list[PlanAction]:
+    """Populate confidence metadata for generated plan actions."""
+    for action in actions:
+        base_confidence, data_sources, risk_reason = ACTION_CONFIDENCE_METADATA.get(
+            action.action_type,
+            (
+                0.62,
+                ["gw2_account_state", "curated_strategy_rules"],
+                "Recommendation is based on broad account state and may need manual validation.",
+            ),
+        )
+        if action.confidence <= 0:
+            action.confidence = _confidence_from_goal(base_confidence, parsed)
+        if not action.data_sources:
+            action.data_sources = list(data_sources)
+        if not action.risk_reason:
+            action.risk_reason = risk_reason
+    return actions
+
 
 def _score_action(
     action_type: str,
@@ -55,13 +120,7 @@ def _score_action(
         w["time_cost"] = -0.3
         w["gold_gain"] = 0.15
 
-    score = (
-        gold_gain * w["gold_gain"]
-        + progress_gain * w["progress_gain"]
-        + build_impact * w["build_impact"]
-        + time_cost_minutes * w["time_cost"]
-        + risk * w["risk"]
-    )
+    score = gold_gain * w["gold_gain"] + progress_gain * w["progress_gain"] + build_impact * w["build_impact"] + time_cost_minutes * w["time_cost"] + risk * w["risk"]
     return round(score, 2)
 
 
@@ -155,6 +214,21 @@ async def generate_plan_from_goal(
     for i, a in enumerate(actions):
         a.day_index = min(i // 3, 6)
 
+    actions = _with_action_confidence(actions, parsed)
+
+    try:
+        from ..ontology.impact_analyzer import analyze_sell_impact
+
+        for a in actions:
+            if a.action_type == "SELL_ITEM" and a.item_id > 0:
+                impact = await analyze_sell_impact(a.item_id, 1, acct, a.title)
+                if impact.risk_level in ("high", "medium"):
+                    a.risk_reason = f"[Ontology] {impact.recommendation} " + a.risk_reason
+                    a.confidence = round(a.confidence * (0.5 if impact.risk_level == "high" else 0.8), 2)
+                    a.data_sources.append("ontology_impact_analyzer")
+    except Exception as e:
+        logger.debug("Ontology impact analysis skipped (non-blocking): %s", e)
+
     # Compute totals
     total_cost = sum(a.cost_gold for a in actions)
     estimated_days = max(1, min(max(a.day_index for a in actions) + 1, 30)) if actions else 7
@@ -164,8 +238,10 @@ async def generate_plan_from_goal(
     plan_id = uuid.uuid4().hex[:12]
 
     insight = _generate_insight(state, parsed, actions, completion)
+    for action in actions:
+        action.plan_id = plan_id
 
-    return ProgressionPlan(
+    plan = ProgressionPlan(
         plan_id=plan_id,
         account_name=acct,
         strategy=strategy,
@@ -177,6 +253,13 @@ async def generate_plan_from_goal(
         insight=insight,
         created_at=now,
     )
+    try:
+        from .ai_lab_adapter import enhance_plan_with_ai_lab
+
+        plan, _assessment = await enhance_plan_with_ai_lab(plan, parsed, state)
+    except Exception as e:
+        logger.debug("AI Lab adapter enhancement skipped (non-blocking): %s", e)
+    return plan
 
 
 async def _generate_returning_actions(
@@ -191,70 +274,80 @@ async def _generate_returning_actions(
     # Action 1: Assess current build(s)
     try:
         from .build_service import get_recommendations
+
         recs = await get_recommendations(api_key)
         if recs:
             best = recs[0]
-            b_gm = best.game_mode if hasattr(best, 'game_mode') else 'general'
-            actions.append(PlanAction(
-                action_id=uuid.uuid4().hex[:12],
-                action_type="IMPROVE_BUILD",
-                title=f"Re-assess your build: {best.build_name}",
-                reason=f"Source: SnowCrows/MetaBattle | Readiness: {best.readiness_score:.0%} | Missing {best.missing_items_count} items | Mode: {b_gm}",
-                reward_gold=0,
-                cost_gold=best.missing_cost,
-                time_cost_minutes=60,
-                priority=1,
-                status="pending",
-                tab="builds",
-            ))
+            b_gm = best.game_mode if hasattr(best, "game_mode") else "general"
+            actions.append(
+                PlanAction(
+                    action_id=uuid.uuid4().hex[:12],
+                    action_type="IMPROVE_BUILD",
+                    title=f"Re-assess your build: {best.build_name}",
+                    reason=f"Source: SnowCrows/MetaBattle | Readiness: {best.readiness_score:.0%} | Missing {best.missing_items_count} items | Mode: {b_gm}",
+                    reward_gold=0,
+                    cost_gold=best.missing_cost,
+                    time_cost_minutes=60,
+                    priority=1,
+                    status="pending",
+                    tab="builds",
+                )
+            )
         else:
-            actions.append(PlanAction(
-                action_id=uuid.uuid4().hex[:12],
-                action_type="IMPROVE_BUILD",
-                title="Check current meta builds",
-                reason="Your builds may be outdated. Review SnowCrows/MetaBattle for current meta.",
-                reward_gold=0,
-                cost_gold=0,
-                time_cost_minutes=30,
-                priority=1,
-                status="pending",
-                tab="builds",
-            ))
+            actions.append(
+                PlanAction(
+                    action_id=uuid.uuid4().hex[:12],
+                    action_type="IMPROVE_BUILD",
+                    title="Check current meta builds",
+                    reason="Your builds may be outdated. Review SnowCrows/MetaBattle for current meta.",
+                    reward_gold=0,
+                    cost_gold=0,
+                    time_cost_minutes=30,
+                    priority=1,
+                    status="pending",
+                    tab="builds",
+                )
+            )
     except Exception as e:
         logger.warning("Returning build check failed: %s", e)
 
     # Action 2: Inventory cleanup
-    actions.append(PlanAction(
-        action_id=uuid.uuid4().hex[:12],
-        action_type="CLEAN_INVENTORY",
-        title="Audit and clean inventory",
-        reason="Returning players often have valuable old items. Check bank, materials, and bags.",
-        reward_gold=50000,
-        cost_gold=0,
-        time_cost_minutes=45,
-        priority=2,
-        status="pending",
-        tab="inventory",
-    ))
+    actions.append(
+        PlanAction(
+            action_id=uuid.uuid4().hex[:12],
+            action_type="CLEAN_INVENTORY",
+            title="Audit and clean inventory",
+            reason="Returning players often have valuable old items. Check bank, materials, and bags.",
+            reward_gold=50000,
+            cost_gold=0,
+            time_cost_minutes=45,
+            priority=2,
+            status="pending",
+            tab="inventory",
+        )
+    )
 
     # Action 3: Gold assessment
     if wallet_gold < 50000:
-        actions.append(PlanAction(
-            action_id=uuid.uuid4().hex[:12],
-            action_type="FARM_ACTIVITY",
-            title="Rebuild liquid gold reserves",
-            reason="Low wallet. Run T4 Fractals + daily achievements to build capital.",
-            reward_gold=140000,
-            cost_gold=0,
-            time_cost_minutes=60,
-            priority=3,
-            status="pending",
-            tab="activities",
-        ))
+        actions.append(
+            PlanAction(
+                action_id=uuid.uuid4().hex[:12],
+                action_type="FARM_ACTIVITY",
+                title="Rebuild liquid gold reserves",
+                reason="Low wallet. Run T4 Fractals + daily achievements to build capital.",
+                reward_gold=140000,
+                cost_gold=0,
+                time_cost_minutes=60,
+                priority=3,
+                status="pending",
+                tab="activities",
+            )
+        )
 
     # Action 4: Identify most time-sensitive goals
     try:
         from .progression_service import CURATED_TEMPLATES, generate_goal_plan
+
         best_goal = None
         best_pct = 0
         for t in CURATED_TEMPLATES[:3]:
@@ -266,18 +359,20 @@ async def _generate_returning_actions(
             except Exception:
                 continue
         if best_goal:
-            actions.append(PlanAction(
-                action_id=uuid.uuid4().hex[:12],
-                action_type="COMPLETE_ACHIEVEMENT",
-                title=f"Resume closest goal: {best_goal.template_id} ({best_pct:.0f}%)",
-                reason=f"You are already {best_pct:.0f}% done. ~{best_goal.total_missing_cost // 10000}g remaining to finish.",
-                reward_gold=0,
-                cost_gold=best_goal.total_missing_cost,
-                time_cost_minutes=120,
-                priority=4,
-                status="pending",
-                tab="goals",
-            ))
+            actions.append(
+                PlanAction(
+                    action_id=uuid.uuid4().hex[:12],
+                    action_type="COMPLETE_ACHIEVEMENT",
+                    title=f"Resume closest goal: {best_goal.template_id} ({best_pct:.0f}%)",
+                    reason=f"You are already {best_pct:.0f}% done. ~{best_goal.total_missing_cost // 10000}g remaining to finish.",
+                    reward_gold=0,
+                    cost_gold=best_goal.total_missing_cost,
+                    time_cost_minutes=120,
+                    priority=4,
+                    status="pending",
+                    tab="goals",
+                )
+            )
     except Exception as e:
         logger.warning("Returning goal check failed: %s", e)
 
@@ -301,40 +396,17 @@ def _generate_insight(state: dict, parsed: ParsedGoal, actions: list[PlanAction]
     goal_name = parsed.target_item_name or "your goal"
 
     if parsed.goal_type == GoalType.FINISH_LEGENDARY:
-        return (
-            f"You are {completion:.0f}% toward {goal_name}. "
-            f"Wallet: {wallet_gold}g. "
-            f"Top action: {actions[0].title if actions else 'analyze your account'}."
-        )
+        return f"You are {completion:.0f}% toward {goal_name}. Wallet: {wallet_gold}g. Top action: {actions[0].title if actions else 'analyze your account'}."
     if parsed.goal_type == GoalType.MAKE_GOLD:
         total_reward = sum(a.reward_gold for a in actions[:3])
-        return (
-            f"Total earning potential: ~{total_reward}g. "
-            f"Wallet: {wallet_gold}g. "
-            f"Best move: {actions[0].title if actions else 'start farming'}."
-        )
+        return f"Total earning potential: ~{total_reward}g. Wallet: {wallet_gold}g. Best move: {actions[0].title if actions else 'start farming'}."
     if parsed.goal_type == GoalType.PREPARE_BUILD:
-        return (
-            f"Build readiness analyzed. "
-            f"Wallet: {wallet_gold}g. "
-            f"Next step: {actions[0].title if actions else 'choose a build'}."
-        )
+        return f"Build readiness analyzed. Wallet: {wallet_gold}g. Next step: {actions[0].title if actions else 'choose a build'}."
     if parsed.goal_type == GoalType.GUILD_PREPARATION:
-        return (
-            f"Guild account analysis. {state.get('lvl80_count', 0)} lvl80 characters. "
-            f"Wallet: {wallet_gold}g. "
-            f"Next step: {actions[0].title if actions else 'add guild members'}."
-        )
+        return f"Guild account analysis. {state.get('lvl80_count', 0)} lvl80 characters. Wallet: {wallet_gold}g. Next step: {actions[0].title if actions else 'add guild members'}."
     if parsed.raw_text and "return" in parsed.raw_text.lower() and any(kw in parsed.raw_text.lower() for kw in ["back", "return", "came", "after", "break", "hiatus", "old"]):
-        return (
-            f"Welcome back! Your account is worth ~{wallet_gold * 3}g. "
-            f"Wallet: {wallet_gold}g. Top priority: re-assess your build and clean inventory."
-        )
-    return (
-        f"Plan generated for '{parsed.raw_text[:60]}'. "
-        f"Wallet: {wallet_gold}g. "
-        f"{len(actions)} actions recommended."
-    )
+        return f"Welcome back! Your account is worth ~{wallet_gold * 3}g. Wallet: {wallet_gold}g. Top priority: re-assess your build and clean inventory."
+    return f"Plan generated for '{parsed.raw_text[:60]}'. Wallet: {wallet_gold}g. {len(actions)} actions recommended."
 
 
 def _estimate_completion(state: dict, parsed: ParsedGoal) -> float:
@@ -370,10 +442,19 @@ async def _generate_legendary_actions(
     # Check template progress
     goal_progress = None
     if parsed.target_item_id:
-        templates = ["leg_greatsword_bolt", "leg_greatsword_twilight", "leg_greatsword_sunrise",
-                      "leg_staff_nevermore", "leg_staff_bifrost", "leg_axe_astralaria",
-                      "leg_axe_frostfang", "leg_dagger_incinerator", "leg_back_ad_infinitum",
-                      "leg_trinket_aurora", "leg_ring_vision"]
+        templates = [
+            "leg_greatsword_bolt",
+            "leg_greatsword_twilight",
+            "leg_greatsword_sunrise",
+            "leg_staff_nevermore",
+            "leg_staff_bifrost",
+            "leg_axe_astralaria",
+            "leg_axe_frostfang",
+            "leg_dagger_incinerator",
+            "leg_back_ad_infinitum",
+            "leg_trinket_aurora",
+            "leg_ring_vision",
+        ]
         for tid in templates:
             gp = await _get_goal_progress(api_key, tid)
             if gp:
@@ -381,60 +462,68 @@ async def _generate_legendary_actions(
                 break
 
     # Action 1: Sell high-value materials for gold
-    actions.append(PlanAction(
-        action_id=uuid.uuid4().hex[:12],
-        action_type="SELL_ITEM",
-        title=f"Sell excess materials for {goal_name} funding",
-        reason=f"Generate liquid gold to buy missing {goal_name} materials",
-        reward_gold=min(max(wallet_gold // 4, 5000), 500000),
-        cost_gold=0,
-        time_cost_minutes=30,
-        priority=1,
-        status="pending",
-        tab="value",
-    ))
+    actions.append(
+        PlanAction(
+            action_id=uuid.uuid4().hex[:12],
+            action_type="SELL_ITEM",
+            title=f"Sell excess materials for {goal_name} funding",
+            reason=f"Generate liquid gold to buy missing {goal_name} materials",
+            reward_gold=min(max(wallet_gold // 4, 5000), 500000),
+            cost_gold=0,
+            time_cost_minutes=30,
+            priority=1,
+            status="pending",
+            tab="value",
+        )
+    )
 
     # Action 2: Farm time-gated materials
-    actions.append(PlanAction(
-        action_id=uuid.uuid4().hex[:12],
-        action_type="FARM_ACTIVITY",
-        title=f"Farm time-gated materials for {goal_name}",
-        reason="Mystic Coins, Crystalline Ore, and map currencies are time-gated",
-        reward_gold=0,
-        cost_gold=0,
-        time_cost_minutes=60,
-        priority=2,
-        status="pending",
-        tab="goals",
-    ))
-
-    # Action 3: Check and craft Gift components
-    actions.append(PlanAction(
-        action_id=uuid.uuid4().hex[:12],
-        action_type="CRAFT_ITEM",
-        title=f"Assemble Gift components for {goal_name}",
-        reason="Gift of Mastery, Gift of Might, Gift of Magic are the key precursors",
-        reward_gold=0,
-        cost_gold=max(30000, wallet_gold // 3),
-        time_cost_minutes=120,
-        priority=3,
-        status="pending",
-        tab="crafting",
-    ))
-
-    if goal_progress and goal_progress["completion_percent"] > 50:
-        actions.append(PlanAction(
+    actions.append(
+        PlanAction(
             action_id=uuid.uuid4().hex[:12],
-            action_type="COMPLETE_ACHIEVEMENT",
-            title=f"Finish remaining {goal_name} collection steps",
-            reason=f"You are {goal_progress['completion_percent']:.0f}% done. Complete the final collection achievements",
+            action_type="FARM_ACTIVITY",
+            title=f"Farm time-gated materials for {goal_name}",
+            reason="Mystic Coins, Crystalline Ore, and map currencies are time-gated",
             reward_gold=0,
-            cost_gold=goal_progress["missing_cost"],
-            time_cost_minutes=180,
-            priority=4,
+            cost_gold=0,
+            time_cost_minutes=60,
+            priority=2,
             status="pending",
             tab="goals",
-        ))
+        )
+    )
+
+    # Action 3: Check and craft Gift components
+    actions.append(
+        PlanAction(
+            action_id=uuid.uuid4().hex[:12],
+            action_type="CRAFT_ITEM",
+            title=f"Assemble Gift components for {goal_name}",
+            reason="Gift of Mastery, Gift of Might, Gift of Magic are the key precursors",
+            reward_gold=0,
+            cost_gold=max(30000, wallet_gold // 3),
+            time_cost_minutes=120,
+            priority=3,
+            status="pending",
+            tab="crafting",
+        )
+    )
+
+    if goal_progress and goal_progress["completion_percent"] > 50:
+        actions.append(
+            PlanAction(
+                action_id=uuid.uuid4().hex[:12],
+                action_type="COMPLETE_ACHIEVEMENT",
+                title=f"Finish remaining {goal_name} collection steps",
+                reason=f"You are {goal_progress['completion_percent']:.0f}% done. Complete the final collection achievements",
+                reward_gold=0,
+                cost_gold=goal_progress["missing_cost"],
+                time_cost_minutes=180,
+                priority=4,
+                status="pending",
+                tab="goals",
+            )
+        )
 
     return actions
 
@@ -446,60 +535,68 @@ async def _generate_gold_actions(state: dict, parsed: ParsedGoal) -> list[PlanAc
 
     # T4 Fractals
     if lvl80 > 0:
-        actions.append(PlanAction(
-            action_id=uuid.uuid4().hex[:12],
-            action_type="FARM_ACTIVITY",
-            title="Run T4 Fractals dailies + recs",
-            reason="~20g/day from fractal encryptions, junk, and materia",
-            reward_gold=140000,
-            cost_gold=0,
-            time_cost_minutes=60,
-            priority=1,
-            status="pending",
-            tab="activities",
-        ))
+        actions.append(
+            PlanAction(
+                action_id=uuid.uuid4().hex[:12],
+                action_type="FARM_ACTIVITY",
+                title="Run T4 Fractals dailies + recs",
+                reason="~20g/day from fractal encryptions, junk, and materia",
+                reward_gold=140000,
+                cost_gold=0,
+                time_cost_minutes=60,
+                priority=1,
+                status="pending",
+                tab="activities",
+            )
+        )
 
     # Daily achievements
-    actions.append(PlanAction(
-        action_id=uuid.uuid4().hex[:12],
-        action_type="FARM_ACTIVITY",
-        title="Complete daily achievements + world bosses",
-        reason="~5-10g/day from dailies, boss drops, and event rewards",
-        reward_gold=70000,
-        cost_gold=0,
-        time_cost_minutes=45,
-        priority=2,
-        status="pending",
-        tab="activities",
-    ))
+    actions.append(
+        PlanAction(
+            action_id=uuid.uuid4().hex[:12],
+            action_type="FARM_ACTIVITY",
+            title="Complete daily achievements + world bosses",
+            reason="~5-10g/day from dailies, boss drops, and event rewards",
+            reward_gold=70000,
+            cost_gold=0,
+            time_cost_minutes=45,
+            priority=2,
+            status="pending",
+            tab="activities",
+        )
+    )
 
     # TP flipping
-    actions.append(PlanAction(
-        action_id=uuid.uuid4().hex[:12],
-        action_type="BUY_ITEM",
-        title="Find and flip TP opportunities",
-        reason="Low-effort gold through buy/sell spreads on high-volume items",
-        reward_gold=50000,
-        cost_gold=30000,
-        time_cost_minutes=20,
-        priority=3,
-        status="pending",
-        tab="market",
-    ))
+    actions.append(
+        PlanAction(
+            action_id=uuid.uuid4().hex[:12],
+            action_type="BUY_ITEM",
+            title="Find and flip TP opportunities",
+            reason="Low-effort gold through buy/sell spreads on high-volume items",
+            reward_gold=50000,
+            cost_gold=30000,
+            time_cost_minutes=20,
+            priority=3,
+            status="pending",
+            tab="market",
+        )
+    )
 
     # Sell excess
-    actions.append(PlanAction(
-        action_id=uuid.uuid4().hex[:12],
-        action_type="SELL_ITEM",
-        title="Sell excess materials from storage",
-        reason="Clean out materials above 250 stack for immediate gold",
-        reward_gold=50000,
-        cost_gold=0,
-        time_cost_minutes=15,
-        priority=4,
-        status="pending",
-        tab="value",
-    ))
+    actions.append(
+        PlanAction(
+            action_id=uuid.uuid4().hex[:12],
+            action_type="SELL_ITEM",
+            title="Sell excess materials from storage",
+            reason="Clean out materials above 250 stack for immediate gold",
+            reward_gold=50000,
+            cost_gold=0,
+            time_cost_minutes=15,
+            priority=4,
+            status="pending",
+            tab="value",
+        )
+    )
 
     return actions
 
@@ -515,46 +612,52 @@ async def _generate_build_actions(api_key: str, state: dict, parsed: ParsedGoal)
         recs = await get_recommendations(api_key)
         if recs:
             best = recs[0]
-            actions.append(PlanAction(
+            actions.append(
+                PlanAction(
+                    action_id=uuid.uuid4().hex[:12],
+                    action_type="IMPROVE_BUILD",
+                    title=f"Equip {best.build_name} ({game_mode})",
+                    reason=f"Readiness: {best.readiness_score:.0%}. Missing {best.missing_items_count} items.",
+                    reward_gold=0,
+                    cost_gold=best.missing_cost,
+                    time_cost_minutes=120,
+                    priority=1,
+                    status="pending",
+                    tab="builds",
+                    item_id=best.missing_items_count > 0,
+                )
+            )
+
+            actions.append(
+                PlanAction(
+                    action_id=uuid.uuid4().hex[:12],
+                    action_type="BUY_ITEM",
+                    title="Purchase missing build gear from TP",
+                    reason=f"Acquire remaining items for {best.build_name}",
+                    reward_gold=0,
+                    cost_gold=best.missing_cost,
+                    time_cost_minutes=30,
+                    priority=2,
+                    status="pending",
+                    tab="builds",
+                )
+            )
+    except Exception as e:
+        logger.warning("Build recommendations failed: %s", e)
+        actions.append(
+            PlanAction(
                 action_id=uuid.uuid4().hex[:12],
-                action_type="IMPROVE_BUILD",
-                title=f"Equip {best.build_name} ({game_mode})",
-                reason=f"Readiness: {best.readiness_score:.0%}. Missing {best.missing_items_count} items.",
-                reward_gold=0,
-                cost_gold=best.missing_cost,
+                action_type="FARM_ACTIVITY",
+                title=f"Farm {game_mode} for gear acquisition",
+                reason=f"Run {game_mode} content to earn currencies for stat-selectable gear",
+                reward_gold=100000,
+                cost_gold=0,
                 time_cost_minutes=120,
                 priority=1,
                 status="pending",
                 tab="builds",
-                item_id=best.missing_items_count > 0,
-            ))
-
-            actions.append(PlanAction(
-                action_id=uuid.uuid4().hex[:12],
-                action_type="BUY_ITEM",
-                title="Purchase missing build gear from TP",
-                reason=f"Acquire remaining items for {best.build_name}",
-                reward_gold=0,
-                cost_gold=best.missing_cost,
-                time_cost_minutes=30,
-                priority=2,
-                status="pending",
-                tab="builds",
-            ))
-    except Exception as e:
-        logger.warning("Build recommendations failed: %s", e)
-        actions.append(PlanAction(
-            action_id=uuid.uuid4().hex[:12],
-            action_type="FARM_ACTIVITY",
-            title=f"Farm {game_mode} for gear acquisition",
-            reason=f"Run {game_mode} content to earn currencies for stat-selectable gear",
-            reward_gold=100000,
-            cost_gold=0,
-            time_cost_minutes=120,
-            priority=1,
-            status="pending",
-            tab="builds",
-        ))
+            )
+        )
 
     return actions
 
@@ -563,44 +666,50 @@ async def _generate_inventory_actions(state: dict, parsed: ParsedGoal) -> list[P
     """Generate inventory optimization actions."""
     actions: list[PlanAction] = []
 
-    actions.append(PlanAction(
-        action_id=uuid.uuid4().hex[:12],
-        action_type="CLEAN_INVENTORY",
-        title="Salvage all masterwork/rare gear",
-        reason="Clear inventory space and get crafting materials + luck",
-        reward_gold=10000,
-        cost_gold=0,
-        time_cost_minutes=20,
-        priority=1,
-        status="pending",
-        tab="inventory",
-    ))
+    actions.append(
+        PlanAction(
+            action_id=uuid.uuid4().hex[:12],
+            action_type="CLEAN_INVENTORY",
+            title="Salvage all masterwork/rare gear",
+            reason="Clear inventory space and get crafting materials + luck",
+            reward_gold=10000,
+            cost_gold=0,
+            time_cost_minutes=20,
+            priority=1,
+            status="pending",
+            tab="inventory",
+        )
+    )
 
-    actions.append(PlanAction(
-        action_id=uuid.uuid4().hex[:12],
-        action_type="SELL_ITEM",
-        title="List excess materials on TP",
-        reason="Sell materials above 250 stack threshold for immediate gold",
-        reward_gold=30000,
-        cost_gold=0,
-        time_cost_minutes=15,
-        priority=2,
-        status="pending",
-        tab="value",
-    ))
+    actions.append(
+        PlanAction(
+            action_id=uuid.uuid4().hex[:12],
+            action_type="SELL_ITEM",
+            title="List excess materials on TP",
+            reason="Sell materials above 250 stack threshold for immediate gold",
+            reward_gold=30000,
+            cost_gold=0,
+            time_cost_minutes=15,
+            priority=2,
+            status="pending",
+            tab="value",
+        )
+    )
 
-    actions.append(PlanAction(
-        action_id=uuid.uuid4().hex[:12],
-        action_type="CLEAN_INVENTORY",
-        title="Deposit all materials to material storage",
-        reason="Free up bank and inventory space using 'Deposit Materials' button",
-        reward_gold=0,
-        cost_gold=0,
-        time_cost_minutes=5,
-        priority=3,
-        status="pending",
-        tab="inventory",
-    ))
+    actions.append(
+        PlanAction(
+            action_id=uuid.uuid4().hex[:12],
+            action_type="CLEAN_INVENTORY",
+            title="Deposit all materials to material storage",
+            reason="Free up bank and inventory space using 'Deposit Materials' button",
+            reward_gold=0,
+            cost_gold=0,
+            time_cost_minutes=5,
+            priority=3,
+            status="pending",
+            tab="inventory",
+        )
+    )
 
     return actions
 
@@ -614,35 +723,39 @@ async def _generate_craft_actions(api_key: str, state: dict, parsed: ParsedGoal)
             from .crafting_plan_service import create_plan
 
             plan = await create_plan(api_key, parsed.target_item_id, 1, True)
-            actions.append(PlanAction(
-                action_id=uuid.uuid4().hex[:12],
-                action_type="CRAFT_ITEM",
-                title=f"Craft {parsed.target_item_name}",
-                reason=f"Missing cost: {plan.missing_material_cost // 10000}g, owned: {plan.owned_material_value_used // 10000}g",
-                reward_gold=0,
-                cost_gold=plan.missing_material_cost,
-                time_cost_minutes=180,
-                priority=1,
-                status="pending",
-                tab="crafting",
-            ))
+            actions.append(
+                PlanAction(
+                    action_id=uuid.uuid4().hex[:12],
+                    action_type="CRAFT_ITEM",
+                    title=f"Craft {parsed.target_item_name}",
+                    reason=f"Missing cost: {plan.missing_material_cost // 10000}g, owned: {plan.owned_material_value_used // 10000}g",
+                    reward_gold=0,
+                    cost_gold=plan.missing_material_cost,
+                    time_cost_minutes=180,
+                    priority=1,
+                    status="pending",
+                    tab="crafting",
+                )
+            )
 
             # Shopping list
             missing_lines = [ln for ln in plan.lines if ln.missing_count > 0]
             if missing_lines:
                 top_missing = missing_lines[0]
-                actions.append(PlanAction(
-                    action_id=uuid.uuid4().hex[:12],
-                    action_type="BUY_ITEM",
-                    title=f"Buy {top_missing.missing_count}x {top_missing.item_id} from TP",
-                    reason=f"Missing material for {parsed.target_item_name}",
-                    reward_gold=0,
-                    cost_gold=top_missing.missing_buy_cost,
-                    time_cost_minutes=10,
-                    priority=2,
-                    status="pending",
-                    tab="crafting",
-                ))
+                actions.append(
+                    PlanAction(
+                        action_id=uuid.uuid4().hex[:12],
+                        action_type="BUY_ITEM",
+                        title=f"Buy {top_missing.missing_count}x {top_missing.item_id} from TP",
+                        reason=f"Missing material for {parsed.target_item_name}",
+                        reward_gold=0,
+                        cost_gold=top_missing.missing_buy_cost,
+                        time_cost_minutes=10,
+                        priority=2,
+                        status="pending",
+                        tab="crafting",
+                    )
+                )
         except Exception as e:
             logger.warning("Craft plan failed: %s", e)
 
@@ -664,19 +777,21 @@ async def _generate_weekly_actions(api_key: str, state: dict, parsed: ParsedGoal
     ]
 
     for title, reason, action_type, reward, cost, time_cost, day_idx in action_templates:
-        actions.append(PlanAction(
-            action_id=uuid.uuid4().hex[:12],
-            action_type=action_type,
-            title=title,
-            reason=reason,
-            reward_gold=reward,
-            cost_gold=cost,
-            time_cost_minutes=time_cost,
-            priority=day_idx + 1,
-            status="pending",
-            tab="activities",
-            day_index=day_idx,
-        ))
+        actions.append(
+            PlanAction(
+                action_id=uuid.uuid4().hex[:12],
+                action_type=action_type,
+                title=title,
+                reason=reason,
+                reward_gold=reward,
+                cost_gold=cost,
+                time_cost_minutes=time_cost,
+                priority=day_idx + 1,
+                status="pending",
+                tab="activities",
+                day_index=day_idx,
+            )
+        )
 
     return actions
 
@@ -685,31 +800,35 @@ async def _generate_fallback_actions(api_key: str, state: dict, parsed: ParsedGo
     """Generate fallback actions when goal type is unclear."""
     actions: list[PlanAction] = []
 
-    actions.append(PlanAction(
-        action_id=uuid.uuid4().hex[:12],
-        action_type="FARM_ACTIVITY",
-        title="Complete daily achievements + T4 fractals",
-        reason="Best consistent gold income. ~20g/day from dailies + fractals.",
-        reward_gold=140000,
-        cost_gold=0,
-        time_cost_minutes=60,
-        priority=1,
-        status="pending",
-        tab="activities",
-    ))
+    actions.append(
+        PlanAction(
+            action_id=uuid.uuid4().hex[:12],
+            action_type="FARM_ACTIVITY",
+            title="Complete daily achievements + T4 fractals",
+            reason="Best consistent gold income. ~20g/day from dailies + fractals.",
+            reward_gold=140000,
+            cost_gold=0,
+            time_cost_minutes=60,
+            priority=1,
+            status="pending",
+            tab="activities",
+        )
+    )
 
-    actions.append(PlanAction(
-        action_id=uuid.uuid4().hex[:12],
-        action_type="SELL_ITEM",
-        title="Review and sell excess materials",
-        reason="Clean material storage for immediate gold",
-        reward_gold=30000,
-        cost_gold=0,
-        time_cost_minutes=15,
-        priority=2,
-        status="pending",
-        tab="value",
-    ))
+    actions.append(
+        PlanAction(
+            action_id=uuid.uuid4().hex[:12],
+            action_type="SELL_ITEM",
+            title="Review and sell excess materials",
+            reason="Clean material storage for immediate gold",
+            reward_gold=30000,
+            cost_gold=0,
+            time_cost_minutes=15,
+            priority=2,
+            status="pending",
+            tab="value",
+        )
+    )
 
     try:
         from .progression_service import CURATED_TEMPLATES, generate_goal_plan
@@ -726,18 +845,20 @@ async def _generate_fallback_actions(api_key: str, state: dict, parsed: ParsedGo
                 continue
 
         if best_goal:
-            actions.append(PlanAction(
-                action_id=uuid.uuid4().hex[:12],
-                action_type="COMPLETE_ACHIEVEMENT",
-                title=f"Work on {best_goal.template_id} ({best_goal.total_completion_percent:.0f}%)",
-                reason=f"Closest goal. ~{best_goal.total_missing_cost // 10000}g remaining.",
-                reward_gold=0,
-                cost_gold=best_goal.total_missing_cost,
-                time_cost_minutes=120,
-                priority=3,
-                status="pending",
-                tab="goals",
-            ))
+            actions.append(
+                PlanAction(
+                    action_id=uuid.uuid4().hex[:12],
+                    action_type="COMPLETE_ACHIEVEMENT",
+                    title=f"Work on {best_goal.template_id} ({best_goal.total_completion_percent:.0f}%)",
+                    reason=f"Closest goal. ~{best_goal.total_missing_cost // 10000}g remaining.",
+                    reward_gold=0,
+                    cost_gold=best_goal.total_missing_cost,
+                    time_cost_minutes=120,
+                    priority=3,
+                    status="pending",
+                    tab="goals",
+                )
+            )
     except Exception:
         pass
 

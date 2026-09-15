@@ -9,6 +9,35 @@ from .listing_service import analyze_depth, fetch_listings
 logger = logging.getLogger("gw2.tp")
 
 
+def _signal_metadata(
+    signal_type: str,
+    holding_confidence: float = 0.0,
+    depth: dict | None = None,
+) -> dict:
+    depth_confidence = float((depth or {}).get("confidence", 0.0))
+    confidence = max(holding_confidence, depth_confidence)
+    if signal_type == "protected_asset":
+        confidence = max(confidence, 0.90)
+        risk_reason = "Item is protected by an active goal, so selling should be avoided."
+    elif signal_type == "high_spread":
+        confidence = min(max(confidence, 0.60), 0.70)
+        risk_reason = (depth or {}).get("risk_reason", "Wide spread makes execution price uncertain.")
+    elif signal_type == "low_liquidity":
+        confidence = min(max(confidence, 0.50), 0.65)
+        risk_reason = (depth or {}).get("risk_reason", "Low order depth may make this hard to liquidate.")
+    else:
+        confidence = min(max(confidence, 0.70), 0.88)
+        risk_reason = (depth or {}).get("risk_reason", "Sell candidate uses current account valuation and TP listing depth.")
+
+    return {
+        "confidence": round(confidence, 2),
+        "data_sources": sorted({"gw2_account_holdings", "gw2_commerce_listings", *((depth or {}).get("data_sources", []))}),
+        "price_timestamp": (depth or {}).get("price_timestamp", ""),
+        "liquidity_reason": (depth or {}).get("liquidity_reason", ""),
+        "risk_reason": risk_reason,
+    }
+
+
 async def generate_signals(account_name: str) -> list[TradingPostSignal]:
     """Generate TP signals for an account based on holdings and market data."""
     from ..database import load_latest_holdings
@@ -68,6 +97,7 @@ async def generate_signals(account_name: str) -> list[TradingPostSignal]:
                     reason="Protected by active tracked goal",
                     quantity_owned=h.count,
                     value_owned=h.value_buy,
+                    **_signal_metadata("protected_asset", h.confidence, depth),
                 )
             )
             continue
@@ -86,6 +116,7 @@ async def generate_signals(account_name: str) -> list[TradingPostSignal]:
                     spread_ratio=depth["spread_ratio"],
                     quantity_owned=h.count,
                     value_owned=h.value_buy,
+                    **_signal_metadata("high_spread", h.confidence, depth),
                 )
             )
 
@@ -99,6 +130,7 @@ async def generate_signals(account_name: str) -> list[TradingPostSignal]:
                     reason=f"Low liquidity: {depth.get('liquidity_score', 'unknown')}",
                     quantity_owned=h.count,
                     value_owned=h.value_buy,
+                    **_signal_metadata("low_liquidity", h.confidence, depth),
                 )
             )
 
@@ -114,6 +146,7 @@ async def generate_signals(account_name: str) -> list[TradingPostSignal]:
                     current_sell_price=h.price_sell,
                     quantity_owned=h.count,
                     value_owned=h.value_buy,
+                    **_signal_metadata("sell_candidate", h.confidence, depth),
                 )
             )
 

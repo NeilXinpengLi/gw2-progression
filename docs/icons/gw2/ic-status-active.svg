@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" aria-hidden="true" role="img">
+  <title>status-active</title>
+  <g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <circle cx="12" cy="12" r="4" fill="currentColor" stroke="none"/>
+    <path d="M12 4v2M12 18v2M4 12h2M18 12h2"/>
+  </g>
+</svg>

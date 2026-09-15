@@ -1,4 +1,5 @@
 import asyncio
+import json
 import logging
 import os
 from contextlib import asynccontextmanager
@@ -11,9 +12,9 @@ from .models import ItemHolding, ValueHistoryEntry, ValueSummary
 
 logger = logging.getLogger("gw2.db")
 
-DB_DIR = Path(__file__).resolve().parent.parent.parent / "data"
+DB_DIR = Path(os.environ.get("GW2_PROGRESSION_DATA_DIR", "data")).expanduser()
 DB_PATH = DB_DIR / "gw2_progression.db"
-DB_POOL_SIZE = 5
+DB_POOL_SIZE = 20
 _TEST_DB_URL = os.environ.get("TEST_DATABASE_URL", "")  # e.g. "file::memory:?cache=shared"
 
 _pool: asyncio.Queue[aiosqlite.Connection] | None = None
@@ -34,14 +35,17 @@ async def _create_connection() -> aiosqlite.Connection:
     return conn
 
 
-async def get_db() -> aiosqlite.Connection:
+async def get_db(timeout: float = 30.0) -> aiosqlite.Connection:
     global _pool
     if _pool is None:
         _pool = asyncio.Queue(DB_POOL_SIZE)
         for _ in range(DB_POOL_SIZE):
             conn = await _create_connection()
             await _pool.put(conn)
-    return await _pool.get()
+    try:
+        return await asyncio.wait_for(_pool.get(), timeout=timeout)
+    except asyncio.TimeoutError:
+        raise RuntimeError(f"DB pool exhausted: all {DB_POOL_SIZE} connections in use for >{timeout}s")
 
 
 async def release_db(conn: aiosqlite.Connection):
@@ -64,13 +68,31 @@ async def close_pool():
 
 @asynccontextmanager
 async def using_db():
-    """Async context manager that acquires and releases a DB connection."""
+    """Async context manager that acquires and releases a DB connection.
+
+    Automatically detects stale connections (closed by pool timeout during
+    long-running operations) and replaces them with a fresh connection.
+    """
     conn = await get_db()
     try:
+        # Health check: verify connection is still alive
+        try:
+            c = await conn.execute("SELECT 1")
+            await c.fetchone()
+        except Exception:
+            # Connection is stale — replace it
+            try:
+                await conn.close()
+            except Exception:
+                pass
+            conn = await _create_connection()
         yield conn
         await conn.commit()
     except Exception:
-        await conn.rollback()
+        try:
+            await conn.rollback()
+        except Exception:
+            pass
         raise
     finally:
         await release_db(conn)
@@ -125,6 +147,13 @@ CREATE TABLE IF NOT EXISTS item_holdings (
     value_buy INTEGER NOT NULL DEFAULT 0,
     value_sell INTEGER NOT NULL DEFAULT 0,
     valuation_status TEXT NOT NULL DEFAULT 'pending',
+    quality_status TEXT NOT NULL DEFAULT 'unknown',
+    liquidity_score TEXT NOT NULL DEFAULT 'unknown',
+    liquidity_reason TEXT NOT NULL DEFAULT '',
+    confidence REAL NOT NULL DEFAULT 0,
+    data_sources TEXT NOT NULL DEFAULT '[]',
+    price_timestamp TEXT NOT NULL DEFAULT '',
+    risk_reason TEXT NOT NULL DEFAULT '',
     FOREIGN KEY (snapshot_id) REFERENCES account_snapshots(id)
 );
 
@@ -357,6 +386,31 @@ CREATE TABLE IF NOT EXISTS orders (
     FOREIGN KEY (product_id) REFERENCES products(id)
 );
 
+CREATE TABLE IF NOT EXISTS order_idempotency_keys (
+    idempotency_key TEXT PRIMARY KEY,
+    order_id INTEGER NOT NULL,
+    status TEXT NOT NULL DEFAULT 'fulfilled',
+    error TEXT NOT NULL DEFAULT '',
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    fulfilled_at TEXT,
+    FOREIGN KEY (order_id) REFERENCES orders(id)
+);
+
+CREATE TABLE IF NOT EXISTS payment_events (
+    provider_event_id TEXT PRIMARY KEY,
+    provider TEXT NOT NULL DEFAULT 'stripe',
+    event_type TEXT NOT NULL DEFAULT '',
+    status TEXT NOT NULL DEFAULT 'received',
+    idempotency_key TEXT NOT NULL DEFAULT '',
+    order_id INTEGER,
+    customer_email TEXT NOT NULL DEFAULT '',
+    product_id INTEGER NOT NULL DEFAULT 0,
+    error TEXT NOT NULL DEFAULT '',
+    received_at TEXT NOT NULL DEFAULT (datetime('now')),
+    fulfilled_at TEXT,
+    FOREIGN KEY (order_id) REFERENCES orders(id)
+);
+
 CREATE TABLE IF NOT EXISTS licenses (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     license_key TEXT NOT NULL UNIQUE,
@@ -373,7 +427,7 @@ CREATE TABLE IF NOT EXISTS licenses (
 
 CREATE TABLE IF NOT EXISTS delivery_jobs (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    order_id INTEGER NOT NULL,
+    order_id INTEGER NOT NULL UNIQUE,
     product_id INTEGER NOT NULL,
     status TEXT NOT NULL DEFAULT 'pending',
     output_pdf_url TEXT DEFAULT '',
@@ -383,6 +437,23 @@ CREATE TABLE IF NOT EXISTS delivery_jobs (
     created_at TEXT NOT NULL DEFAULT (datetime('now')),
     FOREIGN KEY (order_id) REFERENCES orders(id),
     FOREIGN KEY (product_id) REFERENCES products(id)
+);
+
+CREATE TABLE IF NOT EXISTS delivery_outbox (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    delivery_job_id INTEGER NOT NULL,
+    order_id INTEGER NOT NULL,
+    event_type TEXT NOT NULL DEFAULT 'email_report',
+    recipient_email TEXT NOT NULL,
+    payload_json TEXT NOT NULL DEFAULT '{}',
+    status TEXT NOT NULL DEFAULT 'pending',
+    attempts INTEGER NOT NULL DEFAULT 0,
+    error TEXT NOT NULL DEFAULT '',
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    sent_at TEXT,
+    FOREIGN KEY (delivery_job_id) REFERENCES delivery_jobs(id),
+    FOREIGN KEY (order_id) REFERENCES orders(id),
+    UNIQUE(delivery_job_id, event_type)
 );
 
 CREATE TABLE IF NOT EXISTS affiliates (
@@ -520,6 +591,9 @@ CREATE TABLE IF NOT EXISTS plan_actions (
     tab TEXT NOT NULL DEFAULT '',
     item_id INTEGER NOT NULL DEFAULT 0,
     day_index INTEGER NOT NULL DEFAULT -1,
+    confidence REAL NOT NULL DEFAULT 0,
+    data_sources TEXT NOT NULL DEFAULT '[]',
+    risk_reason TEXT NOT NULL DEFAULT '',
     FOREIGN KEY (plan_id) REFERENCES progression_plans(plan_id)
 );
 
@@ -546,6 +620,74 @@ CREATE TABLE IF NOT EXISTS report_artifacts (
     created_at TEXT NOT NULL DEFAULT (datetime('now')),
     FOREIGN KEY (plan_id) REFERENCES progression_plans(plan_id)
 );
+
+CREATE TABLE IF NOT EXISTS ontology_objects (
+    object_id TEXT PRIMARY KEY,
+    class_name TEXT NOT NULL,
+    account_name TEXT NOT NULL DEFAULT '',
+    properties TEXT NOT NULL DEFAULT '{}',
+    qa_status TEXT NOT NULL DEFAULT 'pending',
+    privacy_scope TEXT NOT NULL DEFAULT 'private',
+    revision INTEGER NOT NULL DEFAULT 1,
+    source_object_id TEXT NOT NULL DEFAULT '',
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS ontology_relations (
+    relation_id TEXT PRIMARY KEY,
+    source_id TEXT NOT NULL,
+    target_id TEXT NOT NULL,
+    relation_type TEXT NOT NULL,
+    properties TEXT NOT NULL DEFAULT '{}',
+    confidence REAL NOT NULL DEFAULT 1.0,
+    created_at TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS ontology_actions (
+    action_id TEXT PRIMARY KEY,
+    action_type TEXT NOT NULL,
+    account_name TEXT NOT NULL DEFAULT '',
+    params TEXT NOT NULL DEFAULT '{}',
+    preconditions_met INTEGER NOT NULL DEFAULT 0,
+    affected_object_ids TEXT NOT NULL DEFAULT '[]',
+    rollback_strategy TEXT NOT NULL DEFAULT 'manual',
+    privacy_policy TEXT NOT NULL DEFAULT 'private',
+    freshness_policy TEXT NOT NULL DEFAULT 'any',
+    qa_status TEXT NOT NULL DEFAULT 'pending',
+    status TEXT NOT NULL DEFAULT 'pending',
+    error TEXT NOT NULL DEFAULT '',
+    created_at TEXT NOT NULL,
+    completed_at TEXT NOT NULL DEFAULT ''
+);
+
+CREATE TABLE IF NOT EXISTS ontology_kernel_states (
+    tenant_id TEXT PRIMARY KEY,
+    kernel_version TEXT NOT NULL,
+    state_json TEXT NOT NULL DEFAULT '{}',
+    state_hash TEXT NOT NULL,
+    lineage_count INTEGER NOT NULL DEFAULT 0,
+    updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE TABLE IF NOT EXISTS ontology_kernel_lineage (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    tenant_id TEXT NOT NULL,
+    step INTEGER NOT NULL,
+    action_hash TEXT NOT NULL,
+    from_hash TEXT NOT NULL,
+    to_hash TEXT NOT NULL,
+    record_json TEXT NOT NULL,
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    UNIQUE(tenant_id, step)
+);
+
+CREATE TABLE IF NOT EXISTS snapshot_registry (
+    snapshot_id TEXT PRIMARY KEY,
+    account_name TEXT NOT NULL,
+    raw_data TEXT NOT NULL,
+    created_at TEXT NOT NULL
+);
 """
 
 
@@ -566,6 +708,20 @@ async def init_db():
             "ALTER TABLE progression_goal_templates ADD COLUMN patch_version TEXT DEFAULT ''",
             "ALTER TABLE progression_goal_templates ADD COLUMN review_status TEXT DEFAULT 'unreviewed'",
             "ALTER TABLE progression_goal_templates ADD COLUMN deprecated INTEGER NOT NULL DEFAULT 0",
+            "ALTER TABLE item_holdings ADD COLUMN quality_status TEXT NOT NULL DEFAULT 'unknown'",
+            "ALTER TABLE item_holdings ADD COLUMN liquidity_score TEXT NOT NULL DEFAULT 'unknown'",
+            "ALTER TABLE item_holdings ADD COLUMN liquidity_reason TEXT NOT NULL DEFAULT ''",
+            "ALTER TABLE item_holdings ADD COLUMN confidence REAL NOT NULL DEFAULT 0",
+            "ALTER TABLE item_holdings ADD COLUMN data_sources TEXT NOT NULL DEFAULT '[]'",
+            "ALTER TABLE item_holdings ADD COLUMN price_timestamp TEXT NOT NULL DEFAULT ''",
+            "ALTER TABLE item_holdings ADD COLUMN risk_reason TEXT NOT NULL DEFAULT ''",
+            "ALTER TABLE plan_actions ADD COLUMN confidence REAL NOT NULL DEFAULT 0",
+            "ALTER TABLE plan_actions ADD COLUMN data_sources TEXT NOT NULL DEFAULT '[]'",
+            "ALTER TABLE plan_actions ADD COLUMN risk_reason TEXT NOT NULL DEFAULT ''",
+            "ALTER TABLE order_idempotency_keys ADD COLUMN status TEXT NOT NULL DEFAULT 'fulfilled'",
+            "ALTER TABLE order_idempotency_keys ADD COLUMN error TEXT NOT NULL DEFAULT ''",
+            "ALTER TABLE order_idempotency_keys ADD COLUMN fulfilled_at TEXT",
+            "ALTER TABLE delivery_jobs ADD COLUMN claimed_at TEXT",
         ]:
             try:
                 await conn.execute(migration_sql)
@@ -578,6 +734,11 @@ async def init_db():
             "CREATE INDEX IF NOT EXISTS idx_snapshots_account ON account_snapshots(account_name)",
             "CREATE INDEX IF NOT EXISTS idx_holdings_snapshot ON item_holdings(snapshot_id)",
             "CREATE INDEX IF NOT EXISTS idx_history_account ON account_value_history(account_name)",
+            "CREATE UNIQUE INDEX IF NOT EXISTS idx_licenses_order_id_unique ON licenses(order_id) WHERE order_id IS NOT NULL",
+            "CREATE UNIQUE INDEX IF NOT EXISTS idx_delivery_jobs_order_id_unique ON delivery_jobs(order_id)",
+            "CREATE INDEX IF NOT EXISTS idx_payment_events_status ON payment_events(status)",
+            "CREATE INDEX IF NOT EXISTS idx_delivery_outbox_status ON delivery_outbox(status)",
+            "CREATE INDEX IF NOT EXISTS idx_ontology_kernel_lineage_tenant ON ontology_kernel_lineage(tenant_id, step)",
         ]:
             try:
                 await conn.execute(idx_sql)
@@ -649,8 +810,10 @@ async def save_account_snapshot(
         await db.execute(
             """INSERT INTO item_holdings
             (snapshot_id, item_id, count, location_type, location_ref, binding_status,
-             tradable, vendor_value, price_buy, price_sell, value_buy, value_sell, valuation_status)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+             tradable, vendor_value, price_buy, price_sell, value_buy, value_sell, valuation_status,
+             quality_status, liquidity_score, liquidity_reason, confidence, data_sources,
+             price_timestamp, risk_reason)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
             (
                 snapshot_id,
                 h.item_id,
@@ -665,6 +828,13 @@ async def save_account_snapshot(
                 h.value_buy,
                 h.value_sell,
                 h.valuation_status,
+                h.quality_status,
+                h.liquidity_score,
+                h.liquidity_reason,
+                h.confidence,
+                json.dumps(h.data_sources),
+                h.price_timestamp,
+                h.risk_reason,
             ),
         )
 
@@ -696,11 +866,33 @@ async def save_account_snapshot(
     return snapshot_id
 
 
+def _decode_data_sources(value: str | None) -> list[str]:
+    if not value:
+        return []
+    try:
+        parsed = json.loads(value)
+    except json.JSONDecodeError:
+        return []
+    return parsed if isinstance(parsed, list) else []
+
+
+def _row_value(row, key: str, default=None):
+    try:
+        if key in row.keys():
+            return row[key]
+    except AttributeError:
+        if isinstance(row, dict) and key in row:
+            return row[key]
+    return default
+
+
 async def load_latest_holdings(db: aiosqlite.Connection, account_name: str) -> list[ItemHolding]:
     cursor = await db.execute(
         """SELECT ih.item_id, ih.count, ih.location_type, ih.location_ref,
            ih.binding_status, ih.tradable, ih.vendor_value,
-           ih.price_buy, ih.price_sell, ih.value_buy, ih.value_sell, ih.valuation_status
+           ih.price_buy, ih.price_sell, ih.value_buy, ih.value_sell, ih.valuation_status,
+           ih.quality_status, ih.liquidity_score, ih.liquidity_reason, ih.confidence,
+           ih.data_sources, ih.price_timestamp, ih.risk_reason
            FROM item_holdings ih
            JOIN account_snapshots s ON ih.snapshot_id = s.id
            WHERE s.account_name = ?
@@ -722,6 +914,13 @@ async def load_latest_holdings(db: aiosqlite.Connection, account_name: str) -> l
             value_buy=row["value_buy"],
             value_sell=row["value_sell"],
             valuation_status=row["valuation_status"],
+            quality_status=_row_value(row, "quality_status", "unknown"),
+            liquidity_score=_row_value(row, "liquidity_score", "unknown"),
+            liquidity_reason=_row_value(row, "liquidity_reason", ""),
+            confidence=_row_value(row, "confidence", 0.0),
+            data_sources=_decode_data_sources(_row_value(row, "data_sources", "[]")),
+            price_timestamp=_row_value(row, "price_timestamp", ""),
+            risk_reason=_row_value(row, "risk_reason", ""),
         )
         for row in rows
     ]
@@ -735,32 +934,38 @@ async def search_latest_holdings(
     valuation_status: str | None = None,
     limit: int = 100,
 ) -> list[ItemHolding]:
-    conditions = ["s.account_name = ?", "s.id = (SELECT MAX(id) FROM account_snapshots WHERE account_name = ?)"]
-    params = [account_name, account_name]
-
+    item_id: int | None = None
     if query:
         try:
             item_id = int(query)
-            conditions.append("ih.item_id = ?")
-            params.append(item_id)
         except ValueError:
             pass
-    if location_type:
-        conditions.append("ih.location_type = ?")
-        params.append(location_type)
-    if valuation_status:
-        conditions.append("ih.valuation_status = ?")
-        params.append(valuation_status)
 
-    sql = f"""SELECT ih.item_id, ih.count, ih.location_type, ih.location_ref,
+    sql = """SELECT ih.item_id, ih.count, ih.location_type, ih.location_ref,
            ih.binding_status, ih.tradable, ih.vendor_value,
-           ih.price_buy, ih.price_sell, ih.value_buy, ih.value_sell, ih.valuation_status
+           ih.price_buy, ih.price_sell, ih.value_buy, ih.value_sell, ih.valuation_status,
+           ih.quality_status, ih.liquidity_score, ih.liquidity_reason, ih.confidence,
+           ih.data_sources, ih.price_timestamp, ih.risk_reason
            FROM item_holdings ih
            JOIN account_snapshots s ON ih.snapshot_id = s.id
-           WHERE {" AND ".join(conditions)}
+           WHERE s.account_name = ?
+             AND s.id = (SELECT MAX(id) FROM account_snapshots WHERE account_name = ?)
+             AND (? IS NULL OR ih.item_id = ?)
+             AND (? IS NULL OR ih.location_type = ?)
+             AND (? IS NULL OR ih.valuation_status = ?)
            ORDER BY ih.value_buy DESC
            LIMIT ?"""
-    params.append(limit)
+    params = [
+        account_name,
+        account_name,
+        item_id,
+        item_id,
+        location_type,
+        location_type,
+        valuation_status,
+        valuation_status,
+        limit,
+    ]
 
     cursor = await db.execute(sql, params)
     rows = await cursor.fetchall()
@@ -778,6 +983,13 @@ async def search_latest_holdings(
             value_buy=row["value_buy"],
             value_sell=row["value_sell"],
             valuation_status=row["valuation_status"],
+            quality_status=_row_value(row, "quality_status", "unknown"),
+            liquidity_score=_row_value(row, "liquidity_score", "unknown"),
+            liquidity_reason=_row_value(row, "liquidity_reason", ""),
+            confidence=_row_value(row, "confidence", 0.0),
+            data_sources=_decode_data_sources(_row_value(row, "data_sources", "[]")),
+            price_timestamp=_row_value(row, "price_timestamp", ""),
+            risk_reason=_row_value(row, "risk_reason", ""),
         )
         for row in rows
     ]

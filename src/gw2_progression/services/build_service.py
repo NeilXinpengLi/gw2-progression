@@ -4,6 +4,8 @@ import logging
 from typing import Any
 
 from ..models import AccountBuildReadiness, BuildGearRequirement, BuildTemplate
+from ..ontology import object_store as ontology_store
+from ..ontology.build_trust import evaluate_build_source_freshness, get_build_recommendation_confidence
 
 logger = logging.getLogger("gw2.builds")
 
@@ -257,7 +259,40 @@ CURATED_BUILDS: list[BuildTemplate] = [
 ]
 
 
+_builds_registered = False
+
+
+def _register_builds_in_ontology() -> None:
+    global _builds_registered
+    if _builds_registered:
+        return
+    for b in CURATED_BUILDS:
+        existing = ontology_store.get_objects_by_class("build")
+        if any(o.properties.get("build_id") == b.build_id for o in existing):
+            continue
+        props = {
+            "build_id": b.build_id,
+            "source": b.source,
+            "name": b.name,
+            "profession": b.profession,
+            "elite_specialization": b.elite_specialization,
+            "game_mode": b.game_mode,
+            "role": b.role,
+            "difficulty": b.difficulty,
+            "patch_version": b.patch_version,
+            "source_url": b.source_url,
+            "review_status": "reviewed",
+        }
+        ontology_store.register_object(
+            class_name="build",
+            properties=props,
+            privacy_scope="shared",
+        )
+    _builds_registered = True
+
+
 def get_all_builds() -> list[BuildTemplate]:
+    _register_builds_in_ontology()
     return CURATED_BUILDS
 
 
@@ -301,6 +336,9 @@ async def calculate_readiness(api_key: str, build_id: str) -> AccountBuildReadin
             missing_cost=0,
             missing_items_count=0,
             profession_match=False,
+            confidence=0.65,
+            data_sources=["gw2_account_characters", "curated_build_templates"],
+            risk_reason="Profession does not match this curated build; readiness is intentionally zero.",
         )
 
     owned_items: set[int] = set()
@@ -323,9 +361,16 @@ async def calculate_readiness(api_key: str, build_id: str) -> AccountBuildReadin
     missing_cost = (total - matched) * 50000  # rough estimate per item
 
     score = round(0.50 * gear_pct / 100 + 0.30 * (1 if prof_match else 0) + 0.20 * (matched / max(total, 1)), 2)
+    confidence = round(min(0.55 + score * 0.40, 0.95), 2)
+    risk_reason = (
+        "Build recommendation uses detected equipment plus curated template requirements; traits, relics, and player skill still need review."
+        if total - matched
+        else "Detected gear fully matches the curated build item requirements available in this template."
+    )
 
-    return AccountBuildReadiness(
-        account_name=contents.account_name or "",
+    acct_name = contents.account_name or ""
+    readiness_obj = AccountBuildReadiness(
+        account_name=acct_name,
         build_id=build_id,
         build_name=build.name,
         readiness_score=min(score, 1.0),
@@ -334,16 +379,58 @@ async def calculate_readiness(api_key: str, build_id: str) -> AccountBuildReadin
         missing_cost=missing_cost,
         missing_items_count=total - matched,
         profession_match=prof_match,
+        confidence=confidence,
+        data_sources=["gw2_account_characters", "gw2_account_equipment", "curated_build_templates"],
+        risk_reason=risk_reason,
     )
+
+    try:
+        r_props = {
+            "build_id": build_id,
+            "build_name": build.name,
+            "readiness_score": min(score, 1.0),
+            "gear_completion": gear_pct,
+            "profession_match": prof_match,
+            "confidence": confidence,
+            "source": build.source,
+        }
+        r_obj = ontology_store.register_object(
+            class_name="build_readiness",
+            account_name=acct_name,
+            properties=r_props,
+            privacy_scope="private",
+        )
+        build_objs = [o for o in ontology_store.get_objects_by_class("build") if o.properties.get("build_id") == build_id]
+        if build_objs:
+            ontology_store.register_relation(
+                source_id=r_obj.object_id,
+                target_id=build_objs[0].object_id,
+                relation_type="evaluates",
+                confidence=confidence,
+            )
+    except Exception as e:
+        logger.warning("Ontology registration for build readiness failed (continuing): %s", e)
+
+    return readiness_obj
 
 
 async def get_recommendations(api_key: str) -> list[AccountBuildReadiness]:
-    """Get all build recommendations sorted by readiness score."""
     results = []
     for build in CURATED_BUILDS:
         try:
+            freshness = evaluate_build_source_freshness(build)
+            if freshness["recommendation_strength"] == "none":
+                continue
             readiness = await calculate_readiness(api_key, build.build_id)
             if readiness.readiness_score > 0:
+                confidence = get_build_recommendation_confidence(build)
+                if confidence < readiness.confidence:
+                    readiness.confidence = round(confidence, 2)
+                freshness_info = f"source={build.source}, patch={build.patch_version}"
+                if freshness.get("is_weak"):
+                    freshness_info += ", stale_source"
+                    readiness.risk_reason = f"{readiness.risk_reason} Build source may be stale ({freshness['days_old']} days old)."
+                readiness.data_sources.append(f"build_freshness:{freshness_info}")
                 results.append(readiness)
         except Exception as e:
             logger.warning("Failed to calculate readiness for %s: %s", build.build_id, e)

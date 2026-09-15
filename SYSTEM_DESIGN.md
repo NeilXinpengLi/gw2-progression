@@ -193,9 +193,9 @@ async def _safe(fn, *args, **kwargs):
         result = await fn(*args, **kwargs)
         return result, None
     except Gw2ApiError as e:
-        return None, e.message       # 预期 API 错误 → errors dict
+        return None, e.message  # 预期 API 错误 → errors dict
     except Exception as e:
-        return None, str(e)          # 未预期错误 → errors dict
+        return None, str(e)  # 未预期错误 → errors dict
 ```
 
 - 每个端点独立 try/except
@@ -207,10 +207,12 @@ async def _safe(fn, *args, **kwargs):
 ```python
 class TTLCache:
     """OrderedDict + time.monotonic() expiry + maxsize eviction."""
+
     def __init__(self, ttl=3600, maxsize=512): ...
     def get(self, key) -> Any | None: ...
     def set(self, key, value): ...
     def clear(self): ...
+
 
 # 装饰器用法:
 @cached(ttl=3600)

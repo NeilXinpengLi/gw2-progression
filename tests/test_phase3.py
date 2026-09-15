@@ -31,6 +31,8 @@ class TestTradingPost:
     def test_signal_model(self):
         s = TradingPostSignal(item_id=19976, signal_type="sell_candidate", severity="info", reason="Test")
         assert s.signal_type == "sell_candidate"
+        assert s.confidence == 0.0
+        assert s.data_sources == []
 
     def test_protected_asset_model(self):
         a = ProtectedAsset(account_name="Player.1234", item_id=19976, reason="manual_lock")
@@ -60,6 +62,54 @@ class TestTradingPost:
             signals = await generate_signals("Player.1234")
         assert signals == []
 
+    @pytest.mark.asyncio
+    async def test_generate_signals_confidence_metadata(self):
+        from gw2_progression.models import ItemHolding
+        from gw2_progression.services.tp_strategy_service import generate_signals
+
+        db = AsyncMock()
+        cursor = AsyncMock()
+        cursor.fetchall = AsyncMock(return_value=[])
+        db.execute = AsyncMock(return_value=cursor)
+        db.close = AsyncMock()
+
+        holdings = [
+            ItemHolding(
+                item_id=19976,
+                count=20,
+                location_type="material_storage",
+                tradable=True,
+                valuation_status="priced",
+                price_buy=20000,
+                price_sell=21600,
+                value_buy=400000,
+                confidence=0.80,
+            )
+        ]
+        listings = {
+            19976: {
+                "item_id": 19976,
+                "best_buy": 20000,
+                "best_sell": 21600,
+                "buys": [{"unit_price": 20000, "quantity": 6000}],
+                "sells": [{"unit_price": 21600, "quantity": 5000}],
+                "fetched_at": "2026-06-26T10:00:00+00:00",
+            }
+        }
+
+        with (
+            patch("gw2_progression.services.tp_strategy_service.get_db", AsyncMock(return_value=db)),
+            patch("gw2_progression.database.load_latest_holdings", AsyncMock(return_value=holdings)),
+            patch("gw2_progression.services.tp_strategy_service.fetch_listings", AsyncMock(return_value=listings)),
+        ):
+            signals = await generate_signals("Player.1234")
+
+        sell = [s for s in signals if s.signal_type == "sell_candidate"][0]
+        assert sell.confidence > 0
+        assert "gw2_commerce_listings" in sell.data_sources
+        assert sell.price_timestamp == "2026-06-26T10:00:00+00:00"
+        assert sell.risk_reason
+
 
 class TestBuilds:
     def test_curated_builds_count(self):
@@ -86,6 +136,8 @@ class TestBuilds:
         r = AccountBuildReadiness(account_name="Player.1234", build_id="sc_dh", build_name="Test")
         assert r.readiness_score == 0.0
         assert r.profession_match is False
+        assert r.confidence == 0.0
+        assert r.data_sources == []
 
 
 class TestAgent:
@@ -107,6 +159,7 @@ class TestAgent:
             patch("gw2_progression.services.agent_service.generate_signals", AsyncMock(return_value=[])),
             patch("gw2_progression.services.agent_service.get_recommendations", AsyncMock(return_value=[])),
             patch("gw2_progression.services.agent_service._call_llm", AsyncMock(return_value=None)),
+            patch("gw2_progression.services.credential_service.get_key_by_provider", AsyncMock(return_value=None)),
         ):
             mock_fetch.return_value.account_name = "Player.1234"
             mock_fetch.return_value.wallet = [{"id": 1, "value": 50000}]
@@ -119,6 +172,9 @@ class TestAgent:
             advice = await generate_advice("fake-key")
 
         assert len(advice.recommended_actions) > 0
+        assert "confidence" in advice.recommended_actions[0]
+        assert "data_sources" in advice.recommended_actions[0]
+        assert advice.confidence > 0
         assert len(advice.weekly_plan) == 7
 
     @pytest.mark.asyncio
@@ -222,6 +278,7 @@ class TestAgent:
             patch("gw2_progression.services.agent_service.generate_signals", AsyncMock(return_value=[])),
             patch("gw2_progression.services.agent_service.get_recommendations", AsyncMock(return_value=[])),
             patch("gw2_progression.services.agent_service._call_llm", AsyncMock(return_value=llm_result)),
+            patch("gw2_progression.services.credential_service.get_key_by_provider", AsyncMock(return_value=None)),
         ):
             mock_fetch.return_value.account_name = "Player.LLM"
             mock_fetch.return_value.wallet = [{"id": 1, "value": 500000}]
@@ -236,11 +293,74 @@ class TestAgent:
         assert advice.summary == "LLM powered summary"
         assert len(advice.recommended_actions) == 1
         assert advice.recommended_actions[0]["action"] == "test_action"
+        assert advice.recommended_actions[0]["confidence"] == 0.60
+        assert advice.recommended_actions[0]["data_sources"] == ["llm_response", "gw2_account_snapshot"]
         assert len(advice.weekly_plan) == 7
+
+    @pytest.mark.asyncio
+    async def test_coach_plan_confidence_metadata(self):
+        from gw2_progression.services.agent_service import generate_coach_plan
+
+        with (
+            patch("gw2_progression.analyzer.fetch_all", AsyncMock()) as mock_fetch,
+            patch("gw2_progression.services.agent_service.generate_goal_plan", AsyncMock(side_effect=Exception("skip"))),
+            patch("gw2_progression.services.build_service.get_recommendations", AsyncMock(return_value=[])),
+            patch("gw2_progression.services.tp_strategy_service.generate_signals", AsyncMock(return_value=[])),
+        ):
+            mock_fetch.return_value.account_name = "Player.Coach"
+            mock_fetch.return_value.wallet = [{"id": 1, "value": 500000}]
+            mock_fetch.return_value.characters = [{"level": 80, "profession": "Guardian"}]
+            mock_fetch.return_value.unlocked_skins_count = 100
+
+            plan = await generate_coach_plan("fake-key")
+
+        assert plan["confidence"] > 0
+        assert plan["data_sources"]
+        assert plan["priorities"]["P0"][0]["confidence"] > 0
+        assert "risk_reason" in plan["priorities"]["P0"][0]
 
 
 class TestAuthService:
-    @pytest.mark.skip(reason="requires DB init (integration test)")
+    @pytest.fixture(autouse=True)
+    async def _init_db(self):
+        """Set up temp file DB before each test (persists across connections)."""
+        import os
+        import tempfile
+
+        import gw2_progression.database as db_mod
+
+        tmpdir = tempfile.mkdtemp()
+        db_path = os.path.join(tmpdir, "test.db")
+
+        old_url = db_mod._TEST_DB_URL
+        old_pool = db_mod._pool
+
+        # Close old pool connections
+        if old_pool is not None:
+            db_mod._pool = None
+            try:
+                while not old_pool.empty():
+                    c = old_pool.get_nowait()
+                    await c.close()
+            except Exception:
+                pass
+
+        db_mod._TEST_DB_URL = db_path
+
+        from gw2_progression.database import init_db
+
+        await init_db()
+        yield
+        # Close pool created during test & restore
+        from gw2_progression.database import close_pool
+
+        try:
+            await close_pool()
+        except Exception:
+            pass
+        db_mod._pool = None
+        db_mod._TEST_DB_URL = old_url
+
     @pytest.mark.asyncio
     async def test_create_and_get_session(self):
         from gw2_progression.services.auth_service import create_session, get_session
@@ -252,7 +372,6 @@ class TestAuthService:
         assert session["api_key"] == "test-api-key"
         assert session["account_name"] == "Player.1234"
 
-    @pytest.mark.skip(reason="requires DB init (integration test)")
     @pytest.mark.asyncio
     async def test_get_api_key_from_token(self):
         from gw2_progression.services.auth_service import create_session, get_api_key
@@ -304,6 +423,8 @@ class TestBuildServiceDetail:
 
         assert readiness.profession_match is False
         assert readiness.readiness_score == 0.0
+        assert readiness.confidence == 0.65
+        assert readiness.data_sources == ["gw2_account_characters", "curated_build_templates"]
 
 
 class TestRecipeOptimizerDetail:

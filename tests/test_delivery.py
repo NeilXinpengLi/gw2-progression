@@ -1,5 +1,6 @@
 """Tests for delivery, subscription, and report services."""
 
+import json
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -177,3 +178,53 @@ def test_send_email_smtp_not_configured():
     # Should not raise even though SMTP is not configured
     _send_email("test@example.com", report)
     assert True
+
+
+@pytest.mark.asyncio
+async def test_process_pending_deliveries_can_retry_failed_jobs():
+    from gw2_progression.services.commerce_service import process_pending_deliveries
+
+    report = MagicMock()
+    report.report_id = 77
+    report.account_name = "Player.Test"
+    report.total_value_buy = 1000
+    report.summary = "Done"
+    report.recommendations = []
+    report.created_at = "2026-01-01"
+    report.title = "Order Report"
+    outbox_payload = json.dumps(
+        {
+            "report_id": 77,
+            "account_name": "Player.Test",
+            "total_value_buy": 1000,
+            "summary": "Done",
+            "recommendations": [],
+            "created_at": "2026-01-01",
+            "title": "Order Report",
+        }
+    )
+    mock_conn = AsyncMock()
+    mock_conn.execute.side_effect = [
+        _acursor(fetchall_result=[(5, 42, 1, "test@example.com", "Player.Test")]),
+        _acursor(),
+        _acursor(),
+        _acursor(fetchall_result=[(9, "test@example.com", outbox_payload, 0)]),
+        _acursor(),
+    ]
+
+    with (
+        patch("gw2_progression.services.commerce_service.using_db") as mock_db,
+        patch("gw2_progression.services.report_service.generate_report", AsyncMock(return_value=report)) as mock_report,
+        patch("gw2_progression.services.delivery_service._send_email") as mock_send,
+    ):
+        mock_db.return_value.__aenter__.return_value = mock_conn
+        await process_pending_deliveries(retry_failed=True)
+
+    select_sql = mock_conn.execute.call_args_list[0][0][0]
+    outbox_sql = mock_conn.execute.call_args_list[1][0][0]
+    update_sql = mock_conn.execute.call_args_list[2][0][0]
+    assert "dj.status IN (?,?)" in select_sql
+    assert "INSERT OR IGNORE INTO delivery_outbox" in outbox_sql
+    assert "UPDATE delivery_jobs SET status = 'done'" in update_sql
+    mock_report.assert_awaited_once()
+    mock_send.assert_called_once()

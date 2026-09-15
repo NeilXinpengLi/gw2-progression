@@ -21,4 +21,4 @@ CMD ["uvicorn", "gw2_progression.api.main:app", "--host", "0.0.0.0", "--port", "
 FROM builder AS development
 USER app
 EXPOSE 8000
-CMD ["uvicorn", "gw2_progression.api.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
+CMD ["uvicorn", "gw2_progression.api.main:app", "--app-dir", "/app/src", "--host", "0.0.0.0", "--port", "8000", "--reload"]

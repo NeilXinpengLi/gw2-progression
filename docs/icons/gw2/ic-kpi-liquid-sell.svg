@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" aria-hidden="true" role="img">
+  <title>kpi-liquid-sell</title>
+  <g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <circle cx="10" cy="13" r="5"/>
+    <path d="M10 10v6M7.5 13h5"/>
+    <path d="M15 6h5v5"/>
+    <path d="M14 12l6-6"/>
+  </g>
+</svg>

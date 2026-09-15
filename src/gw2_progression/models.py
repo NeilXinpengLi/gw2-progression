@@ -10,6 +10,7 @@ class PriceData(BaseModel):
     sell_unit_price: int = 0
     sell_quantity: int = 0
     fetched_at: str = ""
+    source: str = "gw2_commerce_prices"
 
 
 class ItemHolding(BaseModel):
@@ -31,6 +32,11 @@ class ItemHolding(BaseModel):
     spread: int = 0
     spread_ratio: float = 0.0
     liquidity_score: str = "unknown"
+    liquidity_reason: str = ""
+    confidence: float = 0.0
+    data_sources: list[str] = []
+    price_timestamp: str = ""
+    risk_reason: str = ""
 
 
 class ValueSummary(BaseModel):
@@ -56,6 +62,10 @@ class ValueSummary(BaseModel):
     risky_value: int = 0
     low_liquidity_count: int = 0
     stale_price_count: int = 0
+    confidence: float = 0.0
+    data_sources: list[str] = []
+    price_timestamp: str = ""
+    risk_reason: str = ""
     snapshot_id: int | None = None
     snapshot_time: str = ""
 
@@ -90,6 +100,13 @@ class TopItem(BaseModel):
     value_sell: int = 0
     tradable: bool = True
     valuation_status: str = "pending"
+    quality_status: str = "unknown"
+    liquidity_score: str = "unknown"
+    liquidity_reason: str = ""
+    confidence: float = 0.0
+    data_sources: list[str] = []
+    price_timestamp: str = ""
+    risk_reason: str = ""
 
 
 class ValueHistoryEntry(BaseModel):
@@ -139,6 +156,13 @@ class ItemSearchResult(BaseModel):
     value_buy: int = 0
     value_sell: int = 0
     valuation_status: str = "pending"
+    quality_status: str = "unknown"
+    liquidity_score: str = "unknown"
+    liquidity_reason: str = ""
+    confidence: float = 0.0
+    data_sources: list[str] = []
+    price_timestamp: str = ""
+    risk_reason: str = ""
     snapshot_time: str = ""
 
 
@@ -183,6 +207,12 @@ class ListingDepthResponse(BaseModel):
     net_profit: int = 0
     profit_margin: float = 0.0
     arbitrage_viable: bool = False
+    liquidity_score: str = "unknown"
+    liquidity_reason: str = ""
+    confidence: float = 0.0
+    data_sources: list[str] = []
+    price_timestamp: str = ""
+    risk_reason: str = ""
 
 
 class ListingUnavailableResponse(BaseModel):
@@ -362,6 +392,11 @@ class TradingPostSignal(BaseModel):
     quantity_owned: int = 0
     value_owned: int = 0
     linked_goal_id: str = ""
+    confidence: float = 0.0
+    data_sources: list[str] = []
+    price_timestamp: str = ""
+    liquidity_reason: str = ""
+    risk_reason: str = ""
 
 
 class ProtectedAsset(BaseModel):
@@ -401,6 +436,7 @@ class BuildTemplate(BaseModel):
     difficulty: str = "medium"
     patch_version: str = ""
     source_url: str = ""
+    review_status: str = "unreviewed"
     gear: list[BuildGearRequirement] = []
     traits: list[BuildTraitRequirement] = []
     skills: list[int] = []
@@ -416,12 +452,18 @@ class AccountBuildReadiness(BaseModel):
     missing_cost: int = 0
     missing_items_count: int = 0
     profession_match: bool = False
+    confidence: float = 0.0
+    data_sources: list[str] = []
+    risk_reason: str = ""
 
 
 class ProgressionAdvice(BaseModel):
     summary: str = ""
     recommended_actions: list[dict] = []
     weekly_plan: list[dict] = []
+    confidence: float = 0.0
+    data_sources: list[str] = []
+    risk_reason: str = ""
 
 
 class CoachAction(BaseModel):
@@ -430,6 +472,9 @@ class CoachAction(BaseModel):
     reason: str = ""
     gold_impact: int = 0
     priority: str = ""
+    confidence: float = 0.0
+    data_sources: list[str] = []
+    risk_reason: str = ""
 
 
 class CoachDailyPlan(BaseModel):
@@ -452,6 +497,9 @@ class CoachPlanResponse(BaseModel):
     total_p0: int = 0
     total_p1: int = 0
     total_p2: int = 0
+    confidence: float = 0.0
+    data_sources: list[str] = []
+    risk_reason: str = ""
 
 
 class CraftingPlanLine(BaseModel):
@@ -516,6 +564,7 @@ class AccountReport(BaseModel):
 
 # ── Goal-Driven OS Models ──────────────────────────────────────────
 
+
 class GoalType(str, enum.Enum):
     MAKE_GOLD = "MAKE_GOLD"
     FINISH_LEGENDARY = "FINISH_LEGENDARY"
@@ -570,6 +619,9 @@ class PlanAction(BaseModel):
     tab: str = ""
     item_id: int = 0
     day_index: int = -1
+    confidence: float = 0.0
+    data_sources: list[str] = []
+    risk_reason: str = ""
 
 
 class ProgressionPlan(BaseModel):

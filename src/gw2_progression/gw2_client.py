@@ -96,11 +96,25 @@ async def fetch_builds(api_key: str) -> dict:
     return await _get("/v2/account/buildstorage", api_key)
 
 
+async def fetch_guild(api_key: str, guild_id: str) -> dict:
+    """Resolve a single guild GUID to core details (id, name, tag, emblem).
+
+    Public endpoint (Scope: none) — name/tag come back without any special
+    permission. Used to resolve the guild a character is representing.
+    """
+    return await _get(f"/v2/guild/{guild_id}", api_key)
+
+
 async def fetch_guilds(api_key: str, guild_ids: list[str] | None = None) -> list:
+    # GW2 has no bulk /v2/guild?ids= endpoint (it returns "not found"); each
+    # guild must be resolved individually via /v2/guild/{id}.
     if not guild_ids:
         return []
-    ids_param = ",".join(guild_ids)
-    return await _get(f"/v2/guild?ids={ids_param}", api_key)
+    results = await asyncio.gather(
+        *(fetch_guild(api_key, gid) for gid in guild_ids),
+        return_exceptions=True,
+    )
+    return [g for g in results if isinstance(g, dict)]
 
 
 async def fetch_pvp_stats(api_key: str) -> dict:

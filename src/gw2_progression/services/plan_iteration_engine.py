@@ -14,11 +14,28 @@ logger = logging.getLogger("gw2.plan_iteration")
 
 REVISION_PATTERNS = {
     "change_strategy": [
-        "cheaper", "cheapest", "frugal", "budget", "economy",
-        "faster", "fastest", "rush", "speed", "quick",
-        "gold", "money", "profit", "income",
-        "build", "gear", "equip",
-        "easier", "easier", "simple", "lazy", "casual",
+        "cheaper",
+        "cheapest",
+        "frugal",
+        "budget",
+        "economy",
+        "faster",
+        "fastest",
+        "rush",
+        "speed",
+        "quick",
+        "gold",
+        "money",
+        "profit",
+        "income",
+        "build",
+        "gear",
+        "equip",
+        "easier",
+        "easier",
+        "simple",
+        "lazy",
+        "casual",
     ],
     "change_time_budget": [
         r"(\d+)\s*hour",
@@ -27,26 +44,51 @@ REVISION_PATTERNS = {
         r"limited\s+time",
     ],
     "change_goal": [
-        "ignore", "forget", "skip", "drop",
-        "instead", "change", "switch", "different",
+        "ignore",
+        "forget",
+        "skip",
+        "drop",
+        "instead",
+        "change",
+        "switch",
+        "different",
     ],
     "exclude_activity": [
-        "no wvw", "avoid wvw", "without wvw",
-        "no pvp", "avoid pvp",
-        "no fractal", "avoid fractal",
-        "no raid", "avoid raid",
-        "no tp", "avoid tp", "no trading",
-        "no strike", "avoid strike",
+        "no wvw",
+        "avoid wvw",
+        "without wvw",
+        "no pvp",
+        "avoid pvp",
+        "no fractal",
+        "avoid fractal",
+        "no raid",
+        "avoid raid",
+        "no tp",
+        "avoid tp",
+        "no trading",
+        "no strike",
+        "avoid strike",
     ],
     "reduce_cost": [
-        "too expensive", "too costly", "expensive",
-        "save gold", "save money", "cheaper",
-        "reduce cost", "lower cost", "cut cost",
+        "too expensive",
+        "too costly",
+        "expensive",
+        "save gold",
+        "save money",
+        "cheaper",
+        "reduce cost",
+        "lower cost",
+        "cut cost",
     ],
     "reduce_complexity": [
-        "too complex", "too complicated", "too many",
-        "simplify", "easier", "simpler",
-        "fewer steps", "less",
+        "too complex",
+        "too complicated",
+        "too many",
+        "simplify",
+        "easier",
+        "simpler",
+        "fewer steps",
+        "less",
     ],
 }
 
@@ -58,6 +100,7 @@ def classify_revision(text: str) -> list[str]:
     for rev_type, patterns in REVISION_PATTERNS.items():
         if rev_type == "change_time_budget":
             import re
+
             for p in patterns:
                 if re.search(p, t):
                     types.append(rev_type)
@@ -74,6 +117,7 @@ def classify_revision(text: str) -> list[str]:
 def _extract_time_budget(text: str) -> int:
     """Extract time budget from revision text in minutes."""
     import re
+
     t = text.lower()
     for pat, mult in [(r"(\d+)\s*hour", 60), (r"(\d+)\s*hr", 60), (r"(\d+)\s*min", 1)]:
         m = re.search(pat, t)
@@ -145,10 +189,7 @@ async def apply_revision(
 
         for excluded in excluded_activities:
             before = len(plan.actions)
-            plan.actions = [
-                a for a in plan.actions
-                if excluded not in a.title.lower() and excluded not in a.reason.lower()
-            ]
+            plan.actions = [a for a in plan.actions if excluded not in a.title.lower() and excluded not in a.reason.lower()]
             removed = before - len(plan.actions)
             if removed > 0:
                 changed_actions.append(f"{excluded}")
@@ -168,6 +209,7 @@ async def apply_revision(
 
     # Re-score with new strategy
     from .goal_driven_engine import _score_action
+
     for a in plan.actions:
         a.score = _score_action(a.action_type, a.reward_gold, 0, 0, a.time_cost_minutes, strategy=plan.strategy)
     plan.actions.sort(key=lambda x: x.score, reverse=True)
@@ -180,6 +222,13 @@ async def apply_revision(
     plan.estimated_days = max(1, min(max(a.day_index for a in plan.actions) + 1, 30)) if plan.actions else 7
 
     delta_summary = " ".join(delta_parts) if delta_parts else "Plan adjusted based on your feedback."
+
+    try:
+        from ..ontology.goal_mapper import sync_goal_reservations
+
+        await sync_goal_reservations(plan.account_name)
+    except Exception as e:
+        logger.debug("Ontology reservation sync on revision skipped (non-blocking): %s", e)
 
     revision = PlanRevision(
         revision_id=uuid.uuid4().hex[:12],

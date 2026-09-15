@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Body, HTTPException
+from fastapi import APIRouter, Body, Header, HTTPException
 
 from gw2_progression.services.commerce_service import (
     create_order,
@@ -26,14 +26,15 @@ async def get_product_endpoint(product_id: int):
 
 
 @router.post("/orders")
-async def post_order(body: dict = Body(...)):
+async def post_order(body: dict = Body(...), idempotency_header: str = Header("", alias="Idempotency-Key")):
     product_id = body.get("product_id")
     customer_email = body.get("customer_email", "")
     customer_name = body.get("customer_name", "")
+    idempotency_key = body.get("idempotency_key") or idempotency_header
     if not product_id or not customer_email:
         raise HTTPException(status_code=422, detail="product_id and customer_email required")
     try:
-        order = await create_order(product_id, customer_email, customer_name)
+        order = await create_order(product_id, customer_email, customer_name, idempotency_key=idempotency_key)
         return order
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))

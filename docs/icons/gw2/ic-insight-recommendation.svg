@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" aria-hidden="true" role="img">
+  <title>insight-recommendation</title>
+  <g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M7 4h9l3 3v13H7a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2z"/>
+    <path d="M16 4v4h4"/>
+    <path d="M8 14l3 3 5-7"/>
+    <path d="M8 9h5"/>
+  </g>
+</svg>

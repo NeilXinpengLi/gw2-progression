@@ -7,36 +7,49 @@ from collections import defaultdict
 from contextlib import asynccontextmanager
 from pathlib import Path
 
-from fastapi import Body, FastAPI, HTTPException, Request, WebSocket, WebSocketDisconnect
+from fastapi import Body, FastAPI, HTTPException, Query, Request, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
+from gw2_progression.cognitive_os.api import router as cognitive_os_router
 from gw2_progression.database import close_pool, init_db
 from gw2_progression.gw2_client import Gw2ApiError
 from gw2_progression.gw2_client import _close_client as close_gw2_client
+from gw2_progression.lifecycle.api.lifecycle_api import router as lifecycle_router
 from gw2_progression.logging_config import setup_logging
 from gw2_progression.metrics import metrics
-from gw2_progression.services.auth_service import SESSION_TTL, create_session, delete_session, get_api_key, list_sessions
+from gw2_progression.rule_engine_v2.api.rule_api import router as rule_v2_router
+from gw2_progression.services.auth_service import SESSION_TTL, create_session, delete_session, get_api_key, get_session, list_sessions
+from gw2_progression.services.event_bus import start as start_event_bus
+from gw2_progression.services.event_bus import stop as stop_event_bus
 from gw2_progression.services.price_service import close_client as close_price_client
 from gw2_progression.services.price_service import warmup_price_cache
 from gw2_progression.services.product_service import seed_products
 from gw2_progression.services.progression_service import seed_templates
 from gw2_progression.services.provider_service import seed_providers
 
+from .governance import governance_release_report, include_governed_routers
+from .routes.account import router as account_router
+from .routes.advice import router as advice_router
 from .routes.affiliates import router as affiliates_router
 from .routes.agent import router as agent_router
 from .routes.analyze import router as analyze_router
+from .routes.arena import router as arena_router
 from .routes.audit import router as audit_router
 from .routes.builds import router as builds_router
 from .routes.commerce import router as commerce_router
 from .routes.commercial import router as commercial_router
 from .routes.crafting import router as crafting_router
 from .routes.credentials import router as credentials_router
+from .routes.data_mesh import router as data_mesh_router
 from .routes.engine import router as engine_router
+from .routes.expert_ai import router as expert_ai_router
 from .routes.goal_driven import router as goal_driven_router
 from .routes.goals import router as goals_router
 from .routes.guild import router as guild_router
+from .routes.insight import router as insight_router
+from .routes.ontology_runtime import router as ontology_runtime_router
 from .routes.payment import router as payment_router
 from .routes.production import router as production_router
 from .routes.progression import router as progression_router
@@ -75,8 +88,16 @@ async def lifespan(app: FastAPI):
         await process_pending_deliveries()
     except Exception as e:
         logger.warning("Delivery processing failed: %s", e)
+    # Auto-import event handlers so they register
+    try:
+        from gw2_progression.services.handlers import ontology_handler  # noqa: F401
+    except Exception:
+        pass
+    # Start event bus worker
+    start_event_bus()
     yield
     logger.info("Shutting down GW2 Progression")
+    await stop_event_bus()
     await close_gw2_client()
     await close_price_client()
     await close_pool()
@@ -84,11 +105,12 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title="GW2 Progression", version="0.1.0", lifespan=lifespan)
 
-# CORS — restrict in production via CORS_ORIGINS env var
-_cors_origins = os.environ.get("CORS_ORIGINS", "*").split(",")
+# CORS — set CORS_ORIGINS explicitly for deployed web clients.
+_default_cors_origins = "http://localhost:3000,http://127.0.0.1:3000,http://localhost:8000,http://127.0.0.1:8000"
+_cors_origins = [origin.strip() for origin in os.environ.get("CORS_ORIGINS", _default_cors_origins).split(",") if origin.strip()]
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=_cors_origins if _cors_origins != ["*"] else ["*"],
+    allow_origins=_cors_origins,
     allow_methods=["GET", "POST", "DELETE", "OPTIONS"],
     allow_headers=["Content-Type", "Authorization"],
     allow_credentials=True,
@@ -97,13 +119,24 @@ app.add_middleware(
 
 @app.middleware("http")
 async def security_headers_middleware(request: Request, call_next):
-    response = await call_next(request)
-    response.headers["X-Content-Type-Options"] = "nosniff"
-    response.headers["X-Frame-Options"] = "DENY"
-    response.headers["X-XSS-Protection"] = "1; mode=block"
-    response.headers["Referrer-Policy"] = "no-referrer-when-downgrade"
-    if os.environ.get("ENV", "development") == "production":
-        response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
+    try:
+        response = await call_next(request)
+    except Exception:
+        raise
+    finally:
+        try:
+            response.headers["X-Content-Type-Options"] = "nosniff"
+            response.headers["X-Frame-Options"] = "DENY"
+            response.headers["X-XSS-Protection"] = "1; mode=block"
+            response.headers["Referrer-Policy"] = "no-referrer-when-downgrade"
+            if os.environ.get("ENV", "development") == "production":
+                response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
+            # Disable caching for all responses to ensure fresh JS/CSS
+            response.headers["Cache-Control"] = "no-store, must-revalidate"
+            response.headers["Pragma"] = "no-cache"
+            response.headers["Expires"] = "0"
+        except Exception:
+            pass
     return response
 
 
@@ -166,46 +199,66 @@ async def rate_limit_middleware(request: Request, call_next):
     return await call_next(request)
 
 
-app.include_router(analyze_router)
-app.include_router(reports_router)
-app.include_router(resolve_router)
-app.include_router(valuation_router)
-app.include_router(crafting_router)
-app.include_router(goals_router)
-app.include_router(guild_router)
-app.include_router(progression_router)
-app.include_router(quests_router)
-app.include_router(tp_router)
-app.include_router(builds_router)
-app.include_router(commerce_router)
-app.include_router(credentials_router)
-app.include_router(engine_router)
-app.include_router(affiliates_router)
-app.include_router(audit_router)
-app.include_router(workspaces_router)
-app.include_router(v4_router)
-app.include_router(v5_router)
-app.include_router(production_router)
-app.include_router(commercial_router)
-app.include_router(payment_router)
-app.include_router(agent_router)
-app.include_router(goal_driven_router)
-app.include_router(subscriptions_router)
+ROUTER_BINDINGS = [
+    ("account", account_router),
+    ("advice", advice_router),
+    ("analyze", analyze_router),
+    ("reports", reports_router),
+    ("resolve", resolve_router),
+    ("valuation", valuation_router),
+    ("crafting", crafting_router),
+    ("goals", goals_router),
+    ("guild", guild_router),
+    ("progression", progression_router),
+    ("quests", quests_router),
+    ("tp", tp_router),
+    ("builds", builds_router),
+    ("commerce", commerce_router),
+    ("credentials", credentials_router),
+    ("engine", engine_router),
+    ("expert_ai", expert_ai_router),
+    ("affiliates", affiliates_router),
+    ("audit", audit_router),
+    ("workspaces", workspaces_router),
+    ("v4", v4_router),
+    ("v5", v5_router),
+    ("production", production_router),
+    ("commercial", commercial_router),
+    ("payment", payment_router),
+    ("agent", agent_router),
+    ("goal_driven", goal_driven_router),
+    ("insight", insight_router),
+    ("subscriptions", subscriptions_router),
+    ("arena", arena_router),
+    ("data_mesh", data_mesh_router),
+    ("lifecycle", lifecycle_router),
+    ("rule_v2", rule_v2_router),
+    ("cognitive_os", cognitive_os_router),
+    ("ontology_runtime", ontology_runtime_router),
+]
+
+API_ROUTE_RELEASE_SNAPSHOT = include_governed_routers(app, ROUTER_BINDINGS)
 app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 
 
 @app.post("/auth/session")
-async def create_session_endpoint(api_key: str = Body(...)):
+async def create_session_endpoint(api_key: str = Body(..., embed=True)):
     from gw2_progression.analyzer import fetch_all
     from gw2_progression.services.audit_service import record_audit
 
     try:
         contents = await fetch_all(api_key)
         token = await create_session(api_key, contents.account_name or "unknown")
-        await record_audit(actor=contents.account_name or "unknown", action="session.create", resource="auth", detail="Session created", success=True)
+        try:
+            await record_audit(actor=contents.account_name or "unknown", action="session.create", resource="auth", detail="Session created", success=True)
+        except Exception:
+            pass
         return {"token": token, "account_name": contents.account_name, "expires_in": SESSION_TTL}
     except Gw2ApiError as e:
-        await record_audit(action="session.create", resource="auth", detail=f"Failed: {e.message}", success=False)
+        try:
+            await record_audit(action="session.create", resource="auth", detail=f"Failed: {e.message}", success=False)
+        except Exception:
+            pass
         raise HTTPException(status_code=401, detail=e.message)
 
 
@@ -213,6 +266,18 @@ async def create_session_endpoint(api_key: str = Body(...)):
 async def list_sessions_endpoint():
     sessions = await list_sessions()
     return sessions
+
+
+@app.get("/auth/session/validate")
+async def validate_session_endpoint(token: str = Query(...)):
+    """Check if a session token is still valid."""
+    try:
+        session = await get_session(token)
+    except Exception as e:
+        raise HTTPException(status_code=503, detail=str(e))
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found or expired")
+    return {"valid": True, "account_name": session["account_name"]}
 
 
 @app.delete("/auth/session/{token}")
@@ -229,14 +294,15 @@ async def delete_session_endpoint(token: str):
 # Inject API key from session token into requests
 @app.middleware("http")
 async def session_middleware(request: Request, call_next):
-    if request.url.path in ("/analyze", "/value/analyze") and request.method == "POST":
+    if request.method in ("POST", "PUT", "PATCH"):
         try:
             body = await request.json()
             key = body.get("api_key", "")
-            resolved = await get_api_key(key)
-            if resolved != key:
-                body["api_key"] = resolved
-                request._body = json.dumps(body).encode()
+            if key:
+                resolved = await get_api_key(key)
+                if resolved != key:
+                    body["api_key"] = resolved
+                    request._body = json.dumps(body).encode()
         except Exception:
             pass
     return await call_next(request)
@@ -263,12 +329,37 @@ async def health():
 
 @app.get("/")
 async def index() -> FileResponse:
-    return FileResponse(STATIC_DIR / "index.html")
+    return FileResponse(STATIC_DIR / "landing.html")
+
+
+@app.get("/account")
+async def account_page() -> FileResponse:
+    return FileResponse(STATIC_DIR / "account.html")
+
+
+@app.get("/plan")
+async def plan_page() -> FileResponse:
+    return FileResponse(STATIC_DIR / "plan.html")
+
+
+@app.get("/insight")
+async def insight_page() -> FileResponse:
+    return FileResponse(STATIC_DIR / "insight.html")
+
+
+@app.get("/report")
+async def report_page() -> FileResponse:
+    return FileResponse(STATIC_DIR / "report.html")
 
 
 @app.get("/metrics")
 async def get_metrics():
     return metrics.snapshot()
+
+
+@app.get("/api/governance/routes")
+async def get_api_governance():
+    return governance_release_report()
 
 
 _ws_clients: set = set()

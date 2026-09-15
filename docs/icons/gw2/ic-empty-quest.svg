@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" aria-hidden="true" role="img">
+  <title>empty-quest</title>
+  <g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M7 5h12v14H7z"/>
+    <path d="M5 8h4M5 12h4M5 16h4"/>
+    <path d="M11 10h5M11 14h5"/>
+    <path d="M8 20l10-16"/>
+  </g>
+</svg>

@@ -13,6 +13,7 @@ from gw2_progression.gw2_client import (
     fetch_account,
     fetch_builds,
     fetch_characters,
+    fetch_guild,
     fetch_guilds,
     fetch_tokeninfo,
     fetch_wallet,
@@ -205,10 +206,30 @@ async def test_fetch_guilds_empty(mock_get):
 @patch("gw2_progression.gw2_client._get")
 @pytest.mark.asyncio
 async def test_fetch_guilds_with_ids(mock_get):
-    mock_get.return_value = [{"id": "g1"}]
+    # GW2 has no bulk /v2/guild?ids= endpoint; each guild resolves individually.
+    mock_get.side_effect = [{"id": "g1", "name": "Guild One"}, {"id": "g2", "name": "Guild Two"}]
     result = await fetch_guilds("key", ["g1", "g2"])
-    assert result == [{"id": "g1"}]
-    mock_get.assert_called_with("/v2/guild?ids=g1,g2", "key")
+    assert result == [{"id": "g1", "name": "Guild One"}, {"id": "g2", "name": "Guild Two"}]
+    mock_get.assert_any_call("/v2/guild/g1", "key")
+    mock_get.assert_any_call("/v2/guild/g2", "key")
+
+
+@patch("gw2_progression.gw2_client._get")
+@pytest.mark.asyncio
+async def test_fetch_guilds_skips_failed(mock_get):
+    # A guild that fails to resolve (e.g. disbanded) is skipped, not fatal.
+    mock_get.side_effect = [{"id": "g1", "name": "Guild One"}, Gw2ApiError(404, "not found")]
+    result = await fetch_guilds("key", ["g1", "g2"])
+    assert result == [{"id": "g1", "name": "Guild One"}]
+
+
+@patch("gw2_progression.gw2_client._get")
+@pytest.mark.asyncio
+async def test_fetch_guild_single(mock_get):
+    mock_get.return_value = {"id": "g1", "name": "Guild One", "tag": "G1"}
+    result = await fetch_guild("key", "g1")
+    assert result == {"id": "g1", "name": "Guild One", "tag": "G1"}
+    mock_get.assert_called_with("/v2/guild/g1", "key")
 
 
 @pytest.mark.asyncio

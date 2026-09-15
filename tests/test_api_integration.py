@@ -1,10 +1,19 @@
 """API integration tests — pure endpoints, no DB dependency needed."""
 
+import pytest
 from fastapi.testclient import TestClient
 
 from gw2_progression.api.main import app
 
-client = TestClient(app)
+client: TestClient
+
+
+@pytest.fixture(autouse=True)
+def api_client():
+    global client
+    with TestClient(app) as test_client:
+        client = test_client
+        yield
 
 
 class TestSystemEndpoints:

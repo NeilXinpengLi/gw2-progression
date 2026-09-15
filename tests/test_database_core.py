@@ -1,10 +1,13 @@
 """Tests for core database functions."""
 
+from pathlib import Path
 from unittest.mock import AsyncMock, patch
 
 import pytest
 
+import gw2_progression.database as database
 from gw2_progression.database import (
+    CREATE_TABLES,
     close_pool,
     get_db,
     init_db,
@@ -37,6 +40,10 @@ class _FakeRow:
 
 
 class TestDbInit:
+    def test_default_db_dir_is_runtime_data_dir(self):
+        assert database.DB_DIR == Path("data")
+        assert database.DB_PATH == Path("data") / "gw2_progression.db"
+
     @pytest.mark.asyncio
     async def test_init_db_creates_tables(self):
         mock_db = AsyncMock()
@@ -45,6 +52,13 @@ class TestDbInit:
             await init_db()
             assert mock_db.execute.call_count > 0
             mock_db.commit.assert_called_once()
+
+    def test_plan_actions_schema_includes_confidence_metadata(self):
+        plan_actions_schema = CREATE_TABLES.split("CREATE TABLE IF NOT EXISTS plan_actions", 1)[1]
+        plan_actions_schema = plan_actions_schema.split("CREATE TABLE IF NOT EXISTS plan_revisions", 1)[0]
+        assert "confidence REAL NOT NULL DEFAULT 0" in plan_actions_schema
+        assert "data_sources TEXT NOT NULL DEFAULT '[]'" in plan_actions_schema
+        assert "risk_reason TEXT NOT NULL DEFAULT ''" in plan_actions_schema
 
 
 class TestPool:
@@ -145,6 +159,17 @@ class TestSearchHoldings:
         await search_latest_holdings(mock_db, "Player.Test", valuation_status="account_bound")
         call_args = mock_db.execute.call_args
         assert "valuation_status" in call_args[0][0]
+
+    @pytest.mark.asyncio
+    async def test_search_holdings_text_query_stays_parameterized(self):
+        mock_db = AsyncMock()
+        cursor = AsyncMock()
+        cursor.fetchall = AsyncMock(return_value=[])
+        mock_db.execute = AsyncMock(return_value=cursor)
+        await search_latest_holdings(mock_db, "Player.Test", query="'; DROP TABLE item_holdings; --")
+        sql, params = mock_db.execute.call_args[0]
+        assert "DROP TABLE" not in sql
+        assert "'; DROP TABLE item_holdings; --" not in params
 
 
 class TestSaveSnapshot:

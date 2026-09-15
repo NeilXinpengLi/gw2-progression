@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" aria-hidden="true" role="img">
+  <title>asset-bank</title>
+  <g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M4 9l8-5 8 5"/>
+    <path d="M6 10v8M10 10v8M14 10v8M18 10v8"/>
+    <path d="M4 20h16"/>
+    <path d="M7 8h10"/>
+  </g>
+</svg>
